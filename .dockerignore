@@ -1,0 +1,9 @@
+.git
+.agents
+.codex
+.env
+**/target
+**/node_modules
+**/dist
+backups
+quanlybaotri.zip

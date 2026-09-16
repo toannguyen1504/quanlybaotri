@@ -1,230 +1,138 @@
 # Hệ thống quản lý bảo trì thiết bị
 
-Ứng dụng nội bộ quản lý tiếp nhận, phân công và xử lý yêu cầu bảo trì. Backend là modular monolith Spring Boot 4.1.1/Java 17; frontend dùng Angular 22; dữ liệu lưu trên PostgreSQL, Redis và RabbitMQ hỗ trợ cache, token denylist, rate limit và xử lý sự kiện bất đồng bộ.
+Ứng dụng quản lý tiếp nhận, phân công và xử lý yêu cầu bảo trì. Backend được tách thành các microservice Spring Boot/Java 17 theo nghiệp vụ; frontend dùng Angular.
 
-## Cấu trúc
+## Kiến trúc
 
-- `quanlybaotri/quanlybaotri`: REST API Spring Boot.
-- `angular/first-angular-app`: Angular SPA.
-- `quanlybaotri/quanlybaotri/data/uploads`: thư mục file mặc định ở môi trường dev.
+| Thành phần | Cổng nội bộ | Trách nhiệm | Database |
+| --- | ---: | --- | --- |
+| `api-gateway` | 8080 | Điểm vào API, xác thực JWT, CORS và correlation ID | Không |
+| `identity-service` | 8081 | Đăng nhập, user, role, service client/token | `identity_db` |
+| `asset-service` | 8082 | Loại thiết bị và thiết bị | `asset_db` |
+| `maintenance-service` | 8083 | Ticket, SLA, phân công, work log, attachment và dashboard | `maintenance_db` |
+| `inventory-service` | 8084 | Linh kiện, tồn kho và linh kiện dùng cho ticket | `inventory_db` |
+| `notification-service` | 8085 | Notification | `notification_db` |
+| `organization-service` | 8086 | Phòng ban | `organization_db` |
 
-Backend được chia theo feature: `identity`, `organization`, `equipment`, `ticket`, `inventory`, `notification`, `reporting`, `shared`. Mỗi thay đổi quan trọng của phiếu ghi `ticket_events` và `outbox_events` trong cùng transaction PostgreSQL.
+Mỗi service chỉ lưu aggregate thuộc nghiệp vụ của nó. Tham chiếu sang service khác là UUID, không phải quan hệ JPA hay bảng projection. Dữ liệu hiển thị được ghép bằng bulk internal API sau khi đọc dữ liệu local.
 
-## Yêu cầu cài đặt
+```text
+identity ───────► organization
+asset ──────────► organization
+maintenance ────► identity + asset
+inventory ──────► maintenance + identity
+notification ───► identity
+```
 
-- JDK 17 và `JAVA_HOME` trỏ đến JDK 17.
-- Node.js và npm (Angular 22).
-- PostgreSQL và RabbitMQ đang chạy cục bộ.
-- Redis chạy trong Ubuntu trên WSL 2 và được chuyển tiếp tới `localhost:6379` của Windows.
-- Database dev tên `quanlybaotri`, tài khoản mặc định `postgres/123456`.
+HTTP dùng cho validate, tra cứu và xử lý đồng bộ. RabbitMQ chỉ chuyển các sự kiện sau commit cần retry:
 
-Tạo database nếu chưa có:
+- `inventory.part.used` → maintenance cập nhật chi phí và timeline idempotently.
+- `inventory.part.low-stock` → notification tạo cảnh báo.
+- `maintenance.ticket.changed` → notification; asset chỉ cập nhật trạng thái bảo trì thiết bị.
+
+Các sự kiện projection cũ như `identity.*` và `asset.equipment.changed` không còn được phát hoặc tiêu thụ.
+
+## Cấu trúc repository
+
+- `services/`: gateway và sáu Spring Boot service độc lập.
+- `contracts/events/`: contract cho các domain event còn được hỗ trợ.
+- `infra/postgres/`: khởi tạo database/user và công cụ cutover dữ liệu.
+- `infra/rabbitmq/`: exchange, queue, binding và DLQ.
+- `infra/prometheus/`, `infra/grafana/`: observability tùy chọn.
+- `angular/first-angular-app/`: Angular SPA được phục vụ bởi Nginx.
+
+Source monolith cũ đã được loại khỏi runtime và repository.
+
+## Chạy bằng Docker Compose
+
+Yêu cầu Docker Desktop với Docker Compose.
 
 ```powershell
-psql -U postgres -c "CREATE DATABASE quanlybaotri;"
+Copy-Item .env.example .env
+# Thay toàn bộ giá trị change-* trước khi dùng ngoài máy dev.
+docker compose up -d --build --wait
+docker compose ps
 ```
 
-Flyway tự tạo toàn bộ bảng và dữ liệu vai trò/SLA khi backend khởi động. Không dùng `ddl-auto=update`; Hibernate chỉ `validate` schema.
+Web chạy tại `http://localhost:4200`, gateway tại `http://localhost:8080`, RabbitMQ Management tại `http://localhost:15672`.
 
-### Cài Redis lần đầu trên Windows
+Trên database trống, tài khoản quản trị lấy từ `BOOTSTRAP_ADMIN_*` trong `.env`. Khi cutover dữ liệu, user và password hash cũ được giữ nguyên.
 
-Mở PowerShell bằng quyền Administrator và cài Ubuntu cho WSL 2:
+Dừng stack nhưng giữ dữ liệu:
 
 ```powershell
-wsl.exe --install -d Ubuntu
+docker compose down
 ```
 
-Khởi động lại Windows nếu được yêu cầu, mở Ubuntu và hoàn tất việc tạo tài khoản Linux. Sau đó cài Redis từ kho APT chính thức:
+`docker compose down -v` xóa toàn bộ database, message và file upload của stack, chỉ dùng khi chủ động reset môi trường.
 
-```bash
-sudo apt-get install -y lsb-release curl gpg
-curl -fsSL https://packages.redis.io/gpg | sudo gpg --dearmor -o /usr/share/keyrings/redis-archive-keyring.gpg
-sudo chmod 644 /usr/share/keyrings/redis-archive-keyring.gpg
-echo "deb [signed-by=/usr/share/keyrings/redis-archive-keyring.gpg] https://packages.redis.io/deb $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/redis.list
-sudo apt-get update
-sudo apt-get install -y redis
-sudo systemctl enable redis-server
-```
-
-Nếu `systemctl` báo WSL không chạy systemd, thêm cấu hình sau vào `/etc/wsl.conf`:
-
-```ini
-[boot]
-systemd=true
-```
-
-Sau đó chạy `wsl.exe --shutdown` từ PowerShell, mở lại Ubuntu và thực hiện lại lệnh `sudo systemctl enable redis-server`.
-
-Giữ cấu hình Redis mặc định chỉ bind loopback, bật protected mode và dùng cổng `6379`. Không bind `0.0.0.0` hoặc mở cổng Redis trên firewall cho môi trường dev.
-
-Script quản lý Redis từ thư mục gốc dự án:
+Observability là profile riêng:
 
 ```powershell
-.\scripts\redis-dev.ps1 start
-.\scripts\redis-dev.ps1 status
-.\scripts\redis-dev.ps1 stop
+docker compose --profile observability up -d --build --wait
 ```
 
-Lệnh `start` giữ một tiến trình WSL tối thiểu chạy ẩn để Ubuntu không tự dừng service khi không còn terminal Linux nào mở. Lệnh `stop` dừng Redis và tiến trình giữ phiên này.
-
-Nếu Redis trả `PONG` trong WSL nhưng Windows không truy cập được `localhost:6379`, bảo đảm `%UserProfile%\.wslconfig` có:
-
-```ini
-[wsl2]
-localhostForwarding=true
-networkingMode=mirrored
-```
-
-Chạy `wsl.exe --shutdown`, rồi chạy lại script với lệnh `start`.
-
-### Cài RabbitMQ lần đầu trên Windows
-
-Môi trường dev hiện dùng gói RabbitMQ `4.0.5` từ kho APT của Ubuntu 26.04. Cách cài này chỉ dành cho máy phát triển vì Ubuntu 26.04 chưa nằm trong danh sách distro được RabbitMQ hỗ trợ chính thức; production phải dùng một distro và RabbitMQ release còn được nhà cung cấp hỗ trợ. Xem [hướng dẫn cài đặt chính thức](https://www.rabbitmq.com/docs/install-debian).
-
-Trong Ubuntu WSL, cài RabbitMQ và giới hạn AMQP/Management ở loopback:
-
-```bash
-sudo apt-get update
-sudo apt-get install -y rabbitmq-server
-sudo install -d -m 0755 /etc/rabbitmq
-sudo tee /etc/rabbitmq/rabbitmq.conf >/dev/null <<'EOF'
-listeners.tcp.default = 127.0.0.1:5672
-management.tcp.ip = 127.0.0.1
-management.tcp.port = 15672
-EOF
-sudo systemctl disable --now rabbitmq-server
-```
-
-Sau đó quản lý RabbitMQ từ thư mục gốc dự án:
+## Build và kiểm thử
 
 ```powershell
-.\scripts\rabbitmq-dev.ps1 start
-.\scripts\rabbitmq-dev.ps1 status
-.\scripts\rabbitmq-dev.ps1 stop
+.\mvnw.cmd -s .\.mvn\settings-local.xml test
+docker compose --env-file .env.example config --quiet
 ```
 
-Lệnh `start` bật management plugin và tạo/cập nhật idempotent vhost `quanlybaotri` cùng tài khoản dev `maintenance_app/MaintenanceRabbit@123`. Đây là credential công khai chỉ dùng cho local dev. Management UI ở `http://localhost:15672`. Script giữ một tiến trình WSL riêng, nên có thể start/stop RabbitMQ độc lập với Redis.
-
-## Chạy môi trường phát triển
-
-Khởi động Redis và RabbitMQ trước:
+Frontend:
 
 ```powershell
-.\scripts\redis-dev.ps1 start
-.\scripts\rabbitmq-dev.ps1 start
-```
-
-Backend:
-
-```powershell
-cd .\quanlybaotri\quanlybaotri
-.\mvnw.cmd -s .mvn\settings-local.xml spring-boot:run
-```
-
-Frontend (terminal khác):
-
-```powershell
-cd .\angular\first-angular-app
-npm install
-npm start
-```
-
-Mở `http://localhost:4200`. Tài khoản bootstrap dev mặc định:
-
-- Username: `admin`
-- Password: `Admin@123`
-
-Đổi các giá trị này trước khi dùng ngoài máy phát triển. Swagger UI ở `http://localhost:8080/swagger-ui.html`; health check ở `http://localhost:8080/actuator/health`. RabbitMQ Management thường ở `http://localhost:15672` nếu plugin quản trị đã bật.
-
-## Biến môi trường production
-
-Chạy với profile `prod` và khai báo tối thiểu:
-
-```powershell
-$env:SPRING_PROFILES_ACTIVE="prod"
-$env:DB_URL="jdbc:postgresql://localhost:5432/quanlybaotri"
-$env:DB_USERNAME="maintenance_app"
-$env:DB_PASSWORD="replace-with-strong-password"
-$env:JWT_SECRET="replace-with-at-least-32-random-bytes"
-$env:REDIS_HOST="localhost"
-$env:REDIS_PORT="6379"
-$env:RABBITMQ_HOST="localhost"
-$env:RABBITMQ_PORT="5672"
-$env:RABBITMQ_USERNAME="maintenance_app"
-$env:RABBITMQ_PASSWORD="replace-with-strong-password"
-$env:RABBITMQ_VIRTUAL_HOST="quanlybaotri"
-$env:RABBITMQ_HEALTH_ENABLED="false"
-$env:APP_OUTBOX_CONFIRM_TIMEOUT="5s"
-$env:FILE_STORAGE_ROOT="D:\maintenance-data\uploads"
-$env:CORS_ALLOWED_ORIGIN="https://maintenance.example.com"
-$env:BOOTSTRAP_ADMIN_USERNAME="admin"
-$env:BOOTSTRAP_ADMIN_PASSWORD="replace-with-strong-password"
-$env:BOOTSTRAP_ADMIN_EMAIL="admin@example.com"
-```
-
-Sau đó chạy file JAR:
-
-```powershell
-cd .\quanlybaotri\quanlybaotri
-.\mvnw.cmd -s .mvn\settings-local.xml clean package
-java -jar .\target\quanlybaotri-0.0.1-SNAPSHOT.jar
-```
-
-## API chính
-
-Tất cả API dùng prefix `/api/v1`, Bearer JWT, thời gian UTC ISO-8601 và `ProblemDetail` cho lỗi.
-
-- Authentication và hồ sơ cá nhân: `/auth/login`, `/auth/refresh`, `/auth/logout`, `/auth/me`,
-  `/users/me/profile`, `/users/me/password`.
-- Quản trị: `/users`, `/roles`, `/departments`, `/sla-policies`.
-- Thiết bị: `/equipment-categories`, `/equipment`.
-- Phiếu: `/tickets` cùng các command `accept`, `reject`, `assign`, `start`, `wait-parts`, `resume`, `resolve`, `close`, `reopen`, `cancel`, `priority`.
-- Chi tiết phiếu: `timeline`, `work-logs`, `attachments`, `parts`; chi phí bắt đầu ở `PENDING`, sau khi sửa xong mới chọn `FREE/PAID`, và số tiền trả phí tự tính từ linh kiện đã dùng.
-- Kho: `/parts`, `/stock-movements`.
-- Thông báo và báo cáo: `/notifications`, `/reports/dashboard`.
-
-Access token sống 15 phút; refresh token sống 7 ngày và được rotation. Redis giới hạn đăng nhập 5 lần/15 phút theo tài khoản và IP. Nếu Redis lỗi, nghiệp vụ vẫn đọc PostgreSQL; nếu RabbitMQ lỗi, giao dịch chính vẫn hoàn thành và outbox relay gửi lại sau.
-
-## Kiểm thử và build
-
-```powershell
-cd .\quanlybaotri\quanlybaotri
-.\mvnw.cmd -s .mvn\settings-local.xml test
-```
-
-Integration test sử dụng PostgreSQL `quanlybaotri` và rollback dữ liệu nghiệp vụ sau mỗi test. Cần tạo một database test riêng và đặt `TEST_DB_URL`, `TEST_DB_USERNAME`, `TEST_DB_PASSWORD` khi chạy CI hoặc khi không muốn dùng database dev.
-
-Bộ test mặc định không cần RabbitMQ. Để chạy thêm smoke test với broker thật, khởi động RabbitMQ rồi bật cờ riêng:
-
-```powershell
-.\scripts\rabbitmq-dev.ps1 start
-$env:RABBITMQ_IT="true"
-cd .\quanlybaotri\quanlybaotri
-.\mvnw.cmd -s .mvn\settings-local.xml test
-Remove-Item Env:RABBITMQ_IT
-```
-
-Smoke test kiểm tra topology, outbox → consumer → notification, publisher return khi không có route và retry → DLQ. Nên trỏ `TEST_DB_*` đến database test riêng; dữ liệu do smoke test tạo được dọn sau khi chạy.
-
-```powershell
-cd .\angular\first-angular-app
+Set-Location .\angular\first-angular-app
+npm ci
 npm run build
 npm test
 ```
 
-## Backup và khôi phục
+## Xác thực nội bộ
 
-Database và thư mục `FILE_STORAGE_ROOT` phải được backup cùng thời điểm:
+- `/api/**` chỉ nhận user JWT.
+- `/internal/**` nhận service JWT có `scope=internal` và `aud` đúng service đích.
+- Service JWT được cấp qua `POST /internal/v1/auth/token` theo `client_credentials`, sống 5 phút.
+- Request gắn với người dùng chuyển tiếp user JWT; scheduler/consumer dùng service JWT.
+- `X-Correlation-Id` được chuyển tiếp xuyên suốt request.
+- HTTP client có connect timeout 2 giây, read timeout 3 giây; chỉ GET/idempotent request được retry tối đa hai lần.
+
+## Cutover dữ liệu
+
+Không chạy monolith và microservices cùng ghi một aggregate. Quy trình chuẩn:
+
+1. Drain outbox/queue và dừng mọi writer.
+2. Backup tất cả database bằng `pg_dump -Fc`, xuất RabbitMQ definitions và xác minh dump bằng `pg_restore --list`.
+3. Xuất `audit_logs` thành schema + `CSV.gz`, ghi manifest SHA-256 và đối chiếu row count.
+4. Khởi tạo sáu database bằng Flyway.
+5. Chạy `infra/postgres/migration/migrate-from-monolith.sql`; script chỉ ghi dữ liệu vào database sở hữu nghiệp vụ, không dựng projection.
+6. Import topology RabbitMQ mới và chỉ xóa queue projection cũ sau khi xác nhận rỗng.
+7. Khởi động theo thứ tự identity → organization → asset → maintenance → inventory → notification → gateway/web.
+8. Smoke test login, user, department, equipment, ticket, part, dashboard và notification.
+
+Ví dụ chạy import một lần:
 
 ```powershell
-pg_dump -U maintenance_app -Fc -d quanlybaotri -f .\backup\quanlybaotri.dump
-Compress-Archive -Path D:\maintenance-data\uploads -DestinationPath .\backup\uploads.zip
+$env:SOURCE_DB_PASSWORD = '<source-password>'
+docker compose exec -T postgres psql -U postgres -d postgres `
+  -v source_host=host.docker.internal `
+  -v source_port=5432 `
+  -v source_database=quanlybaotri `
+  -v source_user=postgres `
+  -v source_password=$env:SOURCE_DB_PASSWORD `
+  -v source_ticket_sequence=29 `
+  -f /migration/migrate-from-monolith.sql
 ```
 
-Khôi phục database vào database rỗng:
+Nếu nguồn có attachment, copy file trong `FILE_STORAGE_ROOT` đồng bộ với metadata và giữ nguyên `storage_key`. Audit legacy chỉ tồn tại trong archive, không được import lại vào database runtime.
 
-```powershell
-pg_restore -U maintenance_app -d quanlybaotri --clean --if-exists .\backup\quanlybaotri.dump
-```
+Rollback bằng cách dừng stack mới, phục hồi database dump/RabbitMQ definitions rồi chạy image và Compose cũ.
 
-Giữ nguyên đường dẫn tương đối trong thư mục upload vì metadata file nằm trong PostgreSQL. Không chỉnh sửa migration `V1__initial_schema.sql` sau khi đã triển khai; mọi thay đổi schema tiếp theo phải tạo migration `V2`, `V3`, ...
+## Quy ước vận hành
+
+- Chỉ gateway, web, RabbitMQ Management và các cổng observability tùy chọn được publish ra host.
+- PostgreSQL, Redis, AMQP và backend service chỉ nằm trên network nội bộ.
+- Mỗi service dùng `ddl-auto=validate`; thay đổi schema phải thêm Flyway migration mới, không sửa migration đã triển khai.
+- Access token sống 15 phút; refresh token sống 7 ngày và được rotation.
+- Redis giữ rate limit/token denylist; RabbitMQ dùng publisher confirm, retry và DLQ.
+- Không commit secret thật; `.env` đã được ignore.

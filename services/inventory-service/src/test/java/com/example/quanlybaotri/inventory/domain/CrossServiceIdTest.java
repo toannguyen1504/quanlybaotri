@@ -1,0 +1,3 @@
+package com.example.quanlybaotri.inventory.domain;
+import static org.assertj.core.api.Assertions.*;import java.math.BigDecimal;import java.util.UUID;import org.junit.jupiter.api.Test;
+class CrossServiceIdTest{@Test void movementKeepsTicketAndActorAsIds(){Part part=new Part("P-1","Part","piece",BigDecimal.ONE,BigDecimal.TEN);UUID ticket=UUID.randomUUID(),actor=UUID.randomUUID();StockMovement movement=new StockMovement(part,ticket,actor,StockMovementType.OUT,BigDecimal.ONE.negate(),BigDecimal.ZERO,BigDecimal.TEN,"test");assertThat(movement.getTicketId()).isEqualTo(ticket);assertThat(movement.getActorId()).isEqualTo(actor);}}

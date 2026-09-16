@@ -1,0 +1,40 @@
+spring:
+  application.name: inventory-service
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://postgres:5432/inventory_db}
+    username: ${DB_USERNAME:inventory_app}
+    password: ${DB_PASSWORD:inventory_dev}
+  jpa:
+    hibernate.ddl-auto: validate
+    open-in-view: false
+  flyway.enabled: true
+  data.redis:
+    host: ${REDIS_HOST:redis}
+    port: ${REDIS_PORT:6379}
+  rabbitmq:
+    host: ${RABBITMQ_HOST:rabbitmq}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:maintenance_app}
+    password: ${RABBITMQ_PASSWORD:maintenance_dev}
+    publisher-confirm-type: correlated
+    publisher-returns: true
+    listener.simple:
+      default-requeue-rejected: false
+      retry:
+        enabled: true
+        max-attempts: 5
+        initial-interval: 1s
+        multiplier: 2
+        max-interval: 10s
+  security.oauth2.resourceserver.jwt.jwk-set-uri: ${JWK_SET_URI:http://identity-service:8081/.well-known/jwks.json}
+server.port: 8084
+app:
+  outbox.confirm-timeout: 5s
+  maintenance-url: ${MAINTENANCE_SERVICE_URL:http://maintenance-service:8083}
+  identity-url: ${IDENTITY_URL:http://identity-service:8081}
+  service-client.secret: ${INVENTORY_SERVICE_CLIENT_SECRET:inventory-service-dev-secret}
+management:
+  server.port: 9000
+  endpoints.web.exposure.include: health,info,prometheus
+  endpoint.health.probes.enabled: true
+logging.structured.format.console: logstash

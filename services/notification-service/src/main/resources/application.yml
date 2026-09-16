@@ -1,0 +1,35 @@
+spring:
+  application.name: notification-service
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://postgres:5432/notification_db}
+    username: ${DB_USERNAME:notification_app}
+    password: ${DB_PASSWORD:notification_dev}
+  jpa:
+    hibernate.ddl-auto: validate
+    open-in-view: false
+  flyway.enabled: true
+  rabbitmq:
+    host: ${RABBITMQ_HOST:rabbitmq}
+    username: ${RABBITMQ_USERNAME:maintenance_app}
+    password: ${RABBITMQ_PASSWORD:maintenance_dev}
+    listener.simple:
+      default-requeue-rejected: false
+      retry:
+        enabled: true
+        max-attempts: 5
+        initial-interval: 1s
+        multiplier: 2
+        max-interval: 10s
+  data.redis:
+    host: ${REDIS_HOST:redis}
+    port: ${REDIS_PORT:6379}
+  security.oauth2.resourceserver.jwt.jwk-set-uri: ${JWK_SET_URI:http://identity-service:8081/.well-known/jwks.json}
+server.port: 8085
+app:
+  identity-url: ${IDENTITY_SERVICE_URL:http://identity-service:8081}
+  service-client.secret: ${NOTIFICATION_SERVICE_CLIENT_SECRET:change-notification-service-client-secret}
+management:
+  server.port: 9000
+  endpoints.web.exposure.include: health,info,prometheus
+  endpoint.health.probes.enabled: true
+logging.structured.format.console: logstash

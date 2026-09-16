@@ -12,7 +12,7 @@ interface Tokens {
 }
 @Injectable({ providedIn: 'root' })
 export class AuthService {
-  private readonly base = 'http://localhost:8080/api/v1/auth';
+  private readonly base = '/api/v1/auth';
   readonly user = signal<User | null>(this.read<User>('maintenance-user'));
   readonly authenticated = computed(() => !!this.token());
   constructor(

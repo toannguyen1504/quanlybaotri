@@ -1,0 +1,45 @@
+spring:
+  application.name: maintenance-service
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://postgres:5432/maintenance_db}
+    username: ${DB_USERNAME:maintenance_app}
+    password: ${DB_PASSWORD:maintenance_dev}
+  jpa:
+    hibernate.ddl-auto: validate
+    open-in-view: false
+  flyway.enabled: true
+  data.redis:
+    host: ${REDIS_HOST:redis}
+    port: ${REDIS_PORT:6379}
+  rabbitmq:
+    host: ${RABBITMQ_HOST:rabbitmq}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:maintenance_app}
+    password: ${RABBITMQ_PASSWORD:maintenance_dev}
+    virtual-host: ${RABBITMQ_VIRTUAL_HOST:/}
+    publisher-confirm-type: correlated
+    publisher-returns: true
+    listener.simple:
+      default-requeue-rejected: false
+      retry:
+        enabled: true
+        max-attempts: 5
+        initial-interval: 1s
+        multiplier: 2
+        max-interval: 10s
+  security.oauth2.resourceserver.jwt.jwk-set-uri: ${JWK_SET_URI:http://identity-service:8081/.well-known/jwks.json}
+  servlet.multipart:
+    max-file-size: 10MB
+    max-request-size: 10MB
+server.port: 8083
+app:
+  storage.root: ${FILE_STORAGE_ROOT:/data/uploads}
+  outbox.confirm-timeout: 5s
+  identity-url: ${IDENTITY_URL:http://identity-service:8081}
+  asset-url: ${ASSET_URL:http://asset-service:8082}
+  service-client.secret: ${MAINTENANCE_SERVICE_CLIENT_SECRET:maintenance-service-dev-secret}
+management:
+  server.port: 9000
+  endpoints.web.exposure.include: health,info,prometheus
+  endpoint.health.probes.enabled: true
+logging.structured.format.console: logstash

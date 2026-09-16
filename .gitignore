@@ -4,6 +4,7 @@
 
 # Java build output
 **/target/
+.m2-repository/
 **/.mvn/wrapper/maven-wrapper.jar
 
 # Node/Angular build output
@@ -22,6 +23,3 @@ backups/
 *.iml
 .DS_Store
 Thumbs.db
-
-# Archived source snapshot already present in the workspace
-quanlybaotri.zip

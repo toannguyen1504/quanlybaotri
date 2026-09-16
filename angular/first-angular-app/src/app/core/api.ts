@@ -3,7 +3,7 @@ import { Injectable } from '@angular/core';
 
 @Injectable({ providedIn: 'root' })
 export class Api {
-  readonly baseUrl = 'http://localhost:8080/api/v1';
+  readonly baseUrl = '/api/v1';
   constructor(private http: HttpClient) {}
   get<T>(path: string, params?: Record<string, string | number | boolean | undefined>) {
     let p = new HttpParams();

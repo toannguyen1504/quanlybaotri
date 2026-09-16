@@ -1,0 +1,56 @@
+spring:
+  application:
+    name: identity-service
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://postgres:5432/identity_db}
+    username: ${DB_USERNAME:identity_app}
+    password: ${DB_PASSWORD:identity_dev}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  flyway:
+    enabled: true
+  data:
+    redis:
+      host: ${REDIS_HOST:redis}
+      port: ${REDIS_PORT:6379}
+
+server:
+  port: 8081
+  forward-headers-strategy: framework
+
+app:
+  organization-url: ${ORGANIZATION_SERVICE_URL:http://organization-service:8086}
+  service-clients:
+    identity-secret: ${IDENTITY_SERVICE_CLIENT_SECRET:change-identity-service-client-secret}
+    asset-secret: ${ASSET_SERVICE_CLIENT_SECRET:change-asset-service-client-secret}
+    maintenance-secret: ${MAINTENANCE_SERVICE_CLIENT_SECRET:change-maintenance-service-client-secret}
+    inventory-secret: ${INVENTORY_SERVICE_CLIENT_SECRET:change-inventory-service-client-secret}
+    notification-secret: ${NOTIFICATION_SERVICE_CLIENT_SECRET:change-notification-service-client-secret}
+  jwt:
+    access-minutes: 15
+    refresh-days: 7
+    key-directory: ${JWT_KEY_DIRECTORY:/data/keys}
+  bootstrap:
+    admin:
+      username: ${BOOTSTRAP_ADMIN_USERNAME:admin}
+      password: ${BOOTSTRAP_ADMIN_PASSWORD:Admin@123}
+      email: ${BOOTSTRAP_ADMIN_EMAIL:admin@quanlybaotri.local}
+
+management:
+  server:
+    port: 9000
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+logging:
+  structured:
+    format:
+      console: logstash

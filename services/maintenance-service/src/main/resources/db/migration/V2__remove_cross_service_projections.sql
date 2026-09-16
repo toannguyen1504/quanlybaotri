@@ -1,0 +1,23 @@
+ALTER TABLE tickets DROP CONSTRAINT IF EXISTS fk_ticket_equipment;
+ALTER TABLE tickets DROP CONSTRAINT IF EXISTS fk_ticket_requester;
+ALTER TABLE tickets DROP CONSTRAINT IF EXISTS fk_ticket_assignee;
+ALTER TABLE tickets DROP CONSTRAINT IF EXISTS tickets_equipment_id_fkey;
+ALTER TABLE tickets DROP CONSTRAINT IF EXISTS tickets_requester_id_fkey;
+ALTER TABLE tickets DROP CONSTRAINT IF EXISTS tickets_assignee_id_fkey;
+ALTER TABLE ticket_assignment_history DROP CONSTRAINT IF EXISTS fk_assignment_technician;
+ALTER TABLE ticket_assignment_history DROP CONSTRAINT IF EXISTS fk_assignment_assigned_by;
+ALTER TABLE ticket_assignment_history DROP CONSTRAINT IF EXISTS ticket_assignment_history_technician_id_fkey;
+ALTER TABLE ticket_assignment_history DROP CONSTRAINT IF EXISTS ticket_assignment_history_assigned_by_id_fkey;
+ALTER TABLE ticket_events DROP CONSTRAINT IF EXISTS fk_event_actor;
+ALTER TABLE ticket_events DROP CONSTRAINT IF EXISTS ticket_events_actor_id_fkey;
+ALTER TABLE work_logs DROP CONSTRAINT IF EXISTS fk_work_log_technician;
+ALTER TABLE work_logs DROP CONSTRAINT IF EXISTS work_logs_technician_id_fkey;
+ALTER TABLE attachments DROP CONSTRAINT IF EXISTS fk_attachment_uploaded_by;
+ALTER TABLE attachments DROP CONSTRAINT IF EXISTS attachments_uploaded_by_id_fkey;
+
+DROP TABLE IF EXISTS user_roles;
+DROP TABLE IF EXISTS roles;
+DROP TABLE IF EXISTS users;
+DROP TABLE IF EXISTS equipment;
+DROP TABLE IF EXISTS equipment_categories;
+DROP TABLE IF EXISTS departments;

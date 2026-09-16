@@ -1,0 +1,47 @@
+spring:
+  application:
+    name: asset-service
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://postgres:5432/asset_db}
+    username: ${DB_USERNAME:asset_app}
+    password: ${DB_PASSWORD:asset_dev}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  flyway:
+    enabled: true
+  data:
+    redis:
+      host: ${REDIS_HOST:redis}
+      port: ${REDIS_PORT:6379}
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: ${JWK_SET_URI:http://identity-service:8081/.well-known/jwks.json}
+  rabbitmq:
+    host: ${RABBITMQ_HOST:rabbitmq}
+    username: ${RABBITMQ_USERNAME:maintenance_app}
+    password: ${RABBITMQ_PASSWORD:maintenance_dev}
+    publisher-confirm-type: correlated
+    publisher-returns: true
+    listener.simple:
+      default-requeue-rejected: false
+      retry:
+        enabled: true
+        max-attempts: 5
+        initial-interval: 1s
+        multiplier: 2
+        max-interval: 10s
+app:
+  identity-url: ${IDENTITY_SERVICE_URL:http://identity-service:8081}
+  organization-url: ${ORGANIZATION_SERVICE_URL:http://organization-service:8086}
+  service-client.secret: ${ASSET_SERVICE_CLIENT_SECRET:change-asset-service-client-secret}
+server:
+  port: 8082
+management:
+  server.port: 9000
+  endpoints.web.exposure.include: health,info,prometheus
+  endpoint.health.probes.enabled: true
+logging.structured.format.console: logstash

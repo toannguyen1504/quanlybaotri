@@ -1,0 +1,19 @@
+{
+  "exchanges": [
+    {"name":"domain.events","vhost":"/","type":"topic","durable":true,"auto_delete":false,"internal":false,"arguments":{}}
+  ],
+  "queues": [
+    {"name":"asset.domain-events","vhost":"/","durable":true,"auto_delete":false,"arguments":{"x-dead-letter-exchange":"","x-dead-letter-routing-key":"asset.domain-events.dlq"}},
+    {"name":"asset.domain-events.dlq","vhost":"/","durable":true,"auto_delete":false,"arguments":{}},
+    {"name":"maintenance.domain-events","vhost":"/","durable":true,"auto_delete":false,"arguments":{"x-dead-letter-exchange":"","x-dead-letter-routing-key":"maintenance.domain-events.dlq"}},
+    {"name":"maintenance.domain-events.dlq","vhost":"/","durable":true,"auto_delete":false,"arguments":{}},
+    {"name":"notification.events","vhost":"/","durable":true,"auto_delete":false,"arguments":{"x-dead-letter-exchange":"","x-dead-letter-routing-key":"notification.events.dlq"}},
+    {"name":"notification.events.dlq","vhost":"/","durable":true,"auto_delete":false,"arguments":{}}
+  ],
+  "bindings": [
+    {"source":"domain.events","vhost":"/","destination":"asset.domain-events","destination_type":"queue","routing_key":"maintenance.ticket.changed","arguments":{}},
+    {"source":"domain.events","vhost":"/","destination":"maintenance.domain-events","destination_type":"queue","routing_key":"inventory.part.used","arguments":{}},
+    {"source":"domain.events","vhost":"/","destination":"notification.events","destination_type":"queue","routing_key":"maintenance.ticket.changed","arguments":{}},
+    {"source":"domain.events","vhost":"/","destination":"notification.events","destination_type":"queue","routing_key":"inventory.part.low-stock","arguments":{}}
+  ]
+}
