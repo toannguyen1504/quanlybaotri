@@ -1,0 +1,27 @@
+# Local configuration and secrets
+.env
+*.local
+
+# Java build output
+**/target/
+**/.mvn/wrapper/maven-wrapper.jar
+
+# Node/Angular build output
+**/node_modules/
+**/dist/
+**/.angular/
+
+# Runtime data
+data/
+backups/
+*.log
+
+# IDE / operating system
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+
+# Archived source snapshot already present in the workspace
+quanlybaotri.zip
