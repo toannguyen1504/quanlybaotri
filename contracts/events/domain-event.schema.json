@@ -4,7 +4,17 @@
   "title": "DomainEvent",
   "type": "object",
   "additionalProperties": false,
-  "required": ["eventId", "eventType", "schemaVersion", "aggregateType", "aggregateId", "occurredAt", "producer", "correlationId", "data"],
+  "required": [
+    "eventId",
+    "eventType",
+    "schemaVersion",
+    "aggregateType",
+    "aggregateId",
+    "occurredAt",
+    "producer",
+    "correlationId",
+    "data"
+  ],
   "properties": {
     "eventId": { "type": "string", "format": "uuid" },
     "eventType": { "type": "string", "minLength": 3 },

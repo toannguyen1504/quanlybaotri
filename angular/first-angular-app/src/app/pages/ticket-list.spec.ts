@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { ActivatedRoute, convertToParamMap, provideRouter, Router } from '@angular/router';
-import { of } from 'rxjs';
+import { of, Subject } from 'rxjs';
 import { describe, expect, it, vi } from 'vitest';
 import { Api } from '../core/api';
 import { AuthService } from '../core/auth';
@@ -44,6 +44,7 @@ describe('TicketListPage', () => {
       get: vi.fn((path: string) =>
         of(path === '/tickets/summary' ? { total: 7, open: 4, dueSoon: 2, overdue: 1 } : page),
       ),
+      download: vi.fn(() => of(new Blob(['excel']))),
     };
     const route = { queryParamMap: of(convertToParamMap(query)) };
     await TestBed.configureTestingModule({
@@ -107,5 +108,47 @@ describe('TicketListPage', () => {
     });
     expect(component.slaLabel(completed)).toBe('Đã hoàn tất');
     expect(component.slaTime(completed)).toBe('Không còn cảnh báo SLA');
+  });
+
+  it('exports all tickets using the active filters and an xlsx filename', async () => {
+    const { component, api } = await setup();
+    component.q = '  máy in  ';
+    component.status = 'IN_PROGRESS';
+    component.priority = 'HIGH';
+    component.view = 'DUE_SOON';
+    const saveFile = vi
+      .spyOn(component as unknown as { saveFile: (file: Blob, name: string) => void }, 'saveFile')
+      .mockImplementation(() => undefined);
+
+    component.exportTickets();
+
+    expect(api.download).toHaveBeenCalledWith('/tickets/export', {
+      q: 'máy in',
+      status: 'IN_PROGRESS',
+      priority: 'HIGH',
+      view: 'DUE_SOON',
+    });
+    expect(saveFile).toHaveBeenCalledWith(
+      expect.any(Blob),
+      expect.stringMatching(/^phieu-bao-tri-\d{8}-\d{6}\.xlsx$/),
+    );
+    expect(component.exporting()).toBe(false);
+  });
+
+  it('prevents duplicate exports and preserves a visible error when the request fails', async () => {
+    const { component, api } = await setup();
+    const pending = new Subject<Blob>();
+    api.download.mockReturnValue(pending.asObservable());
+
+    component.exportTickets();
+    component.exportTickets();
+
+    expect(api.download).toHaveBeenCalledTimes(1);
+    expect(component.exporting()).toBe(true);
+
+    pending.error(new Error('network error'));
+
+    expect(component.exporting()).toBe(false);
+    expect(component.exportError()).toContain('Không thể xuất Excel');
   });
 });

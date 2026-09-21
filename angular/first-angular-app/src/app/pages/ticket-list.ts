@@ -26,10 +26,29 @@ type SlaState = 'ON_TRACK' | 'DUE_SOON' | 'OVERDUE' | 'COMPLETED';
         <h1>Phiếu sửa chữa</h1>
         <p class="muted">Theo dõi tiến độ, SLA và người phụ trách trong từng yêu cầu.</p>
       </div>
-      @if (auth.hasAny(['REQUESTER', 'ADMIN', 'MANAGER'])) {
-        <a class="primary button" routerLink="/tickets/new">+ Tạo phiếu mới</a>
-      }
+      <div class="ticket-page-actions">
+        <button
+          type="button"
+          class="secondary ticket-export-button"
+          [disabled]="exporting()"
+          title="Xuất toàn bộ kết quả đang lọc"
+          (click)="exportTickets()"
+        >
+          <span aria-hidden="true">⇩</span>
+          {{ exporting() ? 'Đang xuất...' : 'Xuất Excel' }}
+        </button>
+        @if (auth.hasAny(['REQUESTER', 'ADMIN', 'MANAGER'])) {
+          <a class="primary button" routerLink="/tickets/new">+ Tạo phiếu mới</a>
+        }
+      </div>
     </header>
+
+    @if (exportError()) {
+      <div class="ticket-export-error" role="alert">
+        <span>{{ exportError() }}</span>
+        <button type="button" aria-label="Đóng thông báo" (click)="exportError.set('')">×</button>
+      </div>
+    }
 
     <section class="ticket-overview" aria-label="Tổng quan phiếu bảo trì">
       @for (card of overviewCards; track card.view) {
@@ -265,6 +284,8 @@ export class TicketListPage implements OnInit {
   readonly loading = signal(true);
   readonly summaryLoading = signal(true);
   readonly error = signal('');
+  readonly exporting = signal(false);
+  readonly exportError = signal('');
 
   q = '';
   status: TicketStatus | '' = '';
@@ -355,6 +376,30 @@ export class TicketListPage implements OnInit {
           this.page.set(null);
           this.error.set(error?.error?.message || 'Vui lòng kiểm tra kết nối và thử lại.');
           this.loading.set(false);
+        },
+      });
+  }
+
+  exportTickets() {
+    if (this.exporting()) return;
+    this.exporting.set(true);
+    this.exportError.set('');
+    this.api
+      .download('/tickets/export', {
+        q: this.q.trim(),
+        status: this.status,
+        priority: this.priority,
+        view: this.view,
+      })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (file) => {
+          this.saveFile(file, this.exportFilename());
+          this.exporting.set(false);
+        },
+        error: () => {
+          this.exportError.set('Không thể xuất Excel. Vui lòng kiểm tra kết nối và thử lại.');
+          this.exporting.set(false);
         },
       });
   }
@@ -465,6 +510,24 @@ export class TicketListPage implements OnInit {
     const hours = Math.ceil(minutes / 60);
     if (hours < 24) return `${hours} giờ`;
     return `${Math.ceil(hours / 24)} ngày`;
+  }
+
+  private saveFile(file: Blob, filename: string) {
+    const url = URL.createObjectURL(file);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  private exportFilename(now = new Date()) {
+    const pad = (value: number) => String(value).padStart(2, '0');
+    return `phieu-bao-tri-${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(
+      now.getHours(),
+    )}${pad(now.getMinutes())}${pad(now.getSeconds())}.xlsx`;
   }
 
   private navigate(page: number) {

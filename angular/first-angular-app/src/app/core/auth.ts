@@ -29,9 +29,7 @@ export class AuthService {
     );
   }
   loadMe() {
-    return this.http.get<User>(this.base + '/me').pipe(
-      tap((u) => this.updateCurrentUser(u)),
-    );
+    return this.http.get<User>(this.base + '/me').pipe(tap((u) => this.updateCurrentUser(u)));
   }
   updateCurrentUser(user: User) {
     this.user.set(user);

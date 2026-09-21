@@ -6,5 +6,7 @@ import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface AssignmentRepository extends JpaRepository<TicketAssignment, UUID> {
-    Optional<TicketAssignment> findFirstByTicketIdAndUnassignedAtIsNullOrderByAssignedAtDesc(UUID ticketId);
+    Optional<TicketAssignment> findFirstByTicketIdAndUnassignedAtIsNullOrderByAssignedAtDesc(
+        UUID ticketId
+    );
 }

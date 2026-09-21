@@ -6,6 +6,11 @@ import org.springframework.context.annotation.Configuration;
 
 @Configuration
 public class RabbitConfig {
+
     public static final String EXCHANGE = "domain.events";
-    @Bean TopicExchange domainEventsExchange() { return new TopicExchange(EXCHANGE, true, false); }
+
+    @Bean
+    TopicExchange domainEventsExchange() {
+        return new TopicExchange(EXCHANGE, true, false);
+    }
 }

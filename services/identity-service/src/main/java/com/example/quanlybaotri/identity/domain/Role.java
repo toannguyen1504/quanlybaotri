@@ -11,15 +11,17 @@ import java.util.UUID;
 @Entity
 @Table(name = "roles")
 public class Role {
+
     @Id
     private UUID id;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, unique = true, length = 30)
     private RoleName name;
+
     private String description;
 
-    protected Role() {
-    }
+    protected Role() {}
 
     public UUID getId() {
         return id;

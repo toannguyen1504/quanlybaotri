@@ -12,13 +12,18 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 @Component
 class CorrelationIdFilter extends OncePerRequestFilter {
+
     static final String HEADER = "X-Correlation-Id";
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
-            throws ServletException, IOException {
+    protected void doFilterInternal(
+        HttpServletRequest request,
+        HttpServletResponse response,
+        FilterChain chain
+    ) throws ServletException, IOException {
         String value = request.getHeader(HEADER);
-        String correlationId = value == null || value.isBlank() ? UUID.randomUUID().toString() : value;
+        String correlationId =
+            value == null || value.isBlank() ? UUID.randomUUID().toString() : value;
         response.setHeader(HEADER, correlationId);
         MDC.put("correlationId", correlationId);
         try {

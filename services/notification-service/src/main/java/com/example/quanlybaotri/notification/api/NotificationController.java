@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/v1/notifications")
 public class NotificationController {
+
     private final NotificationRepository repo;
     private final CurrentUser current;
 
@@ -38,9 +39,12 @@ public class NotificationController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @Transactional
     public void read(@PathVariable UUID id) {
-        Notification n = repo.findById(id).orElseThrow(() -> ApiException.notFound("Không tìm thấy thông báo"));
-        if (!n.getUserId().equals(current.require().id()))
-            throw ApiException.forbidden("Không có quyền đọc thông báo");
+        Notification n = repo
+            .findById(id)
+            .orElseThrow(() -> ApiException.notFound("Không tìm thấy thông báo"));
+        if (!n.getUserId().equals(current.require().id())) throw ApiException.forbidden(
+            "Không có quyền đọc thông báo"
+        );
         n.read();
     }
 
@@ -51,14 +55,29 @@ public class NotificationController {
         repo.findByUserIdAndReadAtIsNull(current.require().id()).forEach(Notification::read);
     }
 
-    public record Count(long count) {
-    }
+    public record Count(long count) {}
 
-    public record View(UUID id, String type, String title, String message, String referenceType, UUID referenceId,
-            Instant readAt, Instant createdAt) {
+    public record View(
+        UUID id,
+        String type,
+        String title,
+        String message,
+        String referenceType,
+        UUID referenceId,
+        Instant readAt,
+        Instant createdAt
+    ) {
         static View from(Notification n) {
-            return new View(n.getId(), n.getType(), n.getTitle(), n.getMessage(), n.getReferenceType(),
-                    n.getReferenceId(), n.getReadAt(), n.getCreatedAt());
+            return new View(
+                n.getId(),
+                n.getType(),
+                n.getTitle(),
+                n.getMessage(),
+                n.getReferenceType(),
+                n.getReferenceId(),
+                n.getReadAt(),
+                n.getCreatedAt()
+            );
         }
     }
 }

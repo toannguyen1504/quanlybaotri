@@ -18,7 +18,8 @@ import { AuthService } from '../core/auth';
     </header>
     @if (auth.user()?.mustChangePassword) {
       <div class="alert password-warning">
-        Bạn đang dùng mật khẩu được quản trị viên cấp. Hãy đổi mật khẩu trước khi tiếp tục sử dụng lâu dài.
+        Bạn đang dùng mật khẩu được quản trị viên cấp. Hãy đổi mật khẩu trước khi tiếp tục sử dụng
+        lâu dài.
       </div>
     }
     <form class="panel form" (ngSubmit)="change()">

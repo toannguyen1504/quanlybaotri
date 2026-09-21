@@ -7,30 +7,49 @@ import org.springframework.web.client.RestClient;
 
 @Component
 public class ServiceTokenProvider {
+
     private final RestClient client;
     private final String secret;
     private volatile Cached cached;
 
-    public ServiceTokenProvider(RestClient.Builder builder,
-            @Value("${app.identity-url:http://identity-service:8081}") String base,
-            @Value("${app.service-client.secret}") String secret) {
+    public ServiceTokenProvider(
+        RestClient.Builder builder,
+        @Value("${app.identity-url:http://identity-service:8081}") String base,
+        @Value("${app.service-client.secret}") String secret
+    ) {
         this.client = builder.baseUrl(base).build();
         this.secret = secret;
     }
 
     public synchronized String token(String audience) {
         Instant now = Instant.now();
-        if (cached != null && cached.audience().equals(audience) && cached.expiresAt().isAfter(now.plusSeconds(30)))
-            return cached.value();
-        TokenResponse response = client.post().uri(uri -> uri.path("/internal/v1/auth/token")
-                .queryParam("grant_type", "client_credentials").queryParam("audience", audience).build())
-                .headers(headers -> headers.setBasicAuth("maintenance-service", secret)).retrieve()
-                .body(TokenResponse.class);
+        if (
+            cached != null &&
+            cached.audience().equals(audience) &&
+            cached.expiresAt().isAfter(now.plusSeconds(30))
+        ) return cached.value();
+        TokenResponse response = client
+            .post()
+            .uri(uri ->
+                uri
+                    .path("/internal/v1/auth/token")
+                    .queryParam("grant_type", "client_credentials")
+                    .queryParam("audience", audience)
+                    .build()
+            )
+            .headers(headers -> headers.setBasicAuth("maintenance-service", secret))
+            .retrieve()
+            .body(TokenResponse.class);
         if (response == null) throw new IllegalStateException("Identity returned no service token");
-        cached = new Cached(audience, response.accessToken(), now.plusSeconds(response.expiresIn()));
+        cached = new Cached(
+            audience,
+            response.accessToken(),
+            now.plusSeconds(response.expiresIn())
+        );
         return cached.value();
     }
 
     private record Cached(String audience, String value, Instant expiresAt) {}
+
     private record TokenResponse(String accessToken, String tokenType, long expiresIn) {}
 }

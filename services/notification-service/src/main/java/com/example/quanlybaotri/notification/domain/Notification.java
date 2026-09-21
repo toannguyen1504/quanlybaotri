@@ -5,34 +5,56 @@ import java.time.Instant;
 import java.util.UUID;
 
 @Entity
-@Table(name = "notifications", uniqueConstraints = @UniqueConstraint(name = "uk_notification_event_user", columnNames = {
-        "event_id", "user_id" }))
+@Table(
+    name = "notifications",
+    uniqueConstraints = @UniqueConstraint(
+        name = "uk_notification_event_user",
+        columnNames = { "event_id", "user_id" }
+    )
+)
 public class Notification {
+
     @Id
     private UUID id;
+
     @Column(name = "user_id", nullable = false)
     private UUID userId;
+
     @Column(name = "event_id", nullable = false)
     private UUID eventId;
+
     @Column(nullable = false, length = 50)
     private String type;
+
     @Column(nullable = false, length = 200)
     private String title;
+
     @Column(nullable = false, length = 1000)
     private String message;
+
     @Column(name = "reference_type", length = 50)
     private String referenceType;
+
     @Column(name = "reference_id")
     private UUID referenceId;
+
     @Column(name = "read_at")
     private Instant readAt;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
-    protected Notification() {
-    }
+    protected Notification() {}
 
-    public Notification(UUID userId, UUID event, String type, String title, String msg, String refType, UUID ref) {
+    public Notification(
+        UUID userId,
+        UUID event,
+        String type,
+        String title,
+        String msg,
+        String refType,
+        UUID ref
+    ) {
         id = UUID.randomUUID();
         this.userId = userId;
         eventId = event;
@@ -45,8 +67,7 @@ public class Notification {
     }
 
     public void read() {
-        if (readAt == null)
-            readAt = Instant.now();
+        if (readAt == null) readAt = Instant.now();
     }
 
     public UUID getId() {

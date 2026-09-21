@@ -3,8 +3,8 @@ package com.example.quanlybaotri.identity.api;
 import com.example.quanlybaotri.identity.application.AuthService;
 import com.example.quanlybaotri.identity.application.TokenStore;
 import com.example.quanlybaotri.identity.domain.UserAccount;
-import com.example.quanlybaotri.shared.security.CurrentUser;
 import com.example.quanlybaotri.organization.client.OrganizationClient;
+import com.example.quanlybaotri.shared.security.CurrentUser;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -22,20 +22,29 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/v1/auth")
 public class AuthController {
+
     private final AuthService auth;
     private final CurrentUser currentUser;
     private final TokenStore tokenStore;
     private final OrganizationClient organizations;
 
-    public AuthController(AuthService auth, CurrentUser currentUser, TokenStore tokenStore,OrganizationClient organizations) {
+    public AuthController(
+        AuthService auth,
+        CurrentUser currentUser,
+        TokenStore tokenStore,
+        OrganizationClient organizations
+    ) {
         this.auth = auth;
         this.currentUser = currentUser;
         this.tokenStore = tokenStore;
-        this.organizations=organizations;
+        this.organizations = organizations;
     }
 
     @PostMapping("/login")
-    public AuthService.TokenPair login(@Valid @RequestBody LoginRequest request, HttpServletRequest http) {
+    public AuthService.TokenPair login(
+        @Valid @RequestBody LoginRequest request,
+        HttpServletRequest http
+    ) {
         return auth.login(request.username(), request.password(), clientIp(http));
     }
 
@@ -45,20 +54,26 @@ public class AuthController {
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<Void> logout(@RequestBody(required = false) RefreshRequest request,
-            JwtAuthenticationToken principal) {
-        if (request != null)
-            auth.logout(request.refreshToken());
+    public ResponseEntity<Void> logout(
+        @RequestBody(required = false) RefreshRequest request,
+        JwtAuthenticationToken principal
+    ) {
+        if (request != null) auth.logout(request.refreshToken());
         Instant expires = principal.getToken().getExpiresAt();
-        if (expires != null)
-            tokenStore.revoke(principal.getToken().getId(), Duration.between(Instant.now(), expires));
+        if (expires != null) tokenStore.revoke(
+            principal.getToken().getId(),
+            Duration.between(Instant.now(), expires)
+        );
         return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/me")
     public MeResponse me() {
         UserAccount u = currentUser.require();
-        return MeResponse.from(u,u.getDepartmentId()==null?null:organizations.find(u.getDepartmentId()));
+        return MeResponse.from(
+            u,
+            u.getDepartmentId() == null ? null : organizations.find(u.getDepartmentId())
+        );
     }
 
     private String clientIp(HttpServletRequest request) {
@@ -66,20 +81,39 @@ public class AuthController {
         return forwarded == null ? request.getRemoteAddr() : forwarded.split(",")[0].trim();
     }
 
-    public record LoginRequest(@NotBlank String username, @NotBlank String password) {
-    }
+    public record LoginRequest(@NotBlank String username, @NotBlank String password) {}
 
-    public record RefreshRequest(@NotBlank String refreshToken) {
-    }
+    public record RefreshRequest(@NotBlank String refreshToken) {}
 
-    public record MeResponse(java.util.UUID id, String username, String email, String fullName, String phone,
-            java.util.UUID departmentId, String departmentName, boolean enabled, boolean mustChangePassword,
-            Set<String> roles) {
-        public static MeResponse from(UserAccount u,OrganizationClient.DepartmentRef department) {
-            return new MeResponse(u.getId(), u.getUsername(), u.getEmail(), u.getFullName(), u.getPhone(),
-                    u.getDepartmentId(),department==null?null:department.name(), u.isEnabled(),
-                    u.isMustChangePassword(),
-                    u.getRoles().stream().map(r -> r.getName().name()).collect(java.util.stream.Collectors.toSet()));
+    public record MeResponse(
+        java.util.UUID id,
+        String username,
+        String email,
+        String fullName,
+        String phone,
+        java.util.UUID departmentId,
+        String departmentName,
+        boolean enabled,
+        boolean mustChangePassword,
+        Set<String> roles
+    ) {
+        public static MeResponse from(UserAccount u, OrganizationClient.DepartmentRef department) {
+            return new MeResponse(
+                u.getId(),
+                u.getUsername(),
+                u.getEmail(),
+                u.getFullName(),
+                u.getPhone(),
+                u.getDepartmentId(),
+                department == null ? null : department.name(),
+                u.isEnabled(),
+                u.isMustChangePassword(),
+                u
+                    .getRoles()
+                    .stream()
+                    .map(r -> r.getName().name())
+                    .collect(java.util.stream.Collectors.toSet())
+            );
         }
     }
 }

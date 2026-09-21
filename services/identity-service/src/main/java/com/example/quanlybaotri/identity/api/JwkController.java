@@ -8,8 +8,12 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 public class JwkController {
+
     private final RSAKey key;
-    public JwkController(RSAKey key) { this.key = key; }
+
+    public JwkController(RSAKey key) {
+        this.key = key;
+    }
 
     @GetMapping("/.well-known/jwks.json")
     public Map<String, Object> keys() {

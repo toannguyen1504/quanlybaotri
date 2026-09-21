@@ -4,15 +4,15 @@
 
 ## Kiến trúc
 
-| Thành phần | Cổng nội bộ | Trách nhiệm | Database |
-| --- | ---: | --- | --- |
-| `api-gateway` | 8080 | Điểm vào API, xác thực JWT, CORS và correlation ID | Không |
-| `identity-service` | 8081 | Đăng nhập, user, role, service client/token | `identity_db` |
-| `asset-service` | 8082 | Loại thiết bị và thiết bị | `asset_db` |
-| `maintenance-service` | 8083 | Ticket, SLA, phân công, work log, attachment và dashboard | `maintenance_db` |
-| `inventory-service` | 8084 | Linh kiện, tồn kho và linh kiện dùng cho ticket | `inventory_db` |
-| `notification-service` | 8085 | Notification | `notification_db` |
-| `organization-service` | 8086 | Phòng ban | `organization_db` |
+| Thành phần             | Cổng nội bộ | Trách nhiệm                                               | Database          |
+| ---------------------- | ----------: | --------------------------------------------------------- | ----------------- |
+| `api-gateway`          |        8080 | Điểm vào API, xác thực JWT, CORS và correlation ID        | Không             |
+| `identity-service`     |        8081 | Đăng nhập, user, role, service client/token               | `identity_db`     |
+| `asset-service`        |        8082 | Loại thiết bị và thiết bị                                 | `asset_db`        |
+| `maintenance-service`  |        8083 | Ticket, SLA, phân công, work log, attachment và dashboard | `maintenance_db`  |
+| `inventory-service`    |        8084 | Linh kiện, tồn kho và linh kiện dùng cho ticket           | `inventory_db`    |
+| `notification-service` |        8085 | Notification                                              | `notification_db` |
+| `organization-service` |        8086 | Phòng ban                                                 | `organization_db` |
 
 Mỗi service chỉ lưu aggregate thuộc nghiệp vụ của nó. Tham chiếu sang service khác là UUID, không phải quan hệ JPA hay bảng projection. Dữ liệu hiển thị được ghép bằng bulk internal API sau khi đọc dữ liệu local.
 

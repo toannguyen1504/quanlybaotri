@@ -11,6 +11,7 @@ import java.util.UUID;
 
 @MappedSuperclass
 public abstract class BaseEntity {
+
     @Id
     protected UUID id;
 
@@ -25,11 +26,9 @@ public abstract class BaseEntity {
 
     @PrePersist
     protected void prePersist() {
-        if (id == null)
-            id = UUID.randomUUID();
+        if (id == null) id = UUID.randomUUID();
         Instant now = Instant.now();
-        if (createdAt == null)
-            createdAt = now;
+        if (createdAt == null) createdAt = now;
         updatedAt = now;
     }
 

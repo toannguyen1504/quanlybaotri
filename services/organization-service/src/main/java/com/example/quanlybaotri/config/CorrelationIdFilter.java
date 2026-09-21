@@ -1,3 +1,26 @@
 package com.example.quanlybaotri.config;
-import jakarta.servlet.*;import jakarta.servlet.http.*;import java.io.IOException;import java.util.UUID;import org.slf4j.MDC;import org.springframework.stereotype.Component;import org.springframework.web.filter.OncePerRequestFilter;
-@Component public class CorrelationIdFilter extends OncePerRequestFilter{protected void doFilterInternal(HttpServletRequest r,HttpServletResponse s,FilterChain c)throws ServletException,IOException{String id=r.getHeader("X-Correlation-Id");if(id==null||id.isBlank())id=UUID.randomUUID().toString();s.setHeader("X-Correlation-Id",id);MDC.put("correlationId",id);try{c.doFilter(r,s);}finally{MDC.remove("correlationId");}}}
+
+import jakarta.servlet.*;
+import jakarta.servlet.http.*;
+import java.io.IOException;
+import java.util.UUID;
+import org.slf4j.MDC;
+import org.springframework.stereotype.Component;
+import org.springframework.web.filter.OncePerRequestFilter;
+
+@Component
+public class CorrelationIdFilter extends OncePerRequestFilter {
+
+    protected void doFilterInternal(HttpServletRequest r, HttpServletResponse s, FilterChain c)
+        throws ServletException, IOException {
+        String id = r.getHeader("X-Correlation-Id");
+        if (id == null || id.isBlank()) id = UUID.randomUUID().toString();
+        s.setHeader("X-Correlation-Id", id);
+        MDC.put("correlationId", id);
+        try {
+            c.doFilter(r, s);
+        } finally {
+            MDC.remove("correlationId");
+        }
+    }
+}

@@ -1,6 +1,50 @@
 package com.example.quanlybaotri.config;
 
-import java.util.*;import org.springframework.context.annotation.*;import org.springframework.http.HttpMethod;import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;import org.springframework.security.config.annotation.web.builders.HttpSecurity;import org.springframework.security.config.http.SessionCreationPolicy;import org.springframework.security.core.*;import org.springframework.security.core.authority.SimpleGrantedAuthority;import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;import org.springframework.security.web.SecurityFilterChain;
-@Configuration @EnableMethodSecurity public class SecurityConfig{
- @Bean SecurityFilterChain security(HttpSecurity http)throws Exception{JwtAuthenticationConverter c=new JwtAuthenticationConverter();c.setJwtGrantedAuthoritiesConverter(jwt->{List<GrantedAuthority>a=new ArrayList<>();List<String>roles=jwt.getClaimAsStringList("roles");if(roles!=null)roles.forEach(r->a.add(new SimpleGrantedAuthority(r)));String scope=jwt.getClaimAsString("scope");if(scope!=null)Arrays.stream(scope.split(" ")).filter(s->!s.isBlank()).forEach(s->a.add(new SimpleGrantedAuthority("SCOPE_"+s)));return a;});return http.csrf(x->x.disable()).sessionManagement(x->x.sessionCreationPolicy(SessionCreationPolicy.STATELESS)).authorizeHttpRequests(a->a.requestMatchers("/actuator/**").permitAll().requestMatchers(HttpMethod.OPTIONS,"/**").permitAll().requestMatchers("/internal/**").hasAuthority("SCOPE_internal").requestMatchers("/api/**").hasAnyRole("REQUESTER","TECHNICIAN","MANAGER","ADMIN").anyRequest().denyAll()).oauth2ResourceServer(o->o.jwt(j->j.jwtAuthenticationConverter(c))).build();}
+import java.util.*;
+import org.springframework.context.annotation.*;
+import org.springframework.http.HttpMethod;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.core.*;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
+import org.springframework.security.web.SecurityFilterChain;
+
+@Configuration
+@EnableMethodSecurity
+public class SecurityConfig {
+
+    @Bean
+    SecurityFilterChain security(HttpSecurity http) throws Exception {
+        JwtAuthenticationConverter c = new JwtAuthenticationConverter();
+        c.setJwtGrantedAuthoritiesConverter(jwt -> {
+            List<GrantedAuthority> a = new ArrayList<>();
+            List<String> roles = jwt.getClaimAsStringList("roles");
+            if (roles != null) roles.forEach(r -> a.add(new SimpleGrantedAuthority(r)));
+            String scope = jwt.getClaimAsString("scope");
+            if (scope != null) Arrays.stream(scope.split(" "))
+                .filter(s -> !s.isBlank())
+                .forEach(s -> a.add(new SimpleGrantedAuthority("SCOPE_" + s)));
+            return a;
+        });
+        return http
+            .csrf(x -> x.disable())
+            .sessionManagement(x -> x.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .authorizeHttpRequests(a ->
+                a
+                    .requestMatchers("/actuator/**")
+                    .permitAll()
+                    .requestMatchers(HttpMethod.OPTIONS, "/**")
+                    .permitAll()
+                    .requestMatchers("/internal/**")
+                    .hasAuthority("SCOPE_internal")
+                    .requestMatchers("/api/**")
+                    .hasAnyRole("REQUESTER", "TECHNICIAN", "MANAGER", "ADMIN")
+                    .anyRequest()
+                    .denyAll()
+            )
+            .oauth2ResourceServer(o -> o.jwt(j -> j.jwtAuthenticationConverter(c)))
+            .build();
+    }
 }

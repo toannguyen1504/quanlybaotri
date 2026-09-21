@@ -16,15 +16,17 @@ import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 
 class JwtServiceTest {
+
     @Test
     void serviceTokenHasInternalScopeTargetAudienceAndFiveMinuteLifetime() throws Exception {
         var generator = KeyPairGenerator.getInstance("RSA");
         generator.initialize(2048);
         var pair = generator.generateKeyPair();
         var publicKey = (RSAPublicKey) pair.getPublic();
-        var rsa = new RSAKey.Builder(publicKey).privateKey((RSAPrivateKey) pair.getPrivate()).build();
-        var encoder = new NimbusJwtEncoder(
-                new ImmutableJWKSet<SecurityContext>(new JWKSet(rsa)));
+        var rsa = new RSAKey.Builder(publicKey)
+            .privateKey((RSAPrivateKey) pair.getPrivate())
+            .build();
+        var encoder = new NimbusJwtEncoder(new ImmutableJWKSet<SecurityContext>(new JWKSet(rsa)));
         var service = new JwtService(encoder, 15);
 
         var issued = service.issueService("maintenance-service", "asset-service");

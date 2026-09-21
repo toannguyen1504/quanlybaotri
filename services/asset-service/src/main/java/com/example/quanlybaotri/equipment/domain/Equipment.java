@@ -6,31 +6,40 @@ import jakarta.persistence.*;
 @Entity
 @Table(name = "equipment")
 public class Equipment extends BaseEntity {
+
     @Column(name = "asset_code", nullable = false, unique = true, length = 80)
     private String assetCode;
+
     @Column(nullable = false, length = 200)
     private String name;
+
     @Column(name = "serial_number", length = 150)
     private String serialNumber;
+
     @Column(length = 150)
     private String manufacturer;
+
     @Column(length = 150)
     private String model;
+
     @Column(length = 255)
     private String location;
+
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "category_id")
     private EquipmentCategory category;
+
     @Column(name = "department_id")
     private java.util.UUID departmentId;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
     private EquipmentStatus status = EquipmentStatus.ACTIVE;
+
     @Column(nullable = false)
     private boolean active = true;
 
-    protected Equipment() {
-    }
+    protected Equipment() {}
 
     public Equipment(String code, String name, EquipmentCategory category) {
         this.assetCode = code;
@@ -38,8 +47,18 @@ public class Equipment extends BaseEntity {
         this.category = category;
     }
 
-    public void update(String code, String name, String serial, String manufacturer, String model, String location,
-            EquipmentCategory category, java.util.UUID departmentId, EquipmentStatus status, boolean active) {
+    public void update(
+        String code,
+        String name,
+        String serial,
+        String manufacturer,
+        String model,
+        String location,
+        EquipmentCategory category,
+        java.util.UUID departmentId,
+        EquipmentStatus status,
+        boolean active
+    ) {
         this.assetCode = code;
         this.name = name;
         this.serialNumber = serial;

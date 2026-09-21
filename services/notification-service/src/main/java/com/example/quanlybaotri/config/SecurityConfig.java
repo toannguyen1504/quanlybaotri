@@ -15,20 +15,37 @@ import org.springframework.security.web.SecurityFilterChain;
 @Configuration
 @EnableMethodSecurity
 public class SecurityConfig {
-    @Bean SecurityFilterChain security(HttpSecurity http) throws Exception {
+
+    @Bean
+    SecurityFilterChain security(HttpSecurity http) throws Exception {
         JwtAuthenticationConverter converter = new JwtAuthenticationConverter();
         converter.setJwtGrantedAuthoritiesConverter(jwt -> {
-            List<GrantedAuthority> result=new ArrayList<>();List<String> roles=jwt.getClaimAsStringList("roles");
-            if(roles!=null)roles.forEach(role->result.add(new SimpleGrantedAuthority(role)));
-            String scope=jwt.getClaimAsString("scope");if(scope!=null)Arrays.stream(scope.split(" ")).filter(v->!v.isBlank()).forEach(v->result.add(new SimpleGrantedAuthority("SCOPE_"+v)));return result;
+            List<GrantedAuthority> result = new ArrayList<>();
+            List<String> roles = jwt.getClaimAsStringList("roles");
+            if (roles != null) roles.forEach(role -> result.add(new SimpleGrantedAuthority(role)));
+            String scope = jwt.getClaimAsString("scope");
+            if (scope != null) Arrays.stream(scope.split(" "))
+                .filter(v -> !v.isBlank())
+                .forEach(v -> result.add(new SimpleGrantedAuthority("SCOPE_" + v)));
+            return result;
         });
-        return http.csrf(csrf -> csrf.disable())
-                .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authorizeHttpRequests(a -> a.requestMatchers("/actuator/**").permitAll()
-                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        .requestMatchers("/internal/**").hasAuthority("SCOPE_internal")
-                        .requestMatchers("/api/**").hasAnyRole("REQUESTER","TECHNICIAN","MANAGER","ADMIN")
-                        .anyRequest().denyAll())
-                .oauth2ResourceServer(o -> o.jwt(j -> j.jwtAuthenticationConverter(converter))).build();
+        return http
+            .csrf(csrf -> csrf.disable())
+            .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .authorizeHttpRequests(a ->
+                a
+                    .requestMatchers("/actuator/**")
+                    .permitAll()
+                    .requestMatchers(HttpMethod.OPTIONS, "/**")
+                    .permitAll()
+                    .requestMatchers("/internal/**")
+                    .hasAuthority("SCOPE_internal")
+                    .requestMatchers("/api/**")
+                    .hasAnyRole("REQUESTER", "TECHNICIAN", "MANAGER", "ADMIN")
+                    .anyRequest()
+                    .denyAll()
+            )
+            .oauth2ResourceServer(o -> o.jwt(j -> j.jwtAuthenticationConverter(converter)))
+            .build();
     }
 }

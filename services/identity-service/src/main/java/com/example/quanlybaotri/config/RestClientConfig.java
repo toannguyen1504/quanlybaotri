@@ -13,14 +13,22 @@ import org.springframework.web.client.RestClient;
 
 @Configuration
 public class RestClientConfig {
-    @Bean RestClient.Builder restClientBuilder(){
-        HttpClient http=HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(2)).build();
-        JdkClientHttpRequestFactory factory=new JdkClientHttpRequestFactory(http);factory.setReadTimeout(Duration.ofSeconds(3));
-        return RestClient.builder().requestFactory(factory).requestInterceptor(RestClientConfig::execute);
+
+    @Bean
+    RestClient.Builder restClientBuilder() {
+        HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(2)).build();
+        JdkClientHttpRequestFactory factory = new JdkClientHttpRequestFactory(http);
+        factory.setReadTimeout(Duration.ofSeconds(3));
+        return RestClient.builder()
+            .requestFactory(factory)
+            .requestInterceptor(RestClientConfig::execute);
     }
 
-    private static ClientHttpResponse execute(HttpRequest request, byte[] body,
-            ClientHttpRequestExecution execution) throws IOException {
+    private static ClientHttpResponse execute(
+        HttpRequest request,
+        byte[] body,
+        ClientHttpRequestExecution execution
+    ) throws IOException {
         if (request.getMethod() != HttpMethod.GET) return execution.execute(request, body);
         for (int attempt = 0; ; attempt++) {
             try {

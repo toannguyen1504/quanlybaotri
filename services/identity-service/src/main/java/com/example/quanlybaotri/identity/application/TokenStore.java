@@ -6,6 +6,7 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class TokenStore {
+
     private final StringRedisTemplate redis;
 
     public TokenStore(StringRedisTemplate redis) {
@@ -13,17 +14,14 @@ public class TokenStore {
     }
 
     public void revoke(String jti, Duration ttl) {
-        if (jti == null || ttl.isNegative() || ttl.isZero())
-            return;
+        if (jti == null || ttl.isNegative() || ttl.isZero()) return;
         try {
             redis.opsForValue().set("identity:jwt:revoked:" + jti, "1", ttl);
-        } catch (RuntimeException ignored) {
-        }
+        } catch (RuntimeException ignored) {}
     }
 
     public boolean isRevoked(String jti) {
-        if (jti == null)
-            return false;
+        if (jti == null) return false;
         try {
             return Boolean.TRUE.equals(redis.hasKey("identity:jwt:revoked:" + jti));
         } catch (RuntimeException ignored) {

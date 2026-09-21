@@ -1,3 +1,79 @@
 package com.example.quanlybaotri.inventory.domain;
-import jakarta.persistence.*;import java.math.BigDecimal;import java.time.Instant;import java.util.UUID;
-@Entity @Table(name="ticket_parts") public class TicketPart{@Id private UUID id;@Column(name="ticket_id",nullable=false)private UUID ticketId;@ManyToOne(fetch=FetchType.LAZY,optional=false)@JoinColumn(name="part_id")private Part part;@Column(nullable=false,precision=19,scale=3)private BigDecimal quantity;@Column(name="unit_cost",nullable=false,precision=19,scale=2)private BigDecimal unitCost;@Column(name="used_by_id",nullable=false)private UUID usedById;@Column(name="used_at",nullable=false)private Instant usedAt;protected TicketPart(){}public TicketPart(UUID ticketId,Part part,BigDecimal quantity,BigDecimal unitCost,UUID usedById){id=UUID.randomUUID();this.ticketId=ticketId;this.part=part;this.quantity=quantity;this.unitCost=unitCost;this.usedById=usedById;usedAt=Instant.now();}public UUID getId(){return id;}public UUID getTicketId(){return ticketId;}public Part getPart(){return part;}public BigDecimal getQuantity(){return quantity;}public BigDecimal getUnitCost(){return unitCost;}public UUID getUsedById(){return usedById;}public Instant getUsedAt(){return usedAt;}}
+
+import jakarta.persistence.*;
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.UUID;
+
+@Entity
+@Table(name = "ticket_parts")
+public class TicketPart {
+
+    @Id
+    private UUID id;
+
+    @Column(name = "ticket_id", nullable = false)
+    private UUID ticketId;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "part_id")
+    private Part part;
+
+    @Column(nullable = false, precision = 19, scale = 3)
+    private BigDecimal quantity;
+
+    @Column(name = "unit_cost", nullable = false, precision = 19, scale = 2)
+    private BigDecimal unitCost;
+
+    @Column(name = "used_by_id", nullable = false)
+    private UUID usedById;
+
+    @Column(name = "used_at", nullable = false)
+    private Instant usedAt;
+
+    protected TicketPart() {}
+
+    public TicketPart(
+        UUID ticketId,
+        Part part,
+        BigDecimal quantity,
+        BigDecimal unitCost,
+        UUID usedById
+    ) {
+        id = UUID.randomUUID();
+        this.ticketId = ticketId;
+        this.part = part;
+        this.quantity = quantity;
+        this.unitCost = unitCost;
+        this.usedById = usedById;
+        usedAt = Instant.now();
+    }
+
+    public UUID getId() {
+        return id;
+    }
+
+    public UUID getTicketId() {
+        return ticketId;
+    }
+
+    public Part getPart() {
+        return part;
+    }
+
+    public BigDecimal getQuantity() {
+        return quantity;
+    }
+
+    public BigDecimal getUnitCost() {
+        return unitCost;
+    }
+
+    public UUID getUsedById() {
+        return usedById;
+    }
+
+    public Instant getUsedAt() {
+        return usedAt;
+    }
+}

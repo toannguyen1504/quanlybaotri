@@ -8,17 +8,20 @@ import jakarta.persistence.Table;
 @Entity
 @Table(name = "equipment_categories")
 public class EquipmentCategory extends BaseEntity {
+
     @Column(nullable = false, unique = true, length = 50)
     private String code;
+
     @Column(nullable = false, length = 150)
     private String name;
+
     @Column(length = 500)
     private String description;
+
     @Column(nullable = false)
     private boolean active = true;
 
-    protected EquipmentCategory() {
-    }
+    protected EquipmentCategory() {}
 
     public EquipmentCategory(String code, String name, String description) {
         this.code = code;
@@ -34,8 +37,7 @@ public class EquipmentCategory extends BaseEntity {
     }
 
     private String normalized(String value) {
-        if (value == null || value.isBlank())
-            return null;
+        if (value == null || value.isBlank()) return null;
         return value.trim();
     }
 

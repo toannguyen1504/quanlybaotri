@@ -16,6 +16,7 @@ import org.springframework.context.annotation.Configuration;
 
 @Configuration
 public class RsaKeyMaterial {
+
     @Bean
     RSAKey rsaKey(@Value("${app.jwt.key-directory:/data/keys}") Path directory) throws Exception {
         Files.createDirectories(directory);
@@ -25,8 +26,12 @@ public class RsaKeyMaterial {
         RSAPublicKey publicKey;
         KeyFactory factory = KeyFactory.getInstance("RSA");
         if (Files.exists(privateFile) && Files.exists(publicFile)) {
-            privateKey = (RSAPrivateKey) factory.generatePrivate(new PKCS8EncodedKeySpec(Files.readAllBytes(privateFile)));
-            publicKey = (RSAPublicKey) factory.generatePublic(new X509EncodedKeySpec(Files.readAllBytes(publicFile)));
+            privateKey = (RSAPrivateKey) factory.generatePrivate(
+                new PKCS8EncodedKeySpec(Files.readAllBytes(privateFile))
+            );
+            publicKey = (RSAPublicKey) factory.generatePublic(
+                new X509EncodedKeySpec(Files.readAllBytes(publicFile))
+            );
         } else {
             KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
             generator.initialize(2048);
@@ -36,6 +41,9 @@ public class RsaKeyMaterial {
             Files.write(privateFile, privateKey.getEncoded());
             Files.write(publicFile, publicKey.getEncoded());
         }
-        return new RSAKey.Builder(publicKey).privateKey(privateKey).keyID("maintenance-identity-v1").build();
+        return new RSAKey.Builder(publicKey)
+            .privateKey(privateKey)
+            .keyID("maintenance-identity-v1")
+            .build();
     }
 }

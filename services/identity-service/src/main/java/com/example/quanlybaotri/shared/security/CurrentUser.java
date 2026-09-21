@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class CurrentUser {
+
     private final UserRepository users;
 
     public CurrentUser(UserRepository users) {
@@ -16,7 +17,8 @@ public class CurrentUser {
 
     public UserAccount require() {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
-        return users.findWithRolesByUsername(username)
-                .orElseThrow(() -> ApiException.notFound("Không tìm thấy tài khoản hiện tại"));
+        return users
+            .findWithRolesByUsername(username)
+            .orElseThrow(() -> ApiException.notFound("Không tìm thấy tài khoản hiện tại"));
     }
 }

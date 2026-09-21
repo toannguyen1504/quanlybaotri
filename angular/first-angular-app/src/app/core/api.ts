@@ -23,7 +23,11 @@ export class Api {
     form.append('file', file);
     return this.http.post<T>(this.baseUrl + path, form);
   }
-  download(path: string) {
-    return this.http.get(this.baseUrl + path, { responseType: 'blob' });
+  download(path: string, params?: Record<string, string | number | boolean | undefined>) {
+    let p = new HttpParams();
+    Object.entries(params ?? {}).forEach(([k, v]) => {
+      if (v !== undefined && v !== '') p = p.set(k, String(v));
+    });
+    return this.http.get(this.baseUrl + path, { params: p, responseType: 'blob' });
   }
 }

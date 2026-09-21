@@ -7,24 +7,30 @@ import java.util.UUID;
 @Entity
 @Table(name = "sla_policies")
 public class SlaPolicy {
+
     @Id
     private UUID id;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, unique = true, length = 20)
     private TicketPriority priority;
+
     @Column(name = "response_minutes", nullable = false)
     private int responseMinutes;
+
     @Column(name = "resolution_minutes", nullable = false)
     private int resolutionMinutes;
+
     @Column(nullable = false)
     private boolean active = true;
+
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
+
     @Version
     private long version;
 
-    protected SlaPolicy() {
-    }
+    protected SlaPolicy() {}
 
     public void update(int response, int resolution, boolean active) {
         this.responseMinutes = response;

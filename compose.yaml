@@ -34,7 +34,7 @@ services:
       - ./infra/postgres/migration:/migration:ro
     networks: [edge, backend]
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d postgres']
       interval: 5s
       timeout: 5s
       retries: 20
@@ -46,12 +46,12 @@ services:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
     ports:
-      - "15672:15672"
+      - '15672:15672'
     volumes:
       - rabbitmq-data:/var/lib/rabbitmq
     networks: [backend]
     healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      test: ['CMD', 'rabbitmq-diagnostics', '-q', 'ping']
       interval: 10s
       timeout: 5s
       retries: 12
@@ -60,7 +60,7 @@ services:
 
   rabbitmq-init:
     image: rabbitmq:4-management-alpine
-    entrypoint: ["/bin/sh", "-ec"]
+    entrypoint: ['/bin/sh', '-ec']
     command:
       - >-
         attempt=1;
@@ -82,17 +82,17 @@ services:
       - ./infra/rabbitmq/definitions.json:/config/definitions.json:ro
     networks: [backend]
     depends_on:
-      rabbitmq: {condition: service_healthy}
-    restart: "no"
+      rabbitmq: { condition: service_healthy }
+    restart: 'no'
 
   redis:
     image: redis:8-alpine
-    command: ["redis-server", "--appendonly", "yes"]
+    command: ['redis-server', '--appendonly', 'yes']
     volumes:
       - redis-data:/data
     networks: [backend]
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ['CMD', 'redis-cli', 'ping']
       interval: 5s
       timeout: 3s
       retries: 20
@@ -123,12 +123,16 @@ services:
     read_only: true
     networks: [backend]
     depends_on:
-      postgres: {condition: service_healthy}
-      rabbitmq-init: {condition: service_completed_successfully}
-      redis: {condition: service_healthy}
+      postgres: { condition: service_healthy }
+      rabbitmq-init: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
     healthcheck:
       <<: *java-healthcheck
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:9000/actuator/health/readiness >/dev/null || exit 1"]
+      test:
+        [
+          'CMD-SHELL',
+          'wget -qO- http://127.0.0.1:9000/actuator/health/readiness >/dev/null || exit 1',
+        ]
     restart: unless-stopped
 
   organization-service:
@@ -144,12 +148,16 @@ services:
     read_only: true
     networks: [backend]
     depends_on:
-      postgres: {condition: service_healthy}
-      redis: {condition: service_healthy}
-      identity-service: {condition: service_healthy}
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      identity-service: { condition: service_healthy }
     healthcheck:
       <<: *java-healthcheck
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:9000/actuator/health/readiness >/dev/null || exit 1"]
+      test:
+        [
+          'CMD-SHELL',
+          'wget -qO- http://127.0.0.1:9000/actuator/health/readiness >/dev/null || exit 1',
+        ]
     restart: unless-stopped
 
   asset-service:
@@ -167,13 +175,17 @@ services:
     read_only: true
     networks: [backend]
     depends_on:
-      postgres: {condition: service_healthy}
-      rabbitmq: {condition: service_healthy}
-      identity-service: {condition: service_healthy}
-      organization-service: {condition: service_healthy}
+      postgres: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+      identity-service: { condition: service_healthy }
+      organization-service: { condition: service_healthy }
     healthcheck:
       <<: *java-healthcheck
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:9000/actuator/health/readiness >/dev/null || exit 1"]
+      test:
+        [
+          'CMD-SHELL',
+          'wget -qO- http://127.0.0.1:9000/actuator/health/readiness >/dev/null || exit 1',
+        ]
     restart: unless-stopped
 
   maintenance-service:
@@ -195,14 +207,18 @@ services:
     read_only: true
     networks: [backend]
     depends_on:
-      postgres: {condition: service_healthy}
-      rabbitmq: {condition: service_healthy}
-      redis: {condition: service_healthy}
-      identity-service: {condition: service_healthy}
-      asset-service: {condition: service_healthy}
+      postgres: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      identity-service: { condition: service_healthy }
+      asset-service: { condition: service_healthy }
     healthcheck:
       <<: *java-healthcheck
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:9000/actuator/health/readiness >/dev/null || exit 1"]
+      test:
+        [
+          'CMD-SHELL',
+          'wget -qO- http://127.0.0.1:9000/actuator/health/readiness >/dev/null || exit 1',
+        ]
     restart: unless-stopped
 
   inventory-service:
@@ -221,13 +237,17 @@ services:
     read_only: true
     networks: [backend]
     depends_on:
-      postgres: {condition: service_healthy}
-      rabbitmq: {condition: service_healthy}
-      identity-service: {condition: service_healthy}
-      maintenance-service: {condition: service_healthy}
+      postgres: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+      identity-service: { condition: service_healthy }
+      maintenance-service: { condition: service_healthy }
     healthcheck:
       <<: *java-healthcheck
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:9000/actuator/health/readiness >/dev/null || exit 1"]
+      test:
+        [
+          'CMD-SHELL',
+          'wget -qO- http://127.0.0.1:9000/actuator/health/readiness >/dev/null || exit 1',
+        ]
     restart: unless-stopped
 
   notification-service:
@@ -245,13 +265,17 @@ services:
     read_only: true
     networks: [backend]
     depends_on:
-      postgres: {condition: service_healthy}
-      rabbitmq: {condition: service_healthy}
-      redis: {condition: service_healthy}
-      identity-service: {condition: service_healthy}
+      postgres: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      identity-service: { condition: service_healthy }
     healthcheck:
       <<: *java-healthcheck
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:9000/actuator/health/readiness >/dev/null || exit 1"]
+      test:
+        [
+          'CMD-SHELL',
+          'wget -qO- http://127.0.0.1:9000/actuator/health/readiness >/dev/null || exit 1',
+        ]
     restart: unless-stopped
 
   api-gateway:
@@ -267,20 +291,24 @@ services:
       ORGANIZATION_SERVICE_URL: http://organization-service:8086
       NOTIFICATION_SERVICE_URL: http://notification-service:8085
     ports:
-      - "8080:8080"
+      - '8080:8080'
     tmpfs: [/tmp]
     read_only: true
     networks: [edge, backend]
     depends_on:
-      identity-service: {condition: service_healthy}
-      organization-service: {condition: service_healthy}
-      asset-service: {condition: service_healthy}
-      maintenance-service: {condition: service_healthy}
-      inventory-service: {condition: service_healthy}
-      notification-service: {condition: service_healthy}
+      identity-service: { condition: service_healthy }
+      organization-service: { condition: service_healthy }
+      asset-service: { condition: service_healthy }
+      maintenance-service: { condition: service_healthy }
+      inventory-service: { condition: service_healthy }
+      notification-service: { condition: service_healthy }
     healthcheck:
       <<: *java-healthcheck
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:9000/actuator/health/readiness >/dev/null || exit 1"]
+      test:
+        [
+          'CMD-SHELL',
+          'wget -qO- http://127.0.0.1:9000/actuator/health/readiness >/dev/null || exit 1',
+        ]
     restart: unless-stopped
 
   web:
@@ -288,21 +316,21 @@ services:
       context: ./angular/first-angular-app
       dockerfile: Dockerfile
     ports:
-      - "4200:80"
+      - '4200:80'
     networks: [edge, backend]
     depends_on:
-      api-gateway: {condition: service_healthy}
+      api-gateway: { condition: service_healthy }
     restart: unless-stopped
 
   prometheus:
     image: prom/prometheus:v3.5.0
     profiles: [observability]
-    command: ["--config.file=/etc/prometheus/prometheus.yml", "--storage.tsdb.path=/prometheus"]
+    command: ['--config.file=/etc/prometheus/prometheus.yml', '--storage.tsdb.path=/prometheus']
     volumes:
       - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus-data:/prometheus
     ports:
-      - "9090:9090"
+      - '9090:9090'
     networks: [edge, backend]
     restart: unless-stopped
 
@@ -315,7 +343,7 @@ services:
       - grafana-data:/var/lib/grafana
       - ./infra/grafana/provisioning:/etc/grafana/provisioning:ro
     ports:
-      - "3000:3000"
+      - '3000:3000'
     networks: [edge, backend]
     depends_on: [prometheus]
     restart: unless-stopped

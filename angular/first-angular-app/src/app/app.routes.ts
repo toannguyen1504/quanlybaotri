@@ -22,6 +22,8 @@ export const routes: Routes = [
       },
       {
         path: 'tickets/new',
+        canActivate: [roleGuard],
+        data: { roles: ['REQUESTER', 'ADMIN', 'MANAGER'] },
         loadComponent: () => import('./pages/ticket-new').then((m) => m.TicketNewPage),
       },
       {
@@ -56,8 +58,7 @@ export const routes: Routes = [
       },
       {
         path: 'profile/password',
-        loadComponent: () =>
-          import('./pages/change-password').then((m) => m.ChangePasswordPage),
+        loadComponent: () => import('./pages/change-password').then((m) => m.ChangePasswordPage),
       },
       {
         path: 'profile',

@@ -17,10 +17,14 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/v1/equipment-categories")
 public class EquipmentCategoryController {
+
     private final EquipmentCategoryRepository repo;
     private final EquipmentRepository equipment;
 
-    public EquipmentCategoryController(EquipmentCategoryRepository repo, EquipmentRepository equipment) {
+    public EquipmentCategoryController(
+        EquipmentCategoryRepository repo,
+        EquipmentRepository equipment
+    ) {
         this.repo = repo;
         this.equipment = equipment;
     }
@@ -35,20 +39,30 @@ public class EquipmentCategoryController {
     @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
     @Transactional
     public View create(@Valid @RequestBody Request r) {
-        if (repo.existsByCodeIgnoreCase(r.code()))
-            throw ApiException.conflict("Mã loại thiết bị đã tồn tại");
-        return view(repo.save(
-                new EquipmentCategory(r.code().trim().toUpperCase(), r.name().trim(), r.description())));
+        if (repo.existsByCodeIgnoreCase(r.code())) throw ApiException.conflict(
+            "Mã loại thiết bị đã tồn tại"
+        );
+        return view(
+            repo.save(
+                new EquipmentCategory(
+                    r.code().trim().toUpperCase(),
+                    r.name().trim(),
+                    r.description()
+                )
+            )
+        );
     }
 
     @PutMapping("/{id}")
     @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
     @Transactional
     public View update(@PathVariable UUID id, @Valid @RequestBody Request r) {
-        EquipmentCategory c = repo.findById(id)
-                .orElseThrow(() -> ApiException.notFound("Không tìm thấy loại thiết bị"));
-        if (repo.existsByCodeIgnoreCaseAndIdNot(r.code(), id))
-            throw ApiException.conflict("Mã loại thiết bị đã tồn tại");
+        EquipmentCategory c = repo
+            .findById(id)
+            .orElseThrow(() -> ApiException.notFound("Không tìm thấy loại thiết bị"));
+        if (repo.existsByCodeIgnoreCaseAndIdNot(r.code(), id)) throw ApiException.conflict(
+            "Mã loại thiết bị đã tồn tại"
+        );
         c.update(r.code().trim().toUpperCase(), r.name().trim(), r.description(), r.active());
         return view(c);
     }
@@ -57,13 +71,30 @@ public class EquipmentCategoryController {
         return View.from(category, equipment.countByCategoryId(category.getId()));
     }
 
-    public record Request(@NotBlank @Size(max = 50) String code, @NotBlank @Size(max = 150) String name,
-            @Size(max = 500) String description, boolean active) {
-    }
+    public record Request(
+        @NotBlank @Size(max = 50) String code,
+        @NotBlank @Size(max = 150) String name,
+        @Size(max = 500) String description,
+        boolean active
+    ) {}
 
-    public record View(UUID id, String code, String name, String description, boolean active, long equipmentCount) {
+    public record View(
+        UUID id,
+        String code,
+        String name,
+        String description,
+        boolean active,
+        long equipmentCount
+    ) {
         static View from(EquipmentCategory c, long equipmentCount) {
-            return new View(c.getId(), c.getCode(), c.getName(), c.getDescription(), c.isActive(), equipmentCount);
+            return new View(
+                c.getId(),
+                c.getCode(),
+                c.getName(),
+                c.getDescription(),
+                c.isActive(),
+                equipmentCount
+            );
         }
     }
 }

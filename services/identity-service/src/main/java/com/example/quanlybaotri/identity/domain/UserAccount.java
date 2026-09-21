@@ -17,28 +17,40 @@ import org.springframework.security.core.userdetails.UserDetails;
 @Entity
 @Table(name = "users")
 public class UserAccount extends BaseEntity implements UserDetails {
+
     @Column(nullable = false, unique = true, length = 80)
     private String username;
+
     @Column(nullable = false, unique = true, length = 190)
     private String email;
+
     @Column(name = "password_hash", nullable = false)
     private String passwordHash;
+
     @Column(name = "full_name", nullable = false, length = 150)
     private String fullName;
+
     @Column(length = 30)
     private String phone;
+
     @Column(name = "department_id")
     private java.util.UUID departmentId;
+
     @Column(nullable = false)
     private boolean enabled = true;
+
     @Column(name = "must_change_password", nullable = false)
     private boolean mustChangePassword = true;
+
     @ManyToMany(fetch = FetchType.EAGER)
-    @JoinTable(name = "user_roles", joinColumns = @JoinColumn(name = "user_id"), inverseJoinColumns = @JoinColumn(name = "role_id"))
+    @JoinTable(
+        name = "user_roles",
+        joinColumns = @JoinColumn(name = "user_id"),
+        inverseJoinColumns = @JoinColumn(name = "role_id")
+    )
     private Set<Role> roles = new HashSet<>();
 
-    protected UserAccount() {
-    }
+    protected UserAccount() {}
 
     public UserAccount(String username, String email, String passwordHash, String fullName) {
         this.username = username.toLowerCase();
@@ -47,7 +59,12 @@ public class UserAccount extends BaseEntity implements UserDetails {
         this.fullName = fullName;
     }
 
-    public void updateProfile(String email, String fullName, String phone, java.util.UUID departmentId) {
+    public void updateProfile(
+        String email,
+        String fullName,
+        String phone,
+        java.util.UUID departmentId
+    ) {
         this.email = email.toLowerCase();
         this.fullName = fullName;
         this.phone = phone;

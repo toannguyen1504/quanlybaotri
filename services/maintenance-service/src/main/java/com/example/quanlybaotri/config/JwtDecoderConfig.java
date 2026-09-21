@@ -15,24 +15,35 @@ import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 
 @Configuration
 public class JwtDecoderConfig {
+
     @Bean
-    JwtDecoder jwtDecoder(@Value("${spring.security.oauth2.resourceserver.jwt.jwk-set-uri}") String uri,
-                          @Value("${spring.application.name}") String audience,
-                          StringRedisTemplate redis) {
+    JwtDecoder jwtDecoder(
+        @Value("${spring.security.oauth2.resourceserver.jwt.jwk-set-uri}") String uri,
+        @Value("${spring.application.name}") String audience,
+        StringRedisTemplate redis
+    ) {
         NimbusJwtDecoder decoder = NimbusJwtDecoder.withJwkSetUri(uri).build();
         OAuth2TokenValidator<Jwt> revocation = jwt -> {
-            if ("service".equals(jwt.getClaimAsString("token_type")) && !jwt.getAudience().contains(audience))
-                return OAuth2TokenValidatorResult.failure(new OAuth2Error("invalid_audience"));
+            if (
+                "service".equals(jwt.getClaimAsString("token_type")) &&
+                !jwt.getAudience().contains(audience)
+            ) return OAuth2TokenValidatorResult.failure(new OAuth2Error("invalid_audience"));
             try {
                 return Boolean.TRUE.equals(redis.hasKey("identity:jwt:revoked:" + jwt.getId()))
-                        ? OAuth2TokenValidatorResult.failure(new OAuth2Error("revoked_token"))
-                        : OAuth2TokenValidatorResult.success();
+                    ? OAuth2TokenValidatorResult.failure(new OAuth2Error("revoked_token"))
+                    : OAuth2TokenValidatorResult.success();
             } catch (RuntimeException unavailable) {
-                return OAuth2TokenValidatorResult.failure(new OAuth2Error("token_validation_unavailable"));
+                return OAuth2TokenValidatorResult.failure(
+                    new OAuth2Error("token_validation_unavailable")
+                );
             }
         };
-        decoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(
-                JwtValidators.createDefaultWithIssuer("quanlybaotri"), revocation));
+        decoder.setJwtValidator(
+            new DelegatingOAuth2TokenValidator<>(
+                JwtValidators.createDefaultWithIssuer("quanlybaotri"),
+                revocation
+            )
+        );
         return decoder;
     }
 }

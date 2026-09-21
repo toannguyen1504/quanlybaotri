@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
     @ExceptionHandler(ApiException.class)
     ProblemDetail api(ApiException ex, HttpServletRequest request) {
         return problem(ex.getStatus(), ex.getCode(), ex.getMessage(), request);
@@ -21,25 +22,49 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     ProblemDetail validation(MethodArgumentNotValidException ex, HttpServletRequest request) {
-        ProblemDetail detail = problem(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", "Dữ liệu không hợp lệ", request);
+        ProblemDetail detail = problem(
+            HttpStatus.BAD_REQUEST,
+            "VALIDATION_ERROR",
+            "Dữ liệu không hợp lệ",
+            request
+        );
         Map<String, String> errors = new LinkedHashMap<>();
-        ex.getBindingResult().getFieldErrors().forEach(e -> errors.putIfAbsent(e.getField(), e.getDefaultMessage()));
+        ex.getBindingResult()
+            .getFieldErrors()
+            .forEach(e -> errors.putIfAbsent(e.getField(), e.getDefaultMessage()));
         detail.setProperty("errors", errors);
         return detail;
     }
 
-    @ExceptionHandler({ ObjectOptimisticLockingFailureException.class, DataIntegrityViolationException.class })
+    @ExceptionHandler({
+        ObjectOptimisticLockingFailureException.class,
+        DataIntegrityViolationException.class,
+    })
     ProblemDetail conflict(Exception ex, HttpServletRequest request) {
-        return problem(HttpStatus.CONFLICT, "CONCURRENT_OR_DUPLICATE_UPDATE",
-                "Dữ liệu đã thay đổi hoặc vi phạm ràng buộc duy nhất", request);
+        return problem(
+            HttpStatus.CONFLICT,
+            "CONCURRENT_OR_DUPLICATE_UPDATE",
+            "Dữ liệu đã thay đổi hoặc vi phạm ràng buộc duy nhất",
+            request
+        );
     }
 
     @ExceptionHandler(AccessDeniedException.class)
     ProblemDetail denied(AccessDeniedException ex, HttpServletRequest request) {
-        return problem(HttpStatus.FORBIDDEN, "FORBIDDEN", "Bạn không có quyền thực hiện thao tác này", request);
+        return problem(
+            HttpStatus.FORBIDDEN,
+            "FORBIDDEN",
+            "Bạn không có quyền thực hiện thao tác này",
+            request
+        );
     }
 
-    private ProblemDetail problem(HttpStatus status, String code, String message, HttpServletRequest request) {
+    private ProblemDetail problem(
+        HttpStatus status,
+        String code,
+        String message,
+        HttpServletRequest request
+    ) {
         ProblemDetail detail = ProblemDetail.forStatusAndDetail(status, message);
         detail.setTitle(status.getReasonPhrase());
         detail.setProperty("code", code);

@@ -1,9 +1,51 @@
 package com.example.quanlybaotri.shared.security;
 
-import java.time.Instant;import org.springframework.beans.factory.annotation.Value;import org.springframework.stereotype.Component;import org.springframework.web.client.RestClient;
-@Component public class ServiceTokenProvider{
- private final RestClient client;private final String secret;private volatile Cached cached;
- public ServiceTokenProvider(RestClient.Builder b,@Value("${app.identity-url:http://identity-service:8081}")String base,@Value("${app.service-client.secret}")String secret){this.client=b.baseUrl(base).build();this.secret=secret;}
- public synchronized String token(String audience){Instant now=Instant.now();if(cached!=null&&cached.audience.equals(audience)&&cached.expiresAt.isAfter(now.plusSeconds(30)))return cached.value;TokenResponse r=client.post().uri(u->u.path("/internal/v1/auth/token").queryParam("grant_type","client_credentials").queryParam("audience",audience).build()).headers(h->h.setBasicAuth("notification-service",secret)).retrieve().body(TokenResponse.class);if(r==null)throw new IllegalStateException("Identity returned no service token");cached=new Cached(audience,r.accessToken(),now.plusSeconds(r.expiresIn()));return cached.value;}
- private record Cached(String audience,String value,Instant expiresAt){} private record TokenResponse(String accessToken,String tokenType,long expiresIn){}
+import java.time.Instant;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
+import org.springframework.web.client.RestClient;
+
+@Component
+public class ServiceTokenProvider {
+
+    private final RestClient client;
+    private final String secret;
+    private volatile Cached cached;
+
+    public ServiceTokenProvider(
+        RestClient.Builder b,
+        @Value("${app.identity-url:http://identity-service:8081}") String base,
+        @Value("${app.service-client.secret}") String secret
+    ) {
+        this.client = b.baseUrl(base).build();
+        this.secret = secret;
+    }
+
+    public synchronized String token(String audience) {
+        Instant now = Instant.now();
+        if (
+            cached != null &&
+            cached.audience.equals(audience) &&
+            cached.expiresAt.isAfter(now.plusSeconds(30))
+        ) return cached.value;
+        TokenResponse r = client
+            .post()
+            .uri(u ->
+                u
+                    .path("/internal/v1/auth/token")
+                    .queryParam("grant_type", "client_credentials")
+                    .queryParam("audience", audience)
+                    .build()
+            )
+            .headers(h -> h.setBasicAuth("notification-service", secret))
+            .retrieve()
+            .body(TokenResponse.class);
+        if (r == null) throw new IllegalStateException("Identity returned no service token");
+        cached = new Cached(audience, r.accessToken(), now.plusSeconds(r.expiresIn()));
+        return cached.value;
+    }
+
+    private record Cached(String audience, String value, Instant expiresAt) {}
+
+    private record TokenResponse(String accessToken, String tokenType, long expiresIn) {}
 }

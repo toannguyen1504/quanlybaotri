@@ -6,6 +6,7 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class LoginRateLimiter {
+
     private static final long LIMIT = 5;
     private static final Duration WINDOW = Duration.ofMinutes(15);
     private final StringRedisTemplate redis;
@@ -31,16 +32,13 @@ public class LoginRateLimiter {
         try {
             String key = key(username, ip);
             Long count = redis.opsForValue().increment(key);
-            if (count != null && count == 1)
-                redis.expire(key, WINDOW);
-        } catch (RuntimeException ignored) {
-        }
+            if (count != null && count == 1) redis.expire(key, WINDOW);
+        } catch (RuntimeException ignored) {}
     }
 
     public void success(String username, String ip) {
         try {
             redis.delete(key(username, ip));
-        } catch (RuntimeException ignored) {
-        }
+        } catch (RuntimeException ignored) {}
     }
 }
