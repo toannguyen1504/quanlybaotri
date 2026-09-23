@@ -1,9 +1,21 @@
-import { Component, inject, OnInit, signal } from '@angular/core';
+import { Component, inject, OnDestroy, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Api } from '../core/api';
 import { AuthService } from '../core/auth';
 import { User } from '../core/models';
+
+interface TelegramStatus {
+  available: boolean;
+  linked: boolean;
+  telegramUsername?: string;
+  linkedAt?: string;
+}
+
+interface TelegramLinkRequest {
+  linkUrl: string;
+  expiresAt: string;
+}
 
 @Component({
   selector: 'app-profile',
@@ -151,6 +163,59 @@ import { User } from '../core/models';
             </dl>
           </section>
 
+          @if (isTechnician()) {
+            <section class="panel account-telegram-card">
+              <div class="account-section-head compact">
+                <span class="account-section-icon telegram" aria-hidden="true">TG</span>
+                <div>
+                  <h3>Thông báo Telegram</h3>
+                  <p>Nhận cập nhật về các phiếu bảo trì được giao.</p>
+                </div>
+              </div>
+
+              @if (telegramLoading()) {
+                <p class="muted telegram-state">Đang kiểm tra trạng thái…</p>
+              } @else if (!telegramStatus()?.available) {
+                <p class="telegram-state unavailable">Kênh Telegram chưa được cấu hình.</p>
+              } @else if (telegramStatus()?.linked) {
+                <div class="telegram-linked">
+                  <span><i></i>Đã liên kết</span>
+                  <b>
+                    {{
+                      telegramStatus()?.telegramUsername
+                        ? '&#64;' + telegramStatus()?.telegramUsername
+                        : 'Tài khoản Telegram'
+                    }}
+                  </b>
+                </div>
+                <button
+                  type="button"
+                  class="secondary telegram-action"
+                  [disabled]="telegramBusy()"
+                  (click)="disconnectTelegram()"
+                >
+                  {{ telegramBusy() ? 'Đang xử lý…' : 'Ngắt liên kết' }}
+                </button>
+              } @else {
+                <p class="telegram-state">
+                  Mở bot và bấm Start để liên kết an toàn với tài khoản này.
+                </p>
+                <button
+                  type="button"
+                  class="primary telegram-action"
+                  [disabled]="telegramBusy()"
+                  (click)="connectTelegram()"
+                >
+                  {{ telegramBusy() ? 'Đang tạo liên kết…' : 'Liên kết Telegram' }}
+                </button>
+              }
+
+              @if (telegramMessage()) {
+                <p class="telegram-feedback" role="status">{{ telegramMessage() }}</p>
+              }
+            </section>
+          }
+
           <section
             class="panel account-security-card"
             [class.requires-change]="user.mustChangePassword"
@@ -178,7 +243,7 @@ import { User } from '../core/models';
     }
   </div>`,
 })
-export class ProfilePage implements OnInit {
+export class ProfilePage implements OnInit, OnDestroy {
   private api = inject(Api);
   private route = inject(ActivatedRoute);
   private router = inject(Router);
@@ -187,6 +252,12 @@ export class ProfilePage implements OnInit {
   message = signal('');
   success = signal(false);
   saving = signal(false);
+  telegramStatus = signal<TelegramStatus | null>(null);
+  telegramLoading = signal(false);
+  telegramBusy = signal(false);
+  telegramMessage = signal('');
+  private telegramPoll?: number;
+  private telegramPollDeadline = 0;
 
   ngOnInit() {
     this.resetForm();
@@ -201,12 +272,19 @@ export class ProfilePage implements OnInit {
       });
     }
     this.auth.loadMe().subscribe({
-      next: () => this.resetForm(),
+      next: () => {
+        this.resetForm();
+        if (this.isTechnician()) this.loadTelegramStatus();
+      },
       error: () => {
         this.success.set(false);
         this.message.set('Không thể tải thông tin tài khoản');
       },
     });
+  }
+
+  ngOnDestroy() {
+    this.stopTelegramPolling();
   }
 
   resetForm() {
@@ -235,6 +313,84 @@ export class ProfilePage implements OnInit {
         this.message.set(e.error?.detail ?? 'Không thể cập nhật thông tin tài khoản');
       },
     });
+  }
+
+  isTechnician() {
+    return this.auth.hasAny(['TECHNICIAN']);
+  }
+
+  loadTelegramStatus(silent = false) {
+    if (!silent) this.telegramLoading.set(true);
+    this.api.get<TelegramStatus>('/notifications/telegram').subscribe({
+      next: (status) => {
+        this.telegramStatus.set(status);
+        this.telegramLoading.set(false);
+        if (status.linked) {
+          this.telegramMessage.set('Liên kết Telegram đã sẵn sàng.');
+          this.stopTelegramPolling();
+        }
+      },
+      error: () => {
+        this.telegramLoading.set(false);
+        if (!silent) this.telegramMessage.set('Không thể tải trạng thái Telegram.');
+      },
+    });
+  }
+
+  connectTelegram() {
+    const telegramWindow = window.open('about:blank', '_blank');
+    if (telegramWindow) telegramWindow.opener = null;
+    this.telegramBusy.set(true);
+    this.telegramMessage.set('');
+    this.api.post<TelegramLinkRequest>('/notifications/telegram/link').subscribe({
+      next: (request) => {
+        this.telegramBusy.set(false);
+        this.telegramMessage.set('Hãy bấm Start trong bot để hoàn tất liên kết.');
+        if (telegramWindow) telegramWindow.location.replace(request.linkUrl);
+        else window.location.assign(request.linkUrl);
+        this.startTelegramPolling(request.expiresAt);
+      },
+      error: (error) => {
+        telegramWindow?.close();
+        this.telegramBusy.set(false);
+        this.telegramMessage.set(error.error?.detail ?? 'Không thể tạo liên kết Telegram.');
+      },
+    });
+  }
+
+  disconnectTelegram() {
+    if (!window.confirm('Ngắt liên kết Telegram khỏi tài khoản này?')) return;
+    this.telegramBusy.set(true);
+    this.telegramMessage.set('');
+    this.api.delete<void>('/notifications/telegram/link').subscribe({
+      next: () => {
+        this.telegramBusy.set(false);
+        this.telegramStatus.set({ available: true, linked: false });
+        this.telegramMessage.set('Đã ngắt liên kết Telegram.');
+      },
+      error: (error) => {
+        this.telegramBusy.set(false);
+        this.telegramMessage.set(error.error?.detail ?? 'Không thể ngắt liên kết Telegram.');
+      },
+    });
+  }
+
+  private startTelegramPolling(expiresAt: string) {
+    this.stopTelegramPolling();
+    this.telegramPollDeadline = new Date(expiresAt).getTime();
+    this.telegramPoll = window.setInterval(() => {
+      if (Date.now() >= this.telegramPollDeadline) {
+        this.stopTelegramPolling();
+        this.telegramMessage.set('Liên kết đã hết hạn. Bạn có thể tạo liên kết mới.');
+        return;
+      }
+      this.loadTelegramStatus(true);
+    }, 3000);
+  }
+
+  private stopTelegramPolling() {
+    if (this.telegramPoll !== undefined) window.clearInterval(this.telegramPoll);
+    this.telegramPoll = undefined;
   }
 
   initials(value: string) {

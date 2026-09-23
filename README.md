@@ -56,6 +56,19 @@ docker compose ps
 
 Web chạy tại `http://localhost:4200`, gateway tại `http://localhost:8080`, RabbitMQ Management tại `http://localhost:15672`.
 
+### Telegram cho kỹ thuật viên
+
+Để bật thông báo Telegram, tạo token mới cho bot rồi cấu hình trong `.env`:
+
+```dotenv
+TELEGRAM_ENABLED=true
+TELEGRAM_BOT_TOKEN=<new-token-from-botfather>
+TELEGRAM_BOT_USERNAME=technician001_bot
+TELEGRAM_APP_PUBLIC_URL=http://localhost:4200
+```
+
+Không sử dụng lại token đã từng xuất hiện trong mã nguồn, log hoặc hội thoại. Với môi trường triển khai thật, `TELEGRAM_APP_PUBLIC_URL` phải là URL mà thiết bị của kỹ thuật viên truy cập được. `notification-service` dùng long polling nên chỉ chạy một poller cho mỗi bot token.
+
 Trên database trống, tài khoản quản trị lấy từ `BOOTSTRAP_ADMIN_*` trong `.env`. Khi cutover dữ liệu, user và password hash cũ được giữ nguyên.
 
 Dừng stack nhưng giữ dữ liệu:

@@ -4,6 +4,9 @@ import com.example.quanlybaotri.config.RabbitConfig;
 import com.example.quanlybaotri.identity.client.IdentityClient;
 import com.example.quanlybaotri.notification.domain.*;
 import com.example.quanlybaotri.notification.persistence.*;
+import com.example.quanlybaotri.telegram.domain.TelegramDelivery;
+import com.example.quanlybaotri.telegram.persistence.TelegramDeliveryRepository;
+import com.example.quanlybaotri.telegram.persistence.TelegramLinkRepository;
 import java.util.*;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Component;
@@ -18,19 +21,25 @@ public class NotificationConsumer {
     private final IdentityClient identities;
     private final ObjectMapper json;
     private final TransactionTemplate transactions;
+    private final TelegramLinkRepository telegramLinks;
+    private final TelegramDeliveryRepository telegramDeliveries;
 
     public NotificationConsumer(
         ProcessedMessageRepository p,
         NotificationRepository n,
         IdentityClient i,
         ObjectMapper j,
-        TransactionTemplate t
+        TransactionTemplate t,
+        TelegramLinkRepository telegramLinks,
+        TelegramDeliveryRepository telegramDeliveries
     ) {
         processed = p;
         notifications = n;
         identities = i;
         json = j;
         transactions = t;
+        this.telegramLinks = telegramLinks;
+        this.telegramDeliveries = telegramDeliveries;
     }
 
     @RabbitListener(queues = RabbitConfig.QUEUE)
@@ -46,12 +55,21 @@ public class NotificationConsumer {
         NotificationCommand command = switch (type) {
             case "maintenance.ticket.changed" -> ticketChanged(eventId, data);
             case "inventory.part.low-stock" -> lowStock(eventId, data);
-            default -> new NotificationCommand(eventId, Set.of(), "IGNORED", "", "", null, null);
+            default -> new NotificationCommand(
+                eventId,
+                Set.of(),
+                "IGNORED",
+                "",
+                "",
+                null,
+                null,
+                null
+            );
         };
         transactions.executeWithoutResult(tx -> {
             if (processed.existsById(eventId)) return;
-            for (UUID id : command.recipients())
-                notifications.save(
+            for (UUID id : command.recipients()) {
+                Notification notification = notifications.save(
                     new Notification(
                         id,
                         eventId,
@@ -62,6 +80,18 @@ public class NotificationConsumer {
                         command.referenceId()
                     )
                 );
+                if (
+                    command.telegramMessage() != null &&
+                    telegramLinks.findByUserIdAndActiveTrue(id).isPresent()
+                ) telegramDeliveries.save(
+                    new TelegramDelivery(
+                        notification.getId(),
+                        id,
+                        command.telegramMessage(),
+                        command.referenceId()
+                    )
+                );
+            }
             processed.save(new ProcessedMessage(eventId));
         });
     }
@@ -81,7 +111,8 @@ public class NotificationConsumer {
             "Phiếu " + text(d, "ticketCode"),
             text(d, "description"),
             "TICKET",
-            uuid(d, "ticketId")
+            uuid(d, "ticketId"),
+            telegramTicketMessage(d)
         );
     }
 
@@ -103,8 +134,24 @@ public class NotificationConsumer {
             "Linh kiện sắp hết",
             message,
             "PART",
-            uuid(d, "partId")
+            uuid(d, "partId"),
+            null
         );
+    }
+
+    private String telegramTicketMessage(JsonNode d) {
+        String message =
+            "🔧 Phiếu " +
+            text(d, "ticketCode") +
+            "\nHành động: " +
+            text(d, "action") +
+            "\nTrạng thái: " +
+            text(d, "status") +
+            "\nƯu tiên: " +
+            text(d, "priority") +
+            "\n\n" +
+            text(d, "description");
+        return message.length() <= 2000 ? message : message.substring(0, 1997) + "...";
     }
 
     private static void add(Set<UUID> s, UUID v) {
@@ -131,6 +178,7 @@ public class NotificationConsumer {
         String title,
         String message,
         String referenceType,
-        UUID referenceId
+        UUID referenceId,
+        String telegramMessage
     ) {}
 }

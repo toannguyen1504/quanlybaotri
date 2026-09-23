@@ -18,6 +18,9 @@ export class Api {
   put<T>(path: string, body: unknown) {
     return this.http.put<T>(this.baseUrl + path, body);
   }
+  delete<T>(path: string) {
+    return this.http.delete<T>(this.baseUrl + path);
+  }
   upload<T>(path: string, file: File) {
     const form = new FormData();
     form.append('file', file);

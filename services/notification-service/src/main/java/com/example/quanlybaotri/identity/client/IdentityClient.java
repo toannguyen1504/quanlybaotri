@@ -35,6 +35,15 @@ public class IdentityClient {
         return ids;
     }
 
+    public UserRef get(UUID id) {
+        return client
+            .get()
+            .uri("/internal/v1/users/{id}", id)
+            .headers(this::headers)
+            .retrieve()
+            .body(UserRef.class);
+    }
+
     private void headers(org.springframework.http.HttpHeaders h) {
         h.setBearerAuth(tokens.token("identity-service"));
         String c = MDC.get("correlationId");
@@ -43,5 +52,17 @@ public class IdentityClient {
 
     private record SearchRequest(Set<String> roles, boolean enabledOnly) {}
 
-    private record UserRef(UUID id) {}
+    public record UserRef(
+        UUID id,
+        String username,
+        String fullName,
+        String email,
+        UUID departmentId,
+        boolean enabled,
+        Set<String> roles
+    ) {
+        public boolean isEnabledTechnician() {
+            return enabled && roles != null && roles.contains("TECHNICIAN");
+        }
+    }
 }

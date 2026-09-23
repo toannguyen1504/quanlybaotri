@@ -28,6 +28,13 @@ server.port: 8085
 app:
   identity-url: ${IDENTITY_SERVICE_URL:http://identity-service:8081}
   service-client.secret: ${NOTIFICATION_SERVICE_CLIENT_SECRET:change-notification-service-client-secret}
+  telegram:
+    enabled: ${TELEGRAM_ENABLED:false}
+    bot-token: ${TELEGRAM_BOT_TOKEN:}
+    bot-username: ${TELEGRAM_BOT_USERNAME:technician001_bot}
+    app-public-url: ${TELEGRAM_APP_PUBLIC_URL:http://localhost:4200}
+    link-ttl: 10m
+    poll-timeout-seconds: 25
 management:
   server.port: 9000
   endpoints.web.exposure.include: health,info,prometheus

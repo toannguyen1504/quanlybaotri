@@ -26,12 +26,19 @@ describe('ProfilePage', () => {
       user: signal<User | null>(user),
       loadMe: vi.fn(() => of(user)),
       updateCurrentUser: vi.fn(),
+      hasAny: vi.fn((roles: string[]) => roles.includes('TECHNICIAN')),
+    };
+    const api = {
+      get: vi.fn(() => of({ available: true, linked: false })),
+      post: vi.fn(),
+      put: vi.fn(() => of(user)),
+      delete: vi.fn(),
     };
     await TestBed.configureTestingModule({
       imports: [ProfilePage],
       providers: [
         provideRouter([]),
-        { provide: Api, useValue: { put: vi.fn(() => of(user)) } },
+        { provide: Api, useValue: api },
         { provide: AuthService, useValue: auth },
         {
           provide: ActivatedRoute,
@@ -51,5 +58,7 @@ describe('ProfilePage', () => {
       'Công nghệ thông tin',
     );
     expect(element.querySelector('.account-security-card')).not.toBeNull();
+    expect(element.querySelector('.telegram-action')?.textContent).toContain('Liên kết Telegram');
+    expect(api.get).toHaveBeenCalledWith('/notifications/telegram');
   });
 });

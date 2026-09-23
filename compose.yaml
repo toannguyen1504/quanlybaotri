@@ -261,9 +261,13 @@ services:
       DB_PASSWORD: ${NOTIFICATION_DB_PASSWORD}
       IDENTITY_SERVICE_URL: http://identity-service:8081
       NOTIFICATION_SERVICE_CLIENT_SECRET: ${NOTIFICATION_SERVICE_CLIENT_SECRET}
+      TELEGRAM_ENABLED: ${TELEGRAM_ENABLED:-false}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME:-technician001_bot}
+      TELEGRAM_APP_PUBLIC_URL: ${TELEGRAM_APP_PUBLIC_URL:-http://localhost:4200}
     tmpfs: [/tmp]
     read_only: true
-    networks: [backend]
+    networks: [backend, telegram-egress]
     depends_on:
       postgres: { condition: service_healthy }
       rabbitmq: { condition: service_healthy }
@@ -352,6 +356,7 @@ networks:
   edge:
   backend:
     internal: true
+  telegram-egress:
 
 volumes:
   postgres-data:

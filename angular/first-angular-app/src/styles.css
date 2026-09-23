@@ -2186,6 +2186,60 @@ td small {
 .account-state-text.inactive {
   color: #b14545 !important;
 }
+.account-telegram-card {
+  display: grid;
+  gap: 15px;
+  padding: 21px;
+}
+.account-section-icon.telegram {
+  color: #087eb3;
+  background: #e6f5fc;
+}
+.telegram-state {
+  margin: 0;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.55;
+}
+.telegram-state.unavailable {
+  color: #9a651d;
+}
+.telegram-linked {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 12px;
+  background: #edf9f5;
+  border: 1px solid #ccece1;
+  border-radius: 8px;
+  font-size: 12px;
+}
+.telegram-linked span {
+  color: #16876b;
+  font-weight: 800;
+}
+.telegram-linked i {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 6px;
+  background: #25a982;
+  border-radius: 50%;
+}
+.telegram-linked b {
+  overflow-wrap: anywhere;
+  color: #35465d;
+}
+.telegram-action {
+  width: 100%;
+}
+.telegram-feedback {
+  margin: -4px 0 0;
+  color: #53657a;
+  font-size: 11px;
+  line-height: 1.45;
+}
 .account-security-card {
   display: grid;
   grid-template-columns: auto 1fr;
