@@ -6,6 +6,7 @@ import com.example.quanlybaotri.identity.domain.RoleName;
 import com.example.quanlybaotri.shared.api.ApiException;
 import java.time.Instant;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -53,5 +54,28 @@ class CurrentUserTest {
             .build();
         SecurityContextHolder.getContext().setAuthentication(new JwtAuthenticationToken(jwt));
         assertThatThrownBy(() -> new CurrentUser().require()).isInstanceOf(ApiException.class);
+    }
+
+    @Test
+    void customerScopeNeverAllowsAnotherCustomerOrUnselectedSite() {
+        UUID actorId = UUID.randomUUID(), customer = UUID.randomUUID(), allowedSite = UUID.randomUUID();
+        var selected = new CurrentUser.Actor(actorId, "customer", "Customer User",
+            Set.of(RoleName.REQUESTER), "token", "CUSTOMER", customer,
+            "SELECTED_SITES", Set.of(allowedSite));
+
+        assertThat(selected.canAccess(customer, allowedSite)).isTrue();
+        assertThat(selected.canAccess(customer, UUID.randomUUID())).isFalse();
+        assertThat(selected.canAccess(UUID.randomUUID(), allowedSite)).isFalse();
+    }
+
+    @Test
+    void allSitesScopeStillRequiresTheSameCustomer() {
+        UUID customer = UUID.randomUUID();
+        var allSites = new CurrentUser.Actor(UUID.randomUUID(), "customer", "Customer User",
+            Set.of(RoleName.REQUESTER), "token", "CUSTOMER", customer,
+            "ALL_SITES", Set.of());
+
+        assertThat(allSites.canAccess(customer, UUID.randomUUID())).isTrue();
+        assertThat(allSites.canAccess(UUID.randomUUID(), UUID.randomUUID())).isFalse();
     }
 }

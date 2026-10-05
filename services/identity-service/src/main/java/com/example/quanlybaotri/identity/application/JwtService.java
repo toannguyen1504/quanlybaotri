@@ -43,6 +43,10 @@ public class JwtService {
             .claim("uid", user.getId().toString())
             .claim("roles", roles)
             .claim("name", user.getFullName())
+            .claim("account_type", user.getAccountType().name())
+            .claim("customer_id", user.getCustomerId() == null ? "" : user.getCustomerId().toString())
+            .claim("site_scope", user.getSiteScope().name())
+            .claim("site_ids", user.getSiteIds().stream().map(UUID::toString).sorted().toList())
             .claim("token_type", "user")
             .build();
         JwsHeader header = JwsHeader.with(SignatureAlgorithm.RS256).build();

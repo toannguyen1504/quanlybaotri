@@ -1,7 +1,7 @@
 package com.example.quanlybaotri.ticket.application;
 
 import com.example.quanlybaotri.ticket.api.TicketController.TicketView;
-import com.example.quanlybaotri.ticket.domain.TicketChargeType;
+import com.example.quanlybaotri.cost.domain.CostStatus;
 import com.example.quanlybaotri.ticket.domain.TicketPriority;
 import com.example.quanlybaotri.ticket.domain.TicketStatus;
 import java.io.ByteArrayOutputStream;
@@ -28,6 +28,8 @@ public class TicketExcelExporter {
         "Mã phiếu",
         "Mã thiết bị",
         "Tên thiết bị",
+        "Khách hàng",
+        "Địa điểm",
         "Tiêu đề",
         "Mô tả sự cố",
         "Mức ưu tiên",
@@ -42,12 +44,16 @@ public class TicketExcelExporter {
         "Hoàn tất xử lý",
         "Tình trạng SLA",
         "Kết quả xử lý",
-        "Hình thức chi phí",
+        "Trạng thái chi phí",
         "Chi phí linh kiện",
-        "Thành tiền",
+        "Chi phí nhân công",
+        "Chi phí thuê ngoài",
+        "Chi phí di chuyển",
+        "Chi phí khác",
+        "Tổng chi phí",
     };
     private static final int[] WIDTHS = {
-        7, 20, 18, 28, 36, 48, 16, 20, 24, 24, 20, 20, 20, 20, 20, 20, 18, 42, 20, 20, 20,
+        7, 20, 18, 28, 24, 24, 36, 48, 16, 20, 24, 24, 20, 20, 20, 20, 20, 20, 18, 42, 20, 20, 20, 20, 20, 20, 20,
     };
 
     public byte[] export(List<TicketView> tickets, Instant generatedAt) {
@@ -129,23 +135,29 @@ public class TicketExcelExporter {
         setText(row, 1, ticket.code(), textStyle);
         setText(row, 2, ticket.equipmentCode(), textStyle);
         setText(row, 3, ticket.equipmentName(), textStyle);
-        setText(row, 4, ticket.title(), textStyle);
-        setText(row, 5, ticket.description(), textStyle);
-        setText(row, 6, priorityLabel(ticket.priority()), textStyle);
-        setText(row, 7, statusLabel(ticket.status()), textStyle);
-        setText(row, 8, ticket.requesterName(), textStyle);
-        setText(row, 9, ticket.assigneeName() == null ? "Chưa phân công" : ticket.assigneeName(), textStyle);
-        setDate(row, 10, ticket.submittedAt(), textStyle);
-        setDate(row, 11, ticket.responseDueAt(), textStyle);
-        setDate(row, 12, ticket.acceptedAt(), textStyle);
-        setDate(row, 13, ticket.startedAt(), textStyle);
-        setDate(row, 14, ticket.resolutionDueAt(), textStyle);
-        setDate(row, 15, ticket.resolvedAt(), textStyle);
-        setText(row, 16, slaLabel(ticket, generatedAt), textStyle);
-        setText(row, 17, ticket.resolutionSummary(), textStyle);
-        setText(row, 18, chargeTypeLabel(ticket.chargeType()), textStyle);
-        setCurrency(row, 19, ticket.partsCost(), numberStyle);
-        setCurrency(row, 20, ticket.chargeAmount(), numberStyle);
+        setText(row, 4, ticket.customerName(), textStyle);
+        setText(row, 5, ticket.siteName(), textStyle);
+        setText(row, 6, ticket.title(), textStyle);
+        setText(row, 7, ticket.description(), textStyle);
+        setText(row, 8, priorityLabel(ticket.priority()), textStyle);
+        setText(row, 9, statusLabel(ticket.status()), textStyle);
+        setText(row, 10, ticket.requesterName(), textStyle);
+        setText(row, 11, ticket.assigneeName() == null ? "Chưa phân công" : ticket.assigneeName(), textStyle);
+        setDate(row, 12, ticket.submittedAt(), textStyle);
+        setDate(row, 13, ticket.responseDueAt(), textStyle);
+        setDate(row, 14, ticket.acceptedAt(), textStyle);
+        setDate(row, 15, ticket.startedAt(), textStyle);
+        setDate(row, 16, ticket.resolutionDueAt(), textStyle);
+        setDate(row, 17, ticket.resolvedAt(), textStyle);
+        setText(row, 18, slaLabel(ticket, generatedAt), textStyle);
+        setText(row, 19, ticket.resolutionSummary(), textStyle);
+        setText(row, 20, ticket.costVisible() ? costStatusLabel(ticket.costStatus()) : null, textStyle);
+        setCurrencyOrBlank(row, 21, ticket.partsTotal(), ticket.costVisible(), numberStyle, textStyle);
+        setCurrencyOrBlank(row, 22, ticket.laborTotal(), ticket.costVisible(), numberStyle, textStyle);
+        setCurrencyOrBlank(row, 23, ticket.outsourcedTotal(), ticket.costVisible(), numberStyle, textStyle);
+        setCurrencyOrBlank(row, 24, ticket.travelTotal(), ticket.costVisible(), numberStyle, textStyle);
+        setCurrencyOrBlank(row, 25, ticket.otherTotal(), ticket.costVisible(), numberStyle, textStyle);
+        setCurrencyOrBlank(row, 26, ticket.grandTotal(), ticket.costVisible(), numberStyle, textStyle);
     }
 
     private void setText(Row row, int column, String value, CellStyle style) {
@@ -166,6 +178,11 @@ public class TicketExcelExporter {
 
     private void setCurrency(Row row, int column, BigDecimal value, CellStyle style) {
         setNumber(row, column, value == null ? 0 : value.doubleValue(), style);
+    }
+
+    private void setCurrencyOrBlank(Row row, int column, BigDecimal value, boolean visible, CellStyle numberStyle, CellStyle textStyle) {
+        if (visible) setCurrency(row, column, value, numberStyle);
+        else setText(row, column, null, textStyle);
     }
 
     private String priorityLabel(TicketPriority priority) {
@@ -191,12 +208,12 @@ public class TicketExcelExporter {
         };
     }
 
-    private String chargeTypeLabel(TicketChargeType chargeType) {
-        if (chargeType == null) return "Chưa xác định";
-        return switch (chargeType) {
-            case PENDING -> "Chưa xác định";
-            case FREE -> "Miễn phí";
-            case PAID -> "Trả phí";
+    private String costStatusLabel(CostStatus status) {
+        if (status == null) return "Bản nháp";
+        return switch (status) {
+            case DRAFT -> "Bản nháp";
+            case READY -> "Chờ duyệt";
+            case APPROVED -> "Đã duyệt";
         };
     }
 

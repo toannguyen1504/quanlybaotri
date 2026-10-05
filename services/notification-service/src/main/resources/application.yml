@@ -27,6 +27,7 @@ spring:
 server.port: 8085
 app:
   identity-url: ${IDENTITY_SERVICE_URL:http://identity-service:8081}
+  maintenance-url: ${MAINTENANCE_SERVICE_URL:http://maintenance-service:8083}
   service-client.secret: ${NOTIFICATION_SERVICE_CLIENT_SECRET:change-notification-service-client-secret}
   telegram:
     enabled: ${TELEGRAM_ENABLED:false}

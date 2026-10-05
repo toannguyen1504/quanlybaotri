@@ -5,7 +5,6 @@ import com.example.quanlybaotri.telegram.domain.TelegramDelivery;
 import com.example.quanlybaotri.telegram.domain.TelegramLink;
 import com.example.quanlybaotri.telegram.persistence.TelegramDeliveryRepository;
 import com.example.quanlybaotri.telegram.persistence.TelegramLinkRepository;
-import java.net.URI;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import org.slf4j.Logger;
@@ -25,19 +24,22 @@ public class TelegramDeliveryWorker {
     private final TelegramLinkRepository links;
     private final IdentityClient identities;
     private final TelegramClient client;
+    private final TelegramKeyboardFactory keyboards;
 
     public TelegramDeliveryWorker(
         TelegramProperties properties,
         TelegramDeliveryRepository deliveries,
         TelegramLinkRepository links,
         IdentityClient identities,
-        TelegramClient client
+        TelegramClient client,
+        TelegramKeyboardFactory keyboards
     ) {
         this.properties = properties;
         this.deliveries = deliveries;
         this.links = links;
         this.identities = identities;
         this.client = client;
+        this.keyboards = keyboards;
     }
 
     @Scheduled(
@@ -68,11 +70,10 @@ public class TelegramDeliveryWorker {
                 delivery.cancel("User is no longer an enabled technician");
                 return;
             }
-            String buttonUrl = ticketButtonUrl(delivery);
             long messageId = client.sendMessage(
                 link.getTelegramChatId(),
                 delivery.getMessageText(),
-                buttonUrl
+                keyboards.rows(delivery, true)
             );
             delivery.sent(messageId);
         } catch (TelegramApiException failure) {
@@ -97,25 +98,6 @@ public class TelegramDeliveryWorker {
             retryOrFail(delivery, failure, failure.getRetryAfterSeconds());
         } catch (RuntimeException failure) {
             retryOrFail(delivery, failure, null);
-        }
-    }
-
-    private String ticketButtonUrl(TelegramDelivery delivery) {
-        if (delivery.getReferenceId() == null || properties.getAppPublicUrl().isBlank()) return null;
-        try {
-            URI base = URI.create(properties.getAppPublicUrl());
-            String host = base.getHost();
-            if (
-                host == null ||
-                "localhost".equalsIgnoreCase(host) ||
-                "127.0.0.1".equals(host) ||
-                "::1".equals(host)
-            ) return null;
-            String scheme = base.getScheme();
-            if (!"http".equalsIgnoreCase(scheme) && !"https".equalsIgnoreCase(scheme)) return null;
-            return properties.getAppPublicUrl() + "/tickets/" + delivery.getReferenceId();
-        } catch (IllegalArgumentException invalidUrl) {
-            return null;
         }
     }
 

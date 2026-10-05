@@ -29,12 +29,19 @@ public class CurrentUser {
             .map(value -> value.replaceFirst("^ROLE_", ""))
             .map(RoleName::valueOf)
             .collect(Collectors.toUnmodifiableSet());
+        String customer = auth.getToken().getClaimAsString("customer_id");
+        java.util.List<String> siteClaims = auth.getToken().getClaimAsStringList("site_ids");
+        Set<UUID> siteIds = siteClaims == null ? Set.of() : siteClaims.stream().map(UUID::fromString).collect(Collectors.toUnmodifiableSet());
         return new Actor(
             UUID.fromString(uid),
             auth.getName(),
             auth.getToken().getClaimAsString("name"),
             roles,
-            auth.getToken().getTokenValue()
+            auth.getToken().getTokenValue(),
+            auth.getToken().getClaimAsString("account_type"),
+            customer == null || customer.isBlank() ? null : UUID.fromString(customer),
+            auth.getToken().getClaimAsString("site_scope"),
+            siteIds
         );
     }
 
@@ -43,10 +50,18 @@ public class CurrentUser {
         String username,
         String fullName,
         Set<RoleName> roles,
-        String token
+        String token,
+        String accountType,
+        UUID customerId,
+        String siteScope,
+        Set<UUID> siteIds
     ) {
         public boolean has(RoleName role) {
             return roles.contains(role);
+        }
+        public boolean customer() { return "CUSTOMER".equals(accountType); }
+        public boolean canAccess(UUID customer, UUID site) {
+            return !customer() || (java.util.Objects.equals(customerId, customer) && ("ALL_SITES".equals(siteScope) || siteIds.contains(site)));
         }
     }
 }

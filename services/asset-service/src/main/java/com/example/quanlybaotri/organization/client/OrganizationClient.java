@@ -28,12 +28,12 @@ public class OrganizationClient {
         try {
             return client
                 .get()
-                .uri("/internal/v1/departments/{id}", id)
+                .uri("/internal/v1/customer-sites/{id}", id)
                 .headers(this::headers)
                 .retrieve()
                 .body(DepartmentRef.class);
         } catch (HttpClientErrorException.NotFound e) {
-            throw ApiException.notFound("Không tìm thấy phòng ban");
+            throw ApiException.notFound("Không tìm thấy địa điểm");
         } catch (RestClientException e) {
             throw new ApiException(
                 HttpStatus.SERVICE_UNAVAILABLE,
@@ -50,7 +50,7 @@ public class OrganizationClient {
         try {
             DepartmentRef[] result = client
                 .post()
-                .uri("/internal/v1/departments/resolve")
+                .uri("/internal/v1/customer-sites/resolve")
                 .headers(this::headers)
                 .body(new ResolveRequest(List.copyOf(unique)))
                 .retrieve()
@@ -67,6 +67,16 @@ public class OrganizationClient {
         }
     }
 
+    public List<DepartmentRef> byCustomer(UUID customerId) {
+        try {
+            DepartmentRef[] result = client.get().uri("/internal/v1/customer-sites?customerId={id}", customerId)
+                .headers(this::headers).retrieve().body(DepartmentRef[].class);
+            return result == null ? List.of() : List.of(result);
+        } catch (RestClientException e) {
+            throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "DEPENDENCY_UNAVAILABLE", "Organization service không sẵn sàng");
+        }
+    }
+
     private void headers(org.springframework.http.HttpHeaders h) {
         h.setBearerAuth(tokens.token("organization-service"));
         String c = MDC.get("correlationId");
@@ -75,5 +85,5 @@ public class OrganizationClient {
 
     private record ResolveRequest(List<UUID> ids) {}
 
-    public record DepartmentRef(UUID id, String code, String name, boolean active) {}
+    public record DepartmentRef(UUID id, String code, String name, UUID customerId, String customerName, boolean customerActive, boolean active) {}
 }

@@ -59,6 +59,16 @@ import { AuthService } from '../core/auth';
             <span class="nav-icon overview" aria-hidden="true">▦</span
             ><span class="nav-label">Tổng quan</span>
           </a>
+          <a
+            routerLink="/reports"
+            routerLinkActive="active"
+            aria-label="Báo cáo thống kê"
+            data-label="Báo cáo thống kê"
+            (click)="closeMobile()"
+          >
+            <span class="nav-icon" aria-hidden="true">▥</span
+            ><span class="nav-label">Báo cáo thống kê</span>
+          </a>
         }
         <a
           routerLink="/tickets"
@@ -91,7 +101,7 @@ import { AuthService } from '../core/auth';
             ><span class="nav-label">Linh kiện</span>
           </a>
         }
-        @if (auth.hasAny(['ADMIN'])) {
+        @if (auth.hasAny(['ADMIN', 'MANAGER'])) {
           <a
             routerLink="/users"
             routerLinkActive="active"

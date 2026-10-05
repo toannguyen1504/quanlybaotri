@@ -21,10 +21,24 @@ export class Api {
   delete<T>(path: string) {
     return this.http.delete<T>(this.baseUrl + path);
   }
-  upload<T>(path: string, file: File) {
+  upload<T>(path: string, file: File, fields?: Record<string, string | undefined>) {
     const form = new FormData();
     form.append('file', file);
+    Object.entries(fields ?? {}).forEach(([key, value]) => {
+      if (value) form.append(key, value);
+    });
     return this.http.post<T>(this.baseUrl + path, form);
+  }
+  uploadWithProgress<T>(path: string, file: File, fields?: Record<string, string | undefined>) {
+    const form = new FormData();
+    form.append('file', file);
+    Object.entries(fields ?? {}).forEach(([key, value]) => {
+      if (value) form.append(key, value);
+    });
+    return this.http.post<T>(this.baseUrl + path, form, {
+      observe: 'events',
+      reportProgress: true,
+    });
   }
   download(path: string, params?: Record<string, string | number | boolean | undefined>) {
     let p = new HttpParams();

@@ -28,6 +28,7 @@ public class InventoryController {
     }
 
     @GetMapping("/parts")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','TECHNICIAN')")
     public Page<PartView> parts(Pageable p) {
         return service.list(p);
     }
@@ -71,6 +72,7 @@ public class InventoryController {
     }
 
     @GetMapping("/tickets/{ticketId}/parts")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','TECHNICIAN')")
     public List<TicketPartView> ticketParts(@PathVariable UUID ticketId) {
         return service.ticketParts(ticketId, current.require());
     }

@@ -2,7 +2,6 @@ package com.example.quanlybaotri.ticket.domain;
 
 import com.example.quanlybaotri.shared.domain.BaseEntity;
 import jakarta.persistence.*;
-import java.math.*;
 import java.time.Instant;
 import java.util.UUID;
 import org.hibernate.annotations.Formula;
@@ -19,6 +18,22 @@ public class MaintenanceTicket extends BaseEntity {
 
     @Column(name = "requester_id", nullable = false)
     private UUID requesterId;
+
+    @Column(name = "customer_id", nullable = false)
+    private UUID customerId;
+
+    @Column(name = "site_id", nullable = false)
+    private UUID siteId;
+
+    @Column(name = "created_by_id", nullable = false)
+    private UUID createdById;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "warranty_status_at_creation", nullable = false, length = 30)
+    private WarrantyStatus warrantyStatusAtCreation;
+
+    @Column(name = "warranty_end_at_creation")
+    private Instant warrantyEndAtCreation;
 
     @Column(name = "assignee_id")
     private UUID assigneeId;
@@ -64,13 +79,6 @@ public class MaintenanceTicket extends BaseEntity {
     @Column(name = "resolution_summary", columnDefinition = "text")
     private String resolutionSummary;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "charge_type", nullable = false, length = 10)
-    private TicketChargeType chargeType;
-
-    @Column(name = "parts_cost", nullable = false, precision = 19, scale = 2)
-    private BigDecimal partsCost;
-
     protected MaintenanceTicket() {}
 
     public MaintenanceTicket(
@@ -83,9 +91,50 @@ public class MaintenanceTicket extends BaseEntity {
         Instant responseDue,
         Instant resolutionDue
     ) {
+        this(code, equipmentId, requesterId, requesterId,
+            UUID.fromString("20000000-0000-0000-0000-000000000001"),
+            UUID.fromString("20000000-0000-0000-0000-000000000002"),
+            title, description, priority, responseDue, resolutionDue, WarrantyStatus.UNKNOWN, null);
+    }
+
+    public MaintenanceTicket(
+        String code,
+        UUID equipmentId,
+        UUID requesterId,
+        UUID customerId,
+        UUID siteId,
+        String title,
+        String description,
+        TicketPriority priority,
+        Instant responseDue,
+        Instant resolutionDue
+    ) {
+        this(code,equipmentId,requesterId,requesterId,customerId,siteId,title,description,priority,responseDue,resolutionDue,WarrantyStatus.UNKNOWN,null);
+    }
+
+    public MaintenanceTicket(
+        String code,
+        UUID equipmentId,
+        UUID requesterId,
+        UUID createdById,
+        UUID customerId,
+        UUID siteId,
+        String title,
+        String description,
+        TicketPriority priority,
+        Instant responseDue,
+        Instant resolutionDue,
+        WarrantyStatus warrantyStatus,
+        Instant warrantyEndAt
+    ) {
         this.code = code;
         this.equipmentId = equipmentId;
         this.requesterId = requesterId;
+        this.createdById = createdById;
+        this.customerId = customerId;
+        this.siteId = siteId;
+        this.warrantyStatusAtCreation = warrantyStatus;
+        this.warrantyEndAtCreation = warrantyEndAt;
         this.title = title;
         this.description = description;
         this.priority = priority;
@@ -93,8 +142,6 @@ public class MaintenanceTicket extends BaseEntity {
         submittedAt = Instant.now();
         responseDueAt = responseDue;
         resolutionDueAt = resolutionDue;
-        chargeType = TicketChargeType.PENDING;
-        partsCost = BigDecimal.ZERO.setScale(2);
     }
 
     public void priority(TicketPriority p) {
@@ -143,23 +190,11 @@ public class MaintenanceTicket extends BaseEntity {
         status = TicketStatus.IN_PROGRESS;
         resolvedAt = null;
         closedAt = null;
-        chargeType = TicketChargeType.PENDING;
     }
 
     public void close() {
         status = TicketStatus.CLOSED;
         closedAt = Instant.now();
-    }
-
-    public void chargeType(TicketChargeType v) {
-        chargeType = v;
-    }
-
-    public void addPartCost(BigDecimal v) {
-        if (v == null || v.signum() < 0) throw new IllegalArgumentException(
-            "Part cost cannot be negative"
-        );
-        partsCost = partsCost.add(v).setScale(2, RoundingMode.HALF_UP);
     }
 
     public String getCode() {
@@ -173,6 +208,14 @@ public class MaintenanceTicket extends BaseEntity {
     public UUID getRequesterId() {
         return requesterId;
     }
+
+    public UUID getCustomerId() { return customerId; }
+    public UUID getSiteId() { return siteId; }
+    public UUID getCreatedById(){return createdById;}
+    public WarrantyStatus getWarrantyStatusAtCreation(){return warrantyStatusAtCreation;}
+    public Instant getWarrantyEndAtCreation(){return warrantyEndAtCreation;}
+    @Deprecated public UUID getBranchId(){return customerId;}
+    @Deprecated public UUID getDepartmentId(){return siteId;}
 
     public UUID getAssigneeId() {
         return assigneeId;
@@ -230,15 +273,4 @@ public class MaintenanceTicket extends BaseEntity {
         return resolutionSummary;
     }
 
-    public TicketChargeType getChargeType() {
-        return chargeType;
-    }
-
-    public BigDecimal getPartsCost() {
-        return partsCost;
-    }
-
-    public BigDecimal getChargeAmount() {
-        return chargeType == TicketChargeType.PAID ? partsCost : BigDecimal.ZERO.setScale(2);
-    }
 }

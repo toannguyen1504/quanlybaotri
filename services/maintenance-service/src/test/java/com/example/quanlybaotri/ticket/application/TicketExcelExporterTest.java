@@ -3,9 +3,10 @@ package com.example.quanlybaotri.ticket.application;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.example.quanlybaotri.ticket.api.TicketController.TicketView;
-import com.example.quanlybaotri.ticket.domain.TicketChargeType;
+import com.example.quanlybaotri.cost.domain.CostStatus;
 import com.example.quanlybaotri.ticket.domain.TicketPriority;
 import com.example.quanlybaotri.ticket.domain.TicketStatus;
+import com.example.quanlybaotri.ticket.domain.WarrantyStatus;
 import java.io.ByteArrayInputStream;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -29,6 +30,14 @@ class TicketExcelExporterTest {
             "TB-001",
             "Máy in tầng 5",
             UUID.randomUUID(),
+            "Chi nhánh Hà Nội",
+            UUID.randomUUID(),
+            "Phòng Kỹ thuật",
+            UUID.randomUUID(),
+            "Miền Bắc",
+            UUID.randomUUID(),
+            "Nguyễn Văn A",
+            UUID.randomUUID(),
             "Nguyễn Văn A",
             UUID.randomUUID(),
             "Trần Kỹ Thuật",
@@ -44,9 +53,16 @@ class TicketExcelExporterTest {
             dueAt.plusSeconds(60),
             dueAt.plusSeconds(120),
             "Đã thay bộ cuốn giấy",
-            TicketChargeType.PAID,
+            WarrantyStatus.IN_WARRANTY,
+            dueAt.plusSeconds(86400),
+            true,
+            CostStatus.APPROVED,
             new BigDecimal("150000.00"),
-            new BigDecimal("150000.00"),
+            new BigDecimal("100000.00"),
+            BigDecimal.ZERO,
+            new BigDecimal("50000.00"),
+            BigDecimal.ZERO,
+            new BigDecimal("300000.00"),
             2L
         );
 
@@ -67,10 +83,11 @@ class TicketExcelExporterTest {
             assertThat(sheet.getRow(2).getCell(1).getStringCellValue()).isEqualTo("Mã phiếu");
             assertThat(sheet.getRow(3).getCell(1).getStringCellValue())
                 .isEqualTo("BT-2026-000123");
-            assertThat(sheet.getRow(3).getCell(6).getStringCellValue()).isEqualTo("Cao");
-            assertThat(sheet.getRow(3).getCell(16).getStringCellValue())
+            assertThat(sheet.getRow(3).getCell(8).getStringCellValue()).isEqualTo("Cao");
+            assertThat(sheet.getRow(3).getCell(18).getStringCellValue())
                 .isEqualTo("Hoàn tất quá hạn");
-            assertThat(sheet.getRow(3).getCell(20).getNumericCellValue()).isEqualTo(150000d);
+            assertThat(sheet.getRow(3).getCell(20).getStringCellValue()).isEqualTo("Đã duyệt");
+            assertThat(sheet.getRow(3).getCell(26).getNumericCellValue()).isEqualTo(300000d);
             assertThat(sheet.getPaneInformation().isFreezePane()).isTrue();
         }
     }

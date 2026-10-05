@@ -47,11 +47,11 @@ public class ServiceTokenController {
             "asset-service",
             Set.of("organization-service"),
             "maintenance-service",
-            Set.of("identity-service", "asset-service"),
+            Set.of("identity-service", "asset-service", "inventory-service", "organization-service"),
             "inventory-service",
             Set.of("identity-service", "maintenance-service"),
             "notification-service",
-            Set.of("identity-service")
+            Set.of("identity-service", "maintenance-service")
         );
     }
 

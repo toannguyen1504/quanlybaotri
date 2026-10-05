@@ -2,6 +2,7 @@ package com.example.quanlybaotri.ticket.application;
 
 import com.example.quanlybaotri.shared.messaging.RabbitConfig;
 import com.example.quanlybaotri.ticket.persistence.TicketRepository;
+import com.example.quanlybaotri.cost.application.CostService;
 import java.math.BigDecimal;
 import java.util.Map;
 import java.util.UUID;
@@ -19,17 +20,20 @@ public class InventoryEventConsumer {
     private final ObjectMapper json;
     private final TicketRepository tickets;
     private final TicketEventService events;
+    private final CostService costs;
 
     public InventoryEventConsumer(
         JdbcTemplate jdbc,
         ObjectMapper json,
         TicketRepository tickets,
-        TicketEventService events
+        TicketEventService events,
+        CostService costs
     ) {
         this.jdbc = jdbc;
         this.json = json;
         this.tickets = tickets;
         this.events = events;
+        this.costs = costs;
     }
 
     @RabbitListener(queues = RabbitConfig.QUEUE)
@@ -58,8 +62,17 @@ public class InventoryEventConsumer {
         var ticket = tickets
             .findById(ticketId)
             .orElseThrow(() -> new IllegalStateException("Ticket not found: " + ticketId));
-        BigDecimal amount = quantity.multiply(unitCost);
-        ticket.addPartCost(amount);
+        UUID usageId = UUID.fromString(root.path("aggregateId").asText());
+        costs.addPart(
+            ticketId,
+            usageId,
+            "Linh kiện " + data.path("partCode").asText() + " - " + data.path("partName").asText(),
+            quantity,
+            data.path("unit").asText("ĐƠN VỊ"),
+            unitCost,
+            root.path("occurredAt").isTextual() ? java.time.Instant.parse(root.path("occurredAt").asText()) : java.time.Instant.now(),
+            actorId
+        );
         events.record(
             ticket,
             actorId,
@@ -73,9 +86,7 @@ public class InventoryEventConsumer {
                 "partId",
                 data.path("partId").asText(),
                 "quantity",
-                quantity,
-                "amount",
-                amount
+                quantity
             )
         );
         jdbc.update(

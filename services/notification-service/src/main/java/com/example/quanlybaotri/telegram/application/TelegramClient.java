@@ -40,15 +40,17 @@ public class TelegramClient {
             "timeout",
             properties.getPollTimeoutSeconds(),
             "allowed_updates",
-            List.of("message")
+            List.of("message", "callback_query")
         );
         JsonNode result = call("getUpdates", request).path("result");
         List<Update> updates = new ArrayList<>();
         if (!result.isArray()) return updates;
         for (JsonNode item : result) {
-            JsonNode message = item.path("message");
+            JsonNode callback = item.path("callback_query");
+            boolean isCallback = !callback.isMissingNode();
+            JsonNode message = isCallback ? callback.path("message") : item.path("message");
             JsonNode chat = message.path("chat");
-            JsonNode from = message.path("from");
+            JsonNode from = isCallback ? callback.path("from") : message.path("from");
             updates.add(
                 new Update(
                     item.path("update_id").asLong(),
@@ -56,7 +58,10 @@ public class TelegramClient {
                     chat.path("id").asLong(),
                     chat.path("type").asText(""),
                     from.path("id").asLong(),
-                    nullableText(from, "username")
+                    nullableText(from, "username"),
+                    nullableText(callback, "id"),
+                    nullableText(callback, "data"),
+                    message.path("message_id").asLong()
                 )
             );
         }
@@ -68,21 +73,47 @@ public class TelegramClient {
         call("deleteWebhook", Map.of("drop_pending_updates", false));
     }
 
-    public long sendMessage(long chatId, String text, String buttonUrl) {
+    public long sendMessage(long chatId, String text, List<List<InlineButton>> buttonRows) {
         ensureConfigured();
         Map<String, Object> request = new LinkedHashMap<>();
         request.put("chat_id", chatId);
         request.put("text", text);
-        if (buttonUrl != null && !buttonUrl.isBlank()) {
-            request.put(
-                "reply_markup",
-                Map.of(
-                    "inline_keyboard",
-                    List.of(List.of(Map.of("text", "Mở phiếu", "url", buttonUrl)))
-                )
-            );
-        }
+        if (buttonRows != null && !buttonRows.isEmpty()) request.put(
+            "reply_markup",
+            keyboard(buttonRows)
+        );
         return call("sendMessage", request).path("result").path("message_id").asLong();
+    }
+
+    public void answerCallbackQuery(String callbackQueryId, String text, boolean showAlert) {
+        ensureConfigured();
+        Map<String, Object> request = new LinkedHashMap<>();
+        request.put("callback_query_id", callbackQueryId);
+        if (text != null && !text.isBlank()) request.put("text", text);
+        request.put("show_alert", showAlert);
+        call("answerCallbackQuery", request);
+    }
+
+    public void editMessage(
+        long chatId,
+        long messageId,
+        String text,
+        List<List<InlineButton>> buttonRows
+    ) {
+        ensureConfigured();
+        Map<String, Object> request = new LinkedHashMap<>();
+        request.put("chat_id", chatId);
+        request.put("message_id", messageId);
+        request.put("text", text);
+        request.put("reply_markup", keyboard(buttonRows == null ? List.of() : buttonRows));
+        call("editMessageText", request);
+    }
+
+    private static Map<String, Object> keyboard(List<List<InlineButton>> rows) {
+        return Map.of(
+            "inline_keyboard",
+            rows.stream().map(row -> row.stream().map(InlineButton::request).toList()).toList()
+        );
     }
 
     private JsonNode call(String method, Object request) {
@@ -137,6 +168,39 @@ public class TelegramClient {
         long chatId,
         String chatType,
         long telegramUserId,
-        String telegramUsername
-    ) {}
+        String telegramUsername,
+        String callbackQueryId,
+        String callbackData,
+        long callbackMessageId
+    ) {
+        public Update(
+            long updateId,
+            String text,
+            long chatId,
+            String chatType,
+            long telegramUserId,
+            String telegramUsername
+        ) {
+            this(updateId, text, chatId, chatType, telegramUserId, telegramUsername, null, null, 0);
+        }
+
+        public boolean isCallbackQuery() {
+            return callbackQueryId != null;
+        }
+    }
+
+    public record InlineButton(String text, String url, String callbackData) {
+        public static InlineButton url(String text, String url) {
+            return new InlineButton(text, url, null);
+        }
+
+        public static InlineButton callback(String text, String callbackData) {
+            return new InlineButton(text, null, callbackData);
+        }
+
+        private Map<String, String> request() {
+            if (url != null) return Map.of("text", text, "url", url);
+            return Map.of("text", text, "callback_data", callbackData);
+        }
+    }
 }

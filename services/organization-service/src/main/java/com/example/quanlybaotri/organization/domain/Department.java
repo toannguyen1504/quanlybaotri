@@ -4,8 +4,16 @@ import com.example.quanlybaotri.shared.domain.BaseEntity;
 import jakarta.persistence.*;
 
 @Entity
-@Table(name = "departments")
+@Table(name = "customer_sites")
 public class Department extends BaseEntity {
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "customer_id", nullable = false)
+    private Branch branch;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "region_id")
+    private Region region;
 
     @Column(nullable = false, unique = true, length = 50)
     private String code;
@@ -30,7 +38,8 @@ public class Department extends BaseEntity {
 
     protected Department() {}
 
-    public Department(String code, String name) {
+    public Department(Branch branch, String code, String name) {
+        this.branch = branch;
         this.code = code;
         this.name = name;
     }
@@ -61,6 +70,14 @@ public class Department extends BaseEntity {
     public String getCode() {
         return code;
     }
+
+    public Branch getBranch() { return branch; }
+
+    public void branch(Branch branch) { this.branch = branch; }
+
+    public Region getRegion() { return region; }
+
+    public void region(Region region) { this.region = region; }
 
     public String getName() {
         return name;

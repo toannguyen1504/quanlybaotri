@@ -17,6 +17,15 @@ export const routes: Routes = [
         loadComponent: () => import('./pages/dashboard').then((m) => m.DashboardPage),
       },
       {
+        path: 'reports',
+        canActivate: [roleGuard],
+        data: { roles: ['ADMIN', 'MANAGER'] },
+        loadComponent: () =>
+          import('./pages/statistics-report').then((m) => m.StatisticsReportPage),
+      },
+      { path: 'cost-reports', redirectTo: 'reports', pathMatch: 'full' },
+      { path: 'cost-accounting', redirectTo: 'reports', pathMatch: 'full' },
+      {
         path: 'tickets',
         loadComponent: () => import('./pages/ticket-list').then((m) => m.TicketListPage),
       },
@@ -43,13 +52,13 @@ export const routes: Routes = [
       {
         path: 'users',
         canActivate: [roleGuard],
-        data: { roles: ['ADMIN'] },
+        data: { roles: ['ADMIN', 'MANAGER'] },
         loadComponent: () => import('./pages/users').then((m) => m.UsersPage),
       },
       {
         path: 'settings',
         canActivate: [roleGuard],
-        data: { roles: ['ADMIN'] },
+        data: { roles: ['ADMIN', 'MANAGER'] },
         loadComponent: () => import('./pages/settings').then((m) => m.SettingsPage),
       },
       {

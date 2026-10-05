@@ -29,12 +29,36 @@ public class OrganizationClient {
         try {
             return client
                 .get()
-                .uri("/internal/v1/departments/{id}", id)
+                .uri("/internal/v1/customer-sites/{id}", id)
                 .headers(h -> headers(h))
                 .retrieve()
                 .body(DepartmentRef.class);
         } catch (HttpClientErrorException.NotFound e) {
-            throw ApiException.notFound("Không tìm thấy phòng ban");
+            throw ApiException.notFound("Không tìm thấy địa điểm");
+        } catch (RestClientException e) {
+            throw unavailable(e);
+        }
+    }
+
+    public CustomerRef findCustomer(UUID id) {
+        if (id == null) return null;
+        try {
+            return client.get().uri("/internal/v1/customers/{id}", id)
+                .headers(this::headers).retrieve().body(CustomerRef.class);
+        } catch (HttpClientErrorException.NotFound e) {
+            throw ApiException.notFound("Không tìm thấy khách hàng");
+        } catch (RestClientException e) {
+            throw unavailable(e);
+        }
+    }
+
+    public RegionRef findRegion(UUID id) {
+        if (id == null) return null;
+        try {
+            return client.get().uri("/internal/v1/regions/{id}", id)
+                .headers(this::headers).retrieve().body(RegionRef.class);
+        } catch (HttpClientErrorException.NotFound e) {
+            throw ApiException.notFound("Không tìm thấy khu vực");
         } catch (RestClientException e) {
             throw unavailable(e);
         }
@@ -47,7 +71,7 @@ public class OrganizationClient {
         try {
             DepartmentRef[] result = client
                 .post()
-                .uri("/internal/v1/departments/resolve")
+                .uri("/internal/v1/customer-sites/resolve")
                 .headers(this::headers)
                 .body(new ResolveRequest(List.copyOf(unique)))
                 .retrieve()
@@ -57,6 +81,16 @@ public class OrganizationClient {
             return map;
         } catch (RestClientException e) {
             throw unavailable(e);
+        }
+    }
+
+    public List<DepartmentRef> byCustomer(UUID customerId) {
+        try {
+            DepartmentRef[] result = client.get().uri("/internal/v1/customer-sites?customerId={id}", customerId)
+                .headers(this::headers).retrieve().body(DepartmentRef[].class);
+            return result == null ? List.of() : List.of(result);
+        } catch (RestClientException e) {
+            throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "DEPENDENCY_UNAVAILABLE", "Organization service không sẵn sàng");
         }
     }
 
@@ -76,5 +110,8 @@ public class OrganizationClient {
 
     public record ResolveRequest(List<UUID> ids) {}
 
-    public record DepartmentRef(UUID id, String code, String name, boolean active) {}
+    public record CustomerRef(UUID id, String code, String name, boolean active) {}
+    public record RegionRef(UUID id, String code, String name, boolean active) {}
+    public record DepartmentRef(UUID id, String code, String name, UUID customerId, String customerName,
+                                UUID regionId, String regionName, boolean customerActive, boolean active) {}
 }

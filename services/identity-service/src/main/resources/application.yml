@@ -21,6 +21,8 @@ server:
   forward-headers-strategy: framework
 
 app:
+  customer-scope-migration:
+    enabled: ${CUSTOMER_SCOPE_MIGRATION_ENABLED:false}
   organization-url: ${ORGANIZATION_SERVICE_URL:http://organization-service:8086}
   service-clients:
     identity-secret: ${IDENTITY_SERVICE_CLIENT_SECRET:change-identity-service-client-secret}

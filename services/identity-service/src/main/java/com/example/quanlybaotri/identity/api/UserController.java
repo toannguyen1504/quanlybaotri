@@ -2,13 +2,16 @@ package com.example.quanlybaotri.identity.api;
 
 import com.example.quanlybaotri.identity.application.UserService;
 import com.example.quanlybaotri.identity.domain.RoleName;
+import com.example.quanlybaotri.identity.domain.AccountType;
+import com.example.quanlybaotri.identity.domain.RegionScope;
+import com.example.quanlybaotri.identity.domain.SiteScope;
 import com.example.quanlybaotri.identity.domain.UserAccount;
 import com.example.quanlybaotri.identity.persistence.RoleRepository;
-import com.example.quanlybaotri.organization.client.OrganizationClient;
 import com.example.quanlybaotri.shared.security.CurrentUser;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import java.util.List;
 import java.util.Set;
@@ -24,6 +27,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -33,44 +37,46 @@ public class UserController {
     private final UserService service;
     private final RoleRepository roles;
     private final CurrentUser current;
-    private final OrganizationClient organizations;
 
     public UserController(
         UserService service,
         RoleRepository roles,
-        CurrentUser current,
-        OrganizationClient organizations
+        CurrentUser current
     ) {
         this.service = service;
         this.roles = roles;
         this.current = current;
-        this.organizations = organizations;
     }
 
     @GetMapping("/users")
     @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
-    public Page<UserView> list(Pageable pageable) {
-        return service.list(pageable);
+    public Page<UserView> list(
+        @RequestParam(required = false) UUID customerId,
+        @RequestParam(required = false) UUID siteId,
+        @RequestParam(required = false) AccountType accountType,
+        Pageable pageable
+    ) {
+        return service.list(current.require(), customerId, siteId, accountType, pageable);
     }
 
     @PostMapping("/users")
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
     public UserView create(@Valid @RequestBody UserRequest request) {
-        return service.create(request);
+        return service.create(current.require(), request);
     }
 
     @PutMapping("/users/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
     public UserView update(@PathVariable UUID id, @Valid @RequestBody UserRequest request) {
-        return service.update(id, request);
+        return service.update(current.require(), id, request);
     }
 
     @PostMapping("/users/{id}/reset-password")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
     public void reset(@PathVariable UUID id, @Valid @RequestBody PasswordReset request) {
-        service.resetPassword(id, request.password());
+        service.resetPassword(current.require(), id, request.password());
     }
 
     @PostMapping("/users/me/password")
@@ -94,11 +100,7 @@ public class UserController {
             request.fullName(),
             request.phone()
         );
-        OrganizationClient.DepartmentRef department =
-            updated.getDepartmentId() == null
-                ? null
-                : organizations.find(updated.getDepartmentId());
-        return AuthController.MeResponse.from(updated, department);
+        return AuthController.MeResponse.from(updated);
     }
 
     @GetMapping("/roles")
@@ -116,7 +118,12 @@ public class UserController {
         @Size(min = 8, max = 100) String password,
         @NotBlank @Size(max = 150) String fullName,
         @Size(max = 30) String phone,
-        UUID departmentId,
+        @NotNull AccountType accountType,
+        UUID customerId,
+        @NotNull SiteScope siteScope,
+        Set<UUID> siteIds,
+        RegionScope regionScope,
+        Set<UUID> regionIds,
         Set<RoleName> roles,
         boolean enabled
     ) {}
@@ -142,21 +149,29 @@ public class UserController {
         String email,
         String fullName,
         String phone,
-        UUID departmentId,
-        String departmentName,
+        AccountType accountType,
+        UUID customerId,
+        SiteScope siteScope,
+        Set<UUID> siteIds,
+        RegionScope regionScope,
+        Set<UUID> regionIds,
         boolean enabled,
         boolean mustChangePassword,
         Set<RoleName> roles
     ) {
-        public static UserView from(UserAccount u, OrganizationClient.DepartmentRef department) {
+        public static UserView from(UserAccount u) {
             return new UserView(
                 u.getId(),
                 u.getUsername(),
                 u.getEmail(),
                 u.getFullName(),
                 u.getPhone(),
-                u.getDepartmentId(),
-                department == null ? null : department.name(),
+                u.getAccountType(),
+                u.getCustomerId(),
+                u.getSiteScope(),
+                u.getSiteIds(),
+                u.getRegionScope(),
+                u.getRegionIds(),
                 u.isEnabled(),
                 u.isMustChangePassword(),
                 u

@@ -80,7 +80,17 @@ public class IdentityClient {
         UUID id,
         String username,
         String fullName,
+        String email,
+        String accountType,
+        UUID customerId,
+        String siteScope,
+        Set<UUID> siteIds,
+        String regionScope,
+        Set<UUID> regionIds,
         boolean enabled,
         Set<RoleName> roles
-    ) {}
+    ) {
+        public boolean canAccess(UUID customerId,UUID siteId){return !"CUSTOMER".equals(accountType)||(Objects.equals(this.customerId,customerId)&&("ALL_SITES".equals(siteScope)||(siteIds!=null&&siteIds.contains(siteId))));}
+        public boolean matchesRegion(UUID regionId){return "ALL_REGIONS".equals(regionScope)||(regionId!=null&&"SELECTED_REGIONS".equals(regionScope)&&regionIds!=null&&regionIds.contains(regionId));}
+    }
 }

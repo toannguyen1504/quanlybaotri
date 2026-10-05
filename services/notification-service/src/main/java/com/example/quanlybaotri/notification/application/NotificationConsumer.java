@@ -63,6 +63,8 @@ public class NotificationConsumer {
                 "",
                 null,
                 null,
+                null,
+                null,
                 null
             );
         };
@@ -88,7 +90,10 @@ public class NotificationConsumer {
                         notification.getId(),
                         id,
                         command.telegramMessage(),
-                        command.referenceId()
+                        command.referenceId(),
+                        Objects.equals(id, command.actionableRecipientId())
+                            ? command.telegramAction()
+                            : null
                     )
                 );
             }
@@ -99,7 +104,8 @@ public class NotificationConsumer {
     private NotificationCommand ticketChanged(UUID eventId, JsonNode d) {
         Set<UUID> recipients = new LinkedHashSet<>();
         add(recipients, nullableUuid(d, "requesterId"));
-        add(recipients, nullableUuid(d, "assigneeId"));
+        UUID assigneeId = nullableUuid(d, "assigneeId");
+        add(recipients, assigneeId);
         recipients.remove(nullableUuid(d, "actorId"));
         if ("SUBMITTED".equals(text(d, "action"))) recipients.addAll(
             identities.enabledByRoles(Set.of("ADMIN", "MANAGER"))
@@ -112,7 +118,11 @@ public class NotificationConsumer {
             text(d, "description"),
             "TICKET",
             uuid(d, "ticketId"),
-            telegramTicketMessage(d)
+            telegramTicketMessage(d),
+            "ASSIGNED".equals(text(d, "action")) ? assigneeId : null,
+            "ASSIGNED".equals(text(d, "action"))
+                ? TelegramDelivery.Action.START_ASSIGNED_TICKET
+                : null
         );
     }
 
@@ -135,6 +145,8 @@ public class NotificationConsumer {
             message,
             "PART",
             uuid(d, "partId"),
+            null,
+            null,
             null
         );
     }
@@ -179,6 +191,8 @@ public class NotificationConsumer {
         String message,
         String referenceType,
         UUID referenceId,
-        String telegramMessage
+        String telegramMessage,
+        UUID actionableRecipientId,
+        TelegramDelivery.Action telegramAction
     ) {}
 }

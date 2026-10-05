@@ -8,17 +8,23 @@ import java.util.UUID;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 public interface UserRepository
     extends JpaRepository<UserAccount, UUID>, JpaSpecificationExecutor<UserAccount>
 {
-    @EntityGraph(attributePaths = { "roles" })
+    @Override
+    @EntityGraph(attributePaths = { "roles", "siteIds", "regionIds" })
+    Page<UserAccount> findAll(Specification<UserAccount> specification, Pageable pageable);
+    @EntityGraph(attributePaths = { "roles", "siteIds", "regionIds" })
     Optional<UserAccount> findWithRolesByUsername(String username);
 
-    @EntityGraph(attributePaths = { "roles" })
+    @EntityGraph(attributePaths = { "roles", "siteIds", "regionIds" })
     Optional<UserAccount> findWithRolesById(UUID id);
 
-    @EntityGraph(attributePaths = { "roles" })
+    @EntityGraph(attributePaths = { "roles", "siteIds", "regionIds" })
     List<UserAccount> findByIdIn(Collection<UUID> ids);
 
     boolean existsByUsernameIgnoreCase(String username);
@@ -27,6 +33,7 @@ public interface UserRepository
 
     boolean existsByEmailIgnoreCaseAndIdNot(String email, UUID id);
 
+    @EntityGraph(attributePaths = { "roles", "siteIds", "regionIds" })
     @org.springframework.data.jpa.repository.Query(
         "select distinct u from UserAccount u join u.roles r where r.name in :roles and u.enabled=true"
     )
@@ -36,6 +43,7 @@ public interface UserRepository
         ) Collection<com.example.quanlybaotri.identity.domain.RoleName> roles
     );
 
+    @EntityGraph(attributePaths = { "roles", "siteIds", "regionIds" })
     @org.springframework.data.jpa.repository.Query(
         "select distinct u from UserAccount u join u.roles r where r.name in :roles"
     )

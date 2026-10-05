@@ -61,6 +61,9 @@ public class TicketEventService {
             data.put("requesterId", ticket.getRequesterId());
             data.put("assigneeId", ticket.getAssigneeId());
             data.put("equipmentId", ticket.getEquipmentId());
+            data.put("customerId", ticket.getCustomerId());
+            data.put("siteId", ticket.getSiteId());
+            data.put("warrantyStatus", ticket.getWarrantyStatusAtCreation().name());
             data.put("description", description);
             data.put("submittedAt", ticket.getSubmittedAt());
             data.put("resolutionDueAt", ticket.getResolutionDueAt());

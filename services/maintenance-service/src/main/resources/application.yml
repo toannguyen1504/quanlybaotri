@@ -29,17 +29,36 @@ spring:
         max-interval: 10s
   security.oauth2.resourceserver.jwt.jwk-set-uri: ${JWK_SET_URI:http://identity-service:8081/.well-known/jwks.json}
   servlet.multipart:
-    max-file-size: 10MB
-    max-request-size: 10MB
+    max-file-size: 205MB
+    max-request-size: 210MB
 server.port: 8083
+server.tomcat.max-http-form-post-size: 210MB
+server.tomcat.max-swallow-size: 210MB
 app:
-  storage.root: ${FILE_STORAGE_ROOT:/data/uploads}
+  storage:
+    endpoint: ${S3_ENDPOINT:}
+    public-endpoint: ${S3_PUBLIC_ENDPOINT:${S3_ENDPOINT:}}
+    region: ${S3_REGION:us-east-1}
+    path-style: ${S3_PATH_STYLE:false}
+    bucket: ${S3_BUCKET:maintenance-attachments}
+    access-key: ${S3_ACCESS_KEY:}
+    secret-key: ${S3_SECRET_KEY:}
+    preview-minutes: ${S3_PREVIEW_MINUTES:2}
+    cleanup-delay: ${S3_CLEANUP_DELAY:60000}
+    migration:
+      enabled: ${STORAGE_MIGRATION_ENABLED:false}
+      dry-run: ${STORAGE_MIGRATION_DRY_RUN:true}
+      legacy-root: ${STORAGE_MIGRATION_LEGACY_ROOT:/legacy-uploads}
   outbox.confirm-timeout: 5s
   identity-url: ${IDENTITY_URL:http://identity-service:8081}
   asset-url: ${ASSET_URL:http://asset-service:8082}
+  inventory-url: ${INVENTORY_SERVICE_URL:http://inventory-service:8084}
+  organization-url: ${ORGANIZATION_URL:http://organization-service:8086}
   service-client.secret: ${MAINTENANCE_SERVICE_CLIENT_SECRET:maintenance-service-dev-secret}
+  costing.enforce-approval: ${COSTING_ENFORCE_APPROVAL:false}
 management:
   server.port: 9000
   endpoints.web.exposure.include: health,info,prometheus
   endpoint.health.probes.enabled: true
+  endpoint.health.group.readiness.include: readinessState,s3ObjectStorage
 logging.structured.format.console: logstash

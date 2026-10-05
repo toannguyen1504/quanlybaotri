@@ -9,7 +9,7 @@ import java.util.*;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/internal/v1/departments")
+@RequestMapping("/internal/v1/customer-sites")
 public class InternalDepartmentController {
 
     private final DepartmentRepository repo;
@@ -21,8 +21,14 @@ public class InternalDepartmentController {
     @GetMapping("/{id}")
     public DepartmentRef get(@PathVariable UUID id) {
         return DepartmentRef.from(
-            repo.findById(id).orElseThrow(() -> ApiException.notFound("Không tìm thấy phòng ban"))
+            repo.findById(id).orElseThrow(() -> ApiException.notFound("Không tìm thấy địa điểm"))
         );
+    }
+
+    @GetMapping
+    public List<DepartmentRef> list(@RequestParam(required = false) UUID customerId) {
+        List<Department> departments = customerId == null ? repo.findAll() : repo.findByBranchId(customerId);
+        return departments.stream().map(DepartmentRef::from).toList();
     }
 
     @PostMapping("/resolve")
@@ -40,9 +46,12 @@ public class InternalDepartmentController {
         }
     }
 
-    public record DepartmentRef(UUID id, String code, String name, boolean active) {
+    public record DepartmentRef(UUID id, String code, String name, UUID customerId, String customerName,
+                                UUID regionId, String regionName, boolean customerActive, boolean active) {
         static DepartmentRef from(Department d) {
-            return new DepartmentRef(d.getId(), d.getCode(), d.getName(), d.isActive());
+            return new DepartmentRef(d.getId(), d.getCode(), d.getName(), d.getBranch().getId(),
+                d.getBranch().getName(), d.getRegion() == null ? null : d.getRegion().getId(),
+                d.getRegion() == null ? null : d.getRegion().getName(), d.getBranch().isActive(), d.isActive());
         }
     }
 }

@@ -7,14 +7,21 @@ import { Api } from '../core/api';
 import { AuthService } from '../core/auth';
 import {
   Page,
+  Customer,
+  CustomerSite,
+  Equipment,
   Ticket,
   TicketListView,
   TicketPriority,
   TicketStatus,
   TicketSummary,
+  TicketWorkQueue,
+  User,
+  WarrantyStatus,
 } from '../core/models';
 
 type SlaState = 'ON_TRACK' | 'DUE_SOON' | 'OVERDUE' | 'COMPLETED';
+interface EquipmentCategoryOption { id: string; name: string; }
 
 @Component({
   selector: 'app-ticket-list',
@@ -106,6 +113,57 @@ type SlaState = 'ON_TRACK' | 'DUE_SOON' | 'OVERDUE' | 'COMPLETED';
             }
           </select>
         </label>
+        <label>
+          <span>Hàng chờ nghiệp vụ</span>
+          <select [(ngModel)]="queue" name="queue">
+            <option value="">Tất cả hàng chờ</option>
+            @for (item of queues; track item.value) {
+              <option [value]="item.value">{{ item.label }}</option>
+            }
+          </select>
+        </label>
+        <label>
+          <span>Khách hàng</span>
+          <select [(ngModel)]="customerId" name="customerId" (ngModelChange)="siteId = ''; equipmentId = ''">
+            <option value="">Tất cả khách hàng</option>
+            @for (customer of customers(); track customer.id) { <option [value]="customer.id">{{ customer.name }}</option> }
+          </select>
+        </label>
+        <label>
+          <span>Địa điểm</span>
+          <select [(ngModel)]="siteId" name="siteId" (ngModelChange)="equipmentId = ''">
+            <option value="">Tất cả địa điểm</option>
+            @for (site of filteredSites(); track site.id) { <option [value]="site.id">{{ site.name }}</option> }
+          </select>
+        </label>
+        <label>
+          <span>Thiết bị</span>
+          <select [(ngModel)]="equipmentId" name="equipmentId">
+            <option value="">Tất cả thiết bị</option>
+            @for (item of filteredEquipment(); track item.id) {
+              <option [value]="item.id">{{ item.assetCode }} · {{ item.name }}</option>
+            }
+          </select>
+        </label>
+        <label>
+          <span>Loại thiết bị</span>
+          <select [(ngModel)]="equipmentCategoryId" name="equipmentCategoryId">
+            <option value="">Tất cả loại thiết bị</option>
+            @for (item of equipmentCategories(); track item.id) {
+              <option [value]="item.id">{{ item.name }}</option>
+            }
+          </select>
+        </label>
+        <label>
+          <span>Kỹ thuật viên</span>
+          <select [(ngModel)]="technicianId" name="technicianId">
+            <option value="">Tất cả kỹ thuật viên</option>
+            @for (item of technicians(); track item.id) {
+              <option [value]="item.id">{{ item.fullName }}</option>
+            }
+          </select>
+        </label>
+        <label><span>Bảo hành</span><select [(ngModel)]="warrantyStatus" name="warrantyStatus"><option value="">Tất cả</option><option value="IN_WARRANTY">Còn bảo hành</option><option value="OUT_OF_WARRANTY">Hết bảo hành</option><option value="UNKNOWN">Chưa rõ</option></select></label>
         <div class="ticket-filter-actions">
           <button class="primary" type="submit">Áp dụng</button>
           <button
@@ -286,11 +344,23 @@ export class TicketListPage implements OnInit {
   readonly error = signal('');
   readonly exporting = signal(false);
   readonly exportError = signal('');
+  readonly customers = signal<Customer[]>([]);
+  readonly sites = signal<CustomerSite[]>([]);
+  readonly equipment = signal<Equipment[]>([]);
+  readonly equipmentCategories = signal<EquipmentCategoryOption[]>([]);
+  readonly technicians = signal<User[]>([]);
 
   q = '';
   status: TicketStatus | '' = '';
   priority: TicketPriority | '' = '';
   view: TicketListView = 'ALL';
+  queue: TicketWorkQueue | '' = '';
+  customerId = '';
+  siteId = '';
+  equipmentId = '';
+  equipmentCategoryId = '';
+  technicianId = '';
+  warrantyStatus: WarrantyStatus | '' = '';
   currentPage = 0;
 
   readonly skeletonRows = [1, 2, 3, 4, 5];
@@ -311,6 +381,19 @@ export class TicketListPage implements OnInit {
     { value: 'OPEN', label: 'Đang mở' },
     { value: 'DUE_SOON', label: 'Sắp quá hạn' },
     { value: 'OVERDUE', label: 'Quá hạn SLA' },
+  ];
+  readonly queues: { value: TicketWorkQueue; label: string }[] = [
+    { value: 'RESPONSE_OVERDUE', label: 'Quá hạn phản hồi' },
+    { value: 'RESOLUTION_DUE_SOON', label: 'Sắp quá hạn xử lý' },
+    { value: 'RESOLUTION_OVERDUE', label: 'Quá hạn xử lý' },
+    { value: 'AWAITING_ACCEPTANCE', label: 'Chờ tiếp nhận' },
+    { value: 'AWAITING_ASSIGNMENT', label: 'Chờ phân công' },
+    { value: 'AWAITING_START', label: 'Đã phân công, chưa bắt đầu' },
+    { value: 'IN_PROGRESS', label: 'Đang xử lý' },
+    { value: 'WAITING_PARTS', label: 'Chờ linh kiện' },
+    { value: 'AWAITING_CLOSURE', label: 'Chờ xác nhận đóng' },
+    { value: 'COST_DRAFT', label: 'Chi phí chưa gửi duyệt' },
+    { value: 'COST_READY', label: 'Chi phí chờ duyệt' },
   ];
   readonly overviewCards: {
     view: TicketListView;
@@ -333,11 +416,29 @@ export class TicketListPage implements OnInit {
 
   ngOnInit() {
     this.loadSummary();
+    this.api.get<Customer[]>('/customers').subscribe((items) => this.customers.set(items.filter((item) => item.active)));
+    this.api.get<CustomerSite[]>('/customer-sites').subscribe((items) => this.sites.set(items.filter((item) => item.active)));
+    this.api.get<Page<Equipment>>('/equipment', { size: 500, sort: 'assetCode,asc' })
+      .subscribe((page) => this.equipment.set(page.content));
+    this.api.get<EquipmentCategoryOption[]>('/equipment-categories')
+      .subscribe((items) => this.equipmentCategories.set(items));
+    if (this.auth.hasAny(['ADMIN', 'MANAGER'])) {
+      this.api.get<Page<User>>('/users', { size: 500, sort: 'fullName,asc' }).subscribe((page) =>
+        this.technicians.set(page.content.filter((user) => user.enabled && user.roles.includes('TECHNICIAN'))),
+      );
+    }
     this.route.queryParamMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((params) => {
       this.q = params.get('q') ?? '';
       this.status = this.validStatus(params.get('status'));
       this.priority = this.validPriority(params.get('priority'));
       this.view = this.validView(params.get('view'));
+      this.queue = this.validQueue(params.get('queue'));
+      this.customerId = params.get('customerId') ?? '';
+      this.siteId = params.get('siteId') ?? '';
+      this.equipmentId = params.get('equipmentId') ?? '';
+      this.equipmentCategoryId = params.get('equipmentCategoryId') ?? '';
+      this.technicianId = params.get('technicianId') ?? '';
+      this.warrantyStatus = (params.get('warrantyStatus') as WarrantyStatus | null) ?? '';
       this.currentPage = this.parsePage(params.get('page'));
       this.loadTickets();
     });
@@ -362,6 +463,13 @@ export class TicketListPage implements OnInit {
         q: this.q.trim(),
         status: this.status,
         priority: this.priority,
+        customerId: this.customerId,
+        siteId: this.siteId,
+        equipmentId: this.equipmentId,
+        equipmentCategoryId: this.equipmentCategoryId,
+        technicianId: this.technicianId,
+        warrantyStatus: this.warrantyStatus,
+        queue: this.queue,
         view: this.view,
         page: this.currentPage,
         size: 20,
@@ -389,6 +497,13 @@ export class TicketListPage implements OnInit {
         q: this.q.trim(),
         status: this.status,
         priority: this.priority,
+        customerId: this.customerId,
+        siteId: this.siteId,
+        equipmentId: this.equipmentId,
+        equipmentCategoryId: this.equipmentCategoryId,
+        technicianId: this.technicianId,
+        warrantyStatus: this.warrantyStatus,
+        queue: this.queue,
         view: this.view,
       })
       .pipe(takeUntilDestroyed(this.destroyRef))
@@ -423,6 +538,13 @@ export class TicketListPage implements OnInit {
     this.status = '';
     this.priority = '';
     this.view = 'ALL';
+    this.queue = '';
+    this.customerId = '';
+    this.siteId = '';
+    this.equipmentId = '';
+    this.equipmentCategoryId = '';
+    this.technicianId = '';
+    this.warrantyStatus = '';
     this.navigate(0);
   }
 
@@ -439,12 +561,20 @@ export class TicketListPage implements OnInit {
   }
 
   hasFilters() {
-    return !!this.q.trim() || !!this.status || !!this.priority || this.view !== 'ALL';
+    return !!this.q.trim() || !!this.status || !!this.priority || !!this.queue ||
+      !!this.customerId || !!this.siteId || !!this.equipmentId || !!this.equipmentCategoryId ||
+      !!this.technicianId || !!this.warrantyStatus || this.view !== 'ALL';
   }
 
   summaryValue(key: keyof TicketSummary) {
     const data = this.summary();
     return data ? data[key] : '—';
+  }
+  filteredSites() { return this.sites().filter((item) => !this.customerId || item.customerId === this.customerId); }
+  filteredEquipment() {
+    return this.equipment().filter((item) =>
+      (!this.customerId || item.customerId === this.customerId) &&
+      (!this.siteId || item.siteId === this.siteId));
   }
 
   statusLabel(status: string) {
@@ -537,6 +667,13 @@ export class TicketListPage implements OnInit {
         q: this.q.trim() || null,
         status: this.status || null,
         priority: this.priority || null,
+        customerId: this.customerId || null,
+        siteId: this.siteId || null,
+        equipmentId: this.equipmentId || null,
+        equipmentCategoryId: this.equipmentCategoryId || null,
+        technicianId: this.technicianId || null,
+        warrantyStatus: this.warrantyStatus || null,
+        queue: this.queue || null,
         view: this.view === 'ALL' ? null : this.view,
         page: page > 0 ? page + 1 : null,
       },
@@ -558,5 +695,9 @@ export class TicketListPage implements OnInit {
 
   private validView(value: string | null): TicketListView {
     return this.views.some((item) => item.value === value) ? (value as TicketListView) : 'ALL';
+  }
+
+  private validQueue(value: string | null): TicketWorkQueue | '' {
+    return this.queues.some((item) => item.value === value) ? (value as TicketWorkQueue) : '';
   }
 }

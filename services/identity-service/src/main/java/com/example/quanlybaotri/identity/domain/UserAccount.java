@@ -2,6 +2,10 @@ package com.example.quanlybaotri.identity.domain;
 
 import com.example.quanlybaotri.shared.domain.BaseEntity;
 import jakarta.persistence.Column;
+import jakarta.persistence.CollectionTable;
+import jakarta.persistence.ElementCollection;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
@@ -10,6 +14,7 @@ import jakarta.persistence.ManyToMany;
 import jakarta.persistence.Table;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.UUID;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -33,8 +38,33 @@ public class UserAccount extends BaseEntity implements UserDetails {
     @Column(length = 30)
     private String phone;
 
-    @Column(name = "department_id")
-    private java.util.UUID departmentId;
+    @Column(name = "legacy_site_id")
+    private UUID legacySiteId;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "account_type", nullable = false, length = 20)
+    private AccountType accountType = AccountType.INTERNAL;
+
+    @Column(name = "customer_id")
+    private UUID customerId;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "site_scope", nullable = false, length = 20)
+    private SiteScope siteScope = SiteScope.ALL_SITES;
+
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "user_site_access", joinColumns = @JoinColumn(name = "user_id"))
+    @Column(name = "site_id", nullable = false)
+    private Set<UUID> siteIds = new HashSet<>();
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "region_scope", nullable = false, length = 24)
+    private RegionScope regionScope = RegionScope.UNASSIGNED;
+
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "user_region_access", joinColumns = @JoinColumn(name = "user_id"))
+    @Column(name = "region_id", nullable = false)
+    private Set<UUID> regionIds = new HashSet<>();
 
     @Column(nullable = false)
     private boolean enabled = true;
@@ -62,17 +92,33 @@ public class UserAccount extends BaseEntity implements UserDetails {
     public void updateProfile(
         String email,
         String fullName,
-        String phone,
-        java.util.UUID departmentId
+        String phone
     ) {
         this.email = email.toLowerCase();
         this.fullName = fullName;
         this.phone = phone;
-        this.departmentId = departmentId;
+    }
+
+    public void configureAccess(
+        AccountType accountType,
+        UUID customerId,
+        SiteScope siteScope,
+        Set<UUID> siteIds
+    ) {
+        this.accountType = accountType;
+        this.customerId = customerId;
+        this.siteScope = siteScope;
+        this.siteIds = new HashSet<>(siteIds == null ? Set.of() : siteIds);
+        this.legacySiteId = null;
     }
 
     public void setRoles(Set<Role> roles) {
         this.roles = new HashSet<>(roles);
+    }
+
+    public void configureRegions(RegionScope scope, Set<UUID> regionIds) {
+        this.regionScope = scope == null ? RegionScope.UNASSIGNED : scope;
+        this.regionIds = new HashSet<>(regionIds == null ? Set.of() : regionIds);
     }
 
     public void setEnabled(boolean enabled) {
@@ -118,9 +164,13 @@ public class UserAccount extends BaseEntity implements UserDetails {
         return phone;
     }
 
-    public java.util.UUID getDepartmentId() {
-        return departmentId;
-    }
+    public UUID getLegacySiteId() { return legacySiteId; }
+    public AccountType getAccountType() { return accountType; }
+    public UUID getCustomerId() { return customerId; }
+    public SiteScope getSiteScope() { return siteScope; }
+    public Set<UUID> getSiteIds() { return Set.copyOf(siteIds); }
+    public RegionScope getRegionScope() { return regionScope; }
+    public Set<UUID> getRegionIds() { return Set.copyOf(regionIds); }
 
     public Set<Role> getRoles() {
         return roles;

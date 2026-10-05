@@ -60,6 +60,22 @@ public class AssetClient {
         }
     }
 
+    public Set<UUID> idsByCategory(UUID categoryId) {
+        if (categoryId == null) return Set.of();
+        try {
+            UUID[] result = client
+                .get()
+                .uri(uri -> uri.path("/internal/v1/equipment/ids")
+                    .queryParam("categoryId", categoryId).build())
+                .headers(this::headers)
+                .retrieve()
+                .body(UUID[].class);
+            return result == null ? Set.of() : new LinkedHashSet<>(Arrays.asList(result));
+        } catch (RestClientException ex) {
+            throw unavailable();
+        }
+    }
+
     private void headers(org.springframework.http.HttpHeaders headers) {
         headers.setBearerAuth(tokens.token("asset-service"));
         String correlation = MDC.get("correlationId");
@@ -82,7 +98,13 @@ public class AssetClient {
         String name,
         UUID categoryId,
         String categoryName,
-        UUID departmentId,
+        UUID siteId,
+        String siteName,
+        UUID customerId,
+        String customerName,
+        java.time.Instant warrantyStartAt,
+        java.time.Instant warrantyEndAt,
+        String warrantyStatus,
         EquipmentStatus status,
         boolean active
     ) {}

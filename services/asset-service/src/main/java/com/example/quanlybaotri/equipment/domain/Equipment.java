@@ -2,6 +2,8 @@ package com.example.quanlybaotri.equipment.domain;
 
 import com.example.quanlybaotri.shared.domain.BaseEntity;
 import jakarta.persistence.*;
+import java.time.Instant;
+import java.util.UUID;
 
 @Entity
 @Table(name = "equipment")
@@ -29,8 +31,13 @@ public class Equipment extends BaseEntity {
     @JoinColumn(name = "category_id")
     private EquipmentCategory category;
 
-    @Column(name = "department_id")
-    private java.util.UUID departmentId;
+    @Column(name = "site_id", nullable = false)
+    private UUID siteId;
+
+    @Column(name = "installed_at") private Instant installedAt;
+    @Column(name = "accepted_at") private Instant acceptedAt;
+    @Column(name = "warranty_start_at") private Instant warrantyStartAt;
+    @Column(name = "warranty_end_at") private Instant warrantyEndAt;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
@@ -55,7 +62,11 @@ public class Equipment extends BaseEntity {
         String model,
         String location,
         EquipmentCategory category,
-        java.util.UUID departmentId,
+        UUID siteId,
+        Instant installedAt,
+        Instant acceptedAt,
+        Instant warrantyStartAt,
+        Instant warrantyEndAt,
         EquipmentStatus status,
         boolean active
     ) {
@@ -66,7 +77,11 @@ public class Equipment extends BaseEntity {
         this.model = model;
         this.location = location;
         this.category = category;
-        this.departmentId = departmentId;
+        this.siteId = siteId;
+        this.installedAt = installedAt;
+        this.acceptedAt = acceptedAt;
+        this.warrantyStartAt = warrantyStartAt;
+        this.warrantyEndAt = warrantyEndAt;
         this.status = status;
         this.active = active;
     }
@@ -103,8 +118,14 @@ public class Equipment extends BaseEntity {
         return category;
     }
 
-    public java.util.UUID getDepartmentId() {
-        return departmentId;
+    public UUID getSiteId() { return siteId; }
+    public Instant getInstalledAt(){return installedAt;}
+    public Instant getAcceptedAt(){return acceptedAt;}
+    public Instant getWarrantyStartAt(){return warrantyStartAt;}
+    public Instant getWarrantyEndAt(){return warrantyEndAt;}
+    public WarrantyStatus warrantyStatus(Instant at){
+        if(warrantyStartAt==null||warrantyEndAt==null||at.isBefore(warrantyStartAt))return WarrantyStatus.UNKNOWN;
+        return at.isAfter(warrantyEndAt)?WarrantyStatus.OUT_OF_WARRANTY:WarrantyStatus.IN_WARRANTY;
     }
 
     public EquipmentStatus getStatus() {

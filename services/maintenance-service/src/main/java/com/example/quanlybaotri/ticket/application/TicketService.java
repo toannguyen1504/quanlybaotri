@@ -9,7 +9,14 @@ import com.example.quanlybaotri.shared.security.CurrentUser.Actor;
 import com.example.quanlybaotri.ticket.api.TicketController.*;
 import com.example.quanlybaotri.ticket.domain.*;
 import com.example.quanlybaotri.ticket.persistence.*;
+import com.example.quanlybaotri.cost.application.CostService;
+import com.example.quanlybaotri.cost.domain.CostStatus;
+import com.example.quanlybaotri.cost.domain.TicketCostSummary;
+import com.example.quanlybaotri.cost.persistence.TicketCostSummaryRepository;
+import com.example.quanlybaotri.organization.client.OrganizationClient;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.criteria.Root;
+import jakarta.persistence.criteria.Subquery;
 import jakarta.persistence.criteria.Predicate;
 import java.time.*;
 import java.time.format.DateTimeFormatter;
@@ -21,6 +28,16 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 @Service
 public class TicketService {
+
+    public enum TelegramStartOutcome {
+        STARTED,
+        ALREADY_HANDLED,
+        NO_LONGER_ASSIGNED,
+        NOT_STARTABLE,
+        TECHNICIAN_INELIGIBLE,
+    }
+
+    public record TelegramStartResult(TelegramStartOutcome outcome, TicketStatus status) {}
 
     private static final Set<TicketStatus> TERMINAL = Set.of(
         TicketStatus.CLOSED,
@@ -37,6 +54,9 @@ public class TicketService {
     private final TransactionTemplate transactions;
     private final IdentityClient identities;
     private final AssetClient assets;
+    private final CostService costs;
+    private final TicketCostSummaryRepository costSummaries;
+    private final OrganizationClient organizations;
 
     public TicketService(
         TicketRepository tickets,
@@ -48,7 +68,10 @@ public class TicketService {
         EntityManager em,
         TransactionTemplate transactions,
         IdentityClient identities,
-        AssetClient assets
+        AssetClient assets,
+        CostService costs,
+        TicketCostSummaryRepository costSummaries,
+        OrganizationClient organizations
     ) {
         this.tickets = tickets;
         this.sla = sla;
@@ -60,6 +83,9 @@ public class TicketService {
         this.transactions = transactions;
         this.identities = identities;
         this.assets = assets;
+        this.costs = costs;
+        this.costSummaries = costSummaries;
+        this.organizations = organizations;
     }
 
     public Page<TicketView> list(
@@ -69,7 +95,8 @@ public class TicketService {
         TicketPriority priority,
         Pageable pageable
     ) {
-        return list(actor, q, status, priority, TicketListView.ALL, pageable);
+        return list(actor, q, status, priority, null, null, null, null, null,
+            null, null, TicketListView.ALL, pageable);
     }
 
     public Page<TicketView> list(
@@ -77,14 +104,27 @@ public class TicketService {
         String q,
         TicketStatus status,
         TicketPriority priority,
+        UUID customerId,
+        UUID siteId,
+        UUID equipmentId,
+        UUID equipmentCategoryId,
+        UUID technicianId,
+        WarrantyStatus warrantyStatus,
+        TicketWorkQueue queue,
         TicketListView view,
         Pageable pageable
     ) {
+        Set<UUID> categoryEquipmentIds = equipmentCategoryId == null
+            ? null
+            : assets.idsByCategory(equipmentCategoryId);
+        Instant now = Instant.now();
         Page<MaintenanceTicket> page = transactions.execute(tx ->
             tickets.findAll(
                 visibleTo(actor)
-                    .and(filters(q, status, priority))
-                    .and(viewFilter(view, Instant.now())),
+                    .and(filters(q, status, priority, customerId, siteId, equipmentId,
+                        categoryEquipmentIds, technicianId, warrantyStatus))
+                    .and(viewFilter(view, now))
+                    .and(queueFilter(queue, now)),
                 pageable
             )
         );
@@ -92,7 +132,9 @@ public class TicketService {
             page.getContent().stream().map(MaintenanceTicket::getEquipmentId).toList()
         );
         Map<UUID, IdentityClient.UserRef> users = identities.resolve(userIds(page.getContent()));
-        return page.map(t -> TicketView.from(t, equipment.get(t.getEquipmentId()), users));
+        Map<UUID, OrganizationClient.DepartmentRef> departments = departmentMap(page.getContent());
+        Map<UUID, TicketCostSummary> costMap = costMap(page.getContent());
+        return page.map(t -> TicketView.from(t, equipment.get(t.getEquipmentId()), users, departments.get(t.getSiteId()), costMap.get(t.getId()), canSeeCosts(t,actor)));
     }
 
     public List<TicketView> export(
@@ -100,13 +142,26 @@ public class TicketService {
         String q,
         TicketStatus status,
         TicketPriority priority,
+        UUID customerId,
+        UUID siteId,
+        UUID equipmentId,
+        UUID equipmentCategoryId,
+        UUID technicianId,
+        WarrantyStatus warrantyStatus,
+        TicketWorkQueue queue,
         TicketListView view
     ) {
+        Set<UUID> categoryEquipmentIds = equipmentCategoryId == null
+            ? null
+            : assets.idsByCategory(equipmentCategoryId);
+        Instant now = Instant.now();
         List<MaintenanceTicket> result = transactions.execute(tx ->
             tickets.findAll(
                 visibleTo(actor)
-                    .and(filters(q, status, priority))
-                    .and(viewFilter(view, Instant.now())),
+                    .and(filters(q, status, priority, customerId, siteId, equipmentId,
+                        categoryEquipmentIds, technicianId, warrantyStatus))
+                    .and(viewFilter(view, now))
+                    .and(queueFilter(queue, now)),
                 Sort.by(Sort.Direction.DESC, "submittedAt")
             )
         );
@@ -114,9 +169,11 @@ public class TicketService {
             result.stream().map(MaintenanceTicket::getEquipmentId).toList()
         );
         Map<UUID, IdentityClient.UserRef> users = identities.resolve(userIds(result));
+        Map<UUID, OrganizationClient.DepartmentRef> departments = departmentMap(result);
+        Map<UUID, TicketCostSummary> costMap = costMap(result);
         return result
             .stream()
-            .map(t -> TicketView.from(t, equipment.get(t.getEquipmentId()), users))
+            .map(t -> TicketView.from(t, equipment.get(t.getEquipmentId()), users, departments.get(t.getSiteId()), costMap.get(t.getId()), canSeeCosts(t,actor)))
             .toList();
     }
 
@@ -139,7 +196,7 @@ public class TicketService {
             ensureVisible(found, actor);
             return found;
         });
-        return enrich(t);
+        return enrich(t, actor);
     }
 
     public TicketView create(CreateTicketRequest request, Actor actor) {
@@ -149,6 +206,18 @@ public class TicketService {
             !equipment.active() ||
             equipment.status() == EquipmentStatus.RETIRED
         ) throw ApiException.conflict("Thiết bị không còn hoạt động");
+        if (equipment.customerId() == null || equipment.siteId() == null) throw ApiException.conflict("Thiết bị chưa được gắn khách hàng và địa điểm");
+        IdentityClient.UserRef requester;
+        if (actor.customer()) {
+            if (!actor.canAccess(equipment.customerId(), equipment.siteId())) throw ApiException.forbidden("Không có quyền tạo phiếu cho thiết bị này");
+            requester = identities.get(actor.id());
+        } else {
+            if (!elevated(actor)) throw ApiException.forbidden("Chỉ quản lý được tạo phiếu thay khách hàng");
+            if (request.requesterId() == null) throw new ApiException(org.springframework.http.HttpStatus.BAD_REQUEST,"REQUESTER_REQUIRED","Phải chọn người liên hệ khách hàng");
+            requester = identities.get(request.requesterId());
+        }
+        if (requester == null || !requester.enabled() || !"CUSTOMER".equals(requester.accountType()) || !requester.roles().contains(RoleName.REQUESTER)) throw ApiException.conflict("Người yêu cầu không phải tài khoản khách hàng đang hoạt động");
+        if (!requester.canAccess(equipment.customerId(), equipment.siteId())) throw ApiException.conflict("Người yêu cầu không có quyền tại địa điểm của thiết bị");
         MaintenanceTicket ticket = transactions.execute(tx -> {
             SlaPolicy policy = sla
                 .findByPriorityAndActiveTrue(request.priority())
@@ -168,12 +237,17 @@ public class TicketService {
                 new MaintenanceTicket(
                     code,
                     equipment.id(),
+                    requester.id(),
                     actor.id(),
+                    equipment.customerId(),
+                    equipment.siteId(),
                     request.title().trim(),
                     request.description().trim(),
                     request.priority(),
                     now.plusSeconds(policy.getResponseMinutes() * 60L),
-                    now.plusSeconds(policy.getResolutionMinutes() * 60L)
+                    now.plusSeconds(policy.getResolutionMinutes() * 60L),
+                    WarrantyStatus.valueOf(equipment.warrantyStatus()),
+                    equipment.warrantyEndAt()
                 )
             );
             eventService.record(
@@ -183,29 +257,12 @@ public class TicketService {
                 null,
                 TicketStatus.SUBMITTED,
                 "Phiếu được tạo",
-                Map.of(
-                    "priority",
-                    request.priority().name(),
-                    "chargeType",
-                    created.getChargeType().name()
-                )
+                Map.of("priority", request.priority().name(),"customerId",equipment.customerId(),"siteId",equipment.siteId(),"warrantyStatus",equipment.warrantyStatus())
             );
+            costs.createForTicket(created.getId());
             return created;
         });
-        return enrich(
-            ticket,
-            equipment,
-            Map.of(
-                actor.id(),
-                new IdentityClient.UserRef(
-                    actor.id(),
-                    actor.username(),
-                    actor.fullName(),
-                    true,
-                    actor.roles()
-                )
-            )
-        );
+        return enrich(ticket,equipment,identities.resolve(List.of(requester.id(),actor.id())),actor);
     }
 
     public TicketView accept(UUID id, Actor actor) {
@@ -238,7 +295,7 @@ public class TicketService {
         });
     }
 
-    public TicketView assign(UUID id, UUID technicianId, String reason, Actor actor) {
+    public TicketView assign(UUID id, UUID technicianId, String reason, boolean outsideRegionConfirmed, Actor actor) {
         IdentityClient.UserRef technician = identities.get(technicianId);
         if (
             technician == null ||
@@ -246,6 +303,14 @@ public class TicketService {
             !technician.roles().contains(RoleName.TECHNICIAN)
         ) throw ApiException.conflict(
             "Tài khoản được chọn không phải kỹ thuật viên đang hoạt động"
+        );
+        MaintenanceTicket snapshot = transactions.execute(tx -> find(id));
+        OrganizationClient.DepartmentRef site = organizations.resolve(List.of(snapshot.getSiteId())).get(snapshot.getSiteId());
+        boolean outsideRegion = !technician.matchesRegion(site == null ? null : site.regionId());
+        if (outsideRegion && !outsideRegionConfirmed) throw new ApiException(
+            org.springframework.http.HttpStatus.CONFLICT,
+            "OUTSIDE_TECHNICIAN_REGION",
+            "Kỹ thuật viên không phụ trách khu vực của phiếu; cần xác nhận phân công ngoại lệ"
         );
         MaintenanceTicket ticket = transactions.execute(tx -> {
             MaintenanceTicket t = find(id);
@@ -263,17 +328,26 @@ public class TicketService {
                 .ifPresent(TicketAssignment::unassign);
             t.assign(technician.id());
             assignments.save(new TicketAssignment(t, technician.id(), actor.id(), reason));
+            Map<String,Object> metadata=new LinkedHashMap<>();
+            metadata.put("technicianId",technician.id());
+            metadata.put("outsideRegion",outsideRegion);
+            metadata.put("technicianRegionScope",technician.regionScope());
+            metadata.put("technicianRegionIds",technician.regionIds()==null?Set.of():technician.regionIds());
+            if(site!=null&&site.regionId()!=null){
+                metadata.put("ticketRegionId",site.regionId());
+                metadata.put("ticketRegionName",site.regionName());
+            }
             record(
                 t,
                 actor,
                 "ASSIGNED",
                 old,
                 "Đã phân công cho " + technician.fullName(),
-                Map.of("technicianId", technician.id())
+                metadata
             );
             return t;
         });
-        return enrich(ticket);
+        return enrich(ticket, actor);
     }
 
     public TicketView start(UUID id, Actor actor) {
@@ -290,6 +364,61 @@ public class TicketService {
                 "Kỹ thuật viên bắt đầu xử lý",
                 Map.of("equipmentUnderMaintenance", true)
             );
+        });
+    }
+
+    public TelegramStartResult startFromTelegram(UUID id, UUID technicianId) {
+        IdentityClient.UserRef technician;
+        try {
+            technician = identities.get(technicianId);
+        } catch (ApiException failure) {
+            if (failure.getStatus() == org.springframework.http.HttpStatus.NOT_FOUND) return new TelegramStartResult(
+                TelegramStartOutcome.TECHNICIAN_INELIGIBLE,
+                null
+            );
+            throw failure;
+        }
+        if (
+            technician == null ||
+            !technician.enabled() ||
+            technician.roles() == null ||
+            !technician.roles().contains(RoleName.TECHNICIAN)
+        ) return new TelegramStartResult(TelegramStartOutcome.TECHNICIAN_INELIGIBLE, null);
+
+        return transactions.execute(tx -> {
+            MaintenanceTicket ticket = find(id);
+            if (!Objects.equals(ticket.getAssigneeId(), technicianId)) return new TelegramStartResult(
+                TelegramStartOutcome.NO_LONGER_ASSIGNED,
+                ticket.getStatus()
+            );
+            if (
+                Set.of(
+                    TicketStatus.IN_PROGRESS,
+                    TicketStatus.WAITING_PARTS,
+                    TicketStatus.RESOLVED,
+                    TicketStatus.CLOSED
+                ).contains(ticket.getStatus())
+            ) return new TelegramStartResult(
+                TelegramStartOutcome.ALREADY_HANDLED,
+                ticket.getStatus()
+            );
+            if (ticket.getStatus() != TicketStatus.ASSIGNED) return new TelegramStartResult(
+                TelegramStartOutcome.NOT_STARTABLE,
+                ticket.getStatus()
+            );
+
+            TicketStatus old = ticket.getStatus();
+            ticket.start();
+            eventService.record(
+                ticket,
+                technicianId,
+                "STARTED",
+                old,
+                ticket.getStatus(),
+                "Kỹ thuật viên bắt đầu xử lý từ Telegram",
+                Map.of("equipmentUnderMaintenance", true, "source", "TELEGRAM")
+            );
+            return new TelegramStartResult(TelegramStartOutcome.STARTED, ticket.getStatus());
         });
     }
 
@@ -339,6 +468,7 @@ public class TicketService {
             require(t, TicketStatus.RESOLVED);
             TicketStatus old = t.getStatus();
             t.reopen();
+            costs.reopen(t.getId());
             record(
                 t,
                 actor,
@@ -356,9 +486,9 @@ public class TicketService {
                 !t.getRequesterId().equals(actor.id()) && !elevated(actor)
             ) throw ApiException.forbidden("Không có quyền đóng phiếu");
             require(t, TicketStatus.RESOLVED);
-            if (t.getChargeType() == TicketChargeType.PENDING) throw ApiException.conflict(
-                "Vui lòng xác định phiếu miễn phí hay trả phí trước khi đóng"
-            );
+            // Customer confirmation closes the maintenance workflow independently from
+            // the provider's internal operating-cost approval process.
+            if (!actor.customer()) costs.ensureApproved(t.getId());
             if (elevated(actor) && !t.getRequesterId().equals(actor.id())) requiredReason(reason);
             TicketStatus old = t.getStatus();
             t.close();
@@ -405,37 +535,6 @@ public class TicketService {
         });
     }
 
-    public TicketView changeChargeType(UUID id, TicketChargeType chargeType, Actor actor) {
-        return mutate(id, actor, t -> {
-            require(t, TicketStatus.RESOLVED);
-            boolean assigned =
-                actor.has(RoleName.TECHNICIAN) && actor.id().equals(t.getAssigneeId());
-            if (!elevated(actor) && !assigned) throw ApiException.forbidden(
-                "Chỉ kỹ thuật viên phụ trách hoặc quản lý được xác định chi phí"
-            );
-            if (
-                chargeType == null || chargeType == TicketChargeType.PENDING
-            ) throw ApiException.conflict("Vui lòng chọn miễn phí hoặc trả phí");
-            TicketChargeType old = t.getChargeType();
-            t.chargeType(chargeType);
-            record(
-                t,
-                actor,
-                "CHARGE_TYPE_CHANGED",
-                t.getStatus(),
-                "Đổi hình thức chi phí từ " + old + " sang " + chargeType,
-                Map.of(
-                    "from",
-                    old.name(),
-                    "to",
-                    chargeType.name(),
-                    "chargeAmount",
-                    t.getChargeAmount()
-                )
-            );
-        });
-    }
-
     public WorkLogView addWorkLog(UUID id, String content, int minutes, Actor actor) {
         WorkLog log = transactions.execute(tx -> {
             MaintenanceTicket t = find(id);
@@ -446,6 +545,8 @@ public class TicketService {
                 )
             ) throw invalid(t);
             WorkLog saved = workLogs.save(new WorkLog(t, actor.id(), content.trim(), minutes));
+            workLogs.flush();
+            costs.addWorkLog(saved);
             record(
                 t,
                 actor,
@@ -458,13 +559,7 @@ public class TicketService {
         });
         return WorkLogView.from(
             log,
-            new IdentityClient.UserRef(
-                actor.id(),
-                actor.username(),
-                actor.fullName(),
-                true,
-                actor.roles()
-            )
+            identities.get(actor.id())
         );
     }
 
@@ -508,25 +603,39 @@ public class TicketService {
             command.accept(found);
             return found;
         });
-        return enrich(t);
+        return enrich(t, actor);
     }
 
-    private TicketView enrich(MaintenanceTicket t) {
-        return enrich(t, assets.get(t.getEquipmentId()), identities.resolve(userIds(List.of(t))));
+    private TicketView enrich(MaintenanceTicket t, Actor actor) {
+        return enrich(t, assets.get(t.getEquipmentId()), identities.resolve(userIds(List.of(t))), actor);
     }
 
     private TicketView enrich(
         MaintenanceTicket t,
         AssetClient.EquipmentRef e,
-        Map<UUID, IdentityClient.UserRef> users
+        Map<UUID, IdentityClient.UserRef> users,
+        Actor actor
     ) {
-        return TicketView.from(t, e, users);
+        var department = organizations.resolve(List.of(t.getSiteId())).get(t.getSiteId());
+        return TicketView.from(t, e, users, department, costSummaries.findById(t.getId()).orElse(null),canSeeCosts(t,actor));
+    }
+
+    private Map<UUID, TicketCostSummary> costMap(Collection<MaintenanceTicket> source) {
+        Map<UUID, TicketCostSummary> result = new HashMap<>();
+        costSummaries.findAllById(source.stream().map(MaintenanceTicket::getId).toList())
+            .forEach(summary -> result.put(summary.getTicketId(), summary));
+        return result;
+    }
+
+    private Map<UUID, OrganizationClient.DepartmentRef> departmentMap(Collection<MaintenanceTicket> source) {
+        return organizations.resolve(source.stream().map(MaintenanceTicket::getSiteId).toList());
     }
 
     private Set<UUID> userIds(Collection<MaintenanceTicket> source) {
         Set<UUID> ids = new LinkedHashSet<>();
         for (MaintenanceTicket t : source) {
             ids.add(t.getRequesterId());
+            ids.add(t.getCreatedById());
             if (t.getAssigneeId() != null) ids.add(t.getAssigneeId());
         }
         return ids;
@@ -546,7 +655,13 @@ public class TicketService {
     private Specification<MaintenanceTicket> filters(
         String q,
         TicketStatus status,
-        TicketPriority priority
+        TicketPriority priority,
+        UUID customerId,
+        UUID siteId,
+        UUID equipmentId,
+        Set<UUID> categoryEquipmentIds,
+        UUID technicianId,
+        WarrantyStatus warrantyStatus
     ) {
         return (root, query, cb) -> {
             List<Predicate> p = new ArrayList<>();
@@ -564,14 +679,88 @@ public class TicketService {
             );
             if (status != null) p.add(cb.equal(root.get("status"), status));
             if (priority != null) p.add(cb.equal(root.get("priority"), priority));
+            if (customerId != null) p.add(cb.equal(root.get("customerId"), customerId));
+            if (siteId != null) p.add(cb.equal(root.get("siteId"), siteId));
+            if (equipmentId != null) p.add(cb.equal(root.get("equipmentId"), equipmentId));
+            if (categoryEquipmentIds != null) {
+                p.add(categoryEquipmentIds.isEmpty()
+                    ? cb.disjunction()
+                    : root.get("equipmentId").in(categoryEquipmentIds));
+            }
+            if (technicianId != null) p.add(cb.equal(root.get("assigneeId"), technicianId));
+            if (warrantyStatus != null) p.add(cb.equal(root.get("warrantyStatusAtCreation"), warrantyStatus));
             return cb.and(p.toArray(Predicate[]::new));
         };
+    }
+
+    private Specification<MaintenanceTicket> queueFilter(TicketWorkQueue queue, Instant now) {
+        if (queue == null) return (root, query, cb) -> cb.conjunction();
+        return (root, query, cb) -> switch (queue) {
+            case RESPONSE_OVERDUE -> cb.and(
+                cb.equal(root.get("status"), TicketStatus.SUBMITTED),
+                cb.lessThanOrEqualTo(root.get("responseDueAt"), now)
+            );
+            case RESOLUTION_DUE_SOON -> cb.and(
+                root.get("status").in(
+                    TicketStatus.SUBMITTED, TicketStatus.ACCEPTED, TicketStatus.ASSIGNED,
+                    TicketStatus.IN_PROGRESS, TicketStatus.WAITING_PARTS
+                ),
+                cb.lessThanOrEqualTo(root.get("resolutionWarningAt"), now),
+                cb.greaterThan(root.get("resolutionDueAt"), now)
+            );
+            case RESOLUTION_OVERDUE -> cb.and(
+                root.get("status").in(
+                    TicketStatus.SUBMITTED, TicketStatus.ACCEPTED, TicketStatus.ASSIGNED,
+                    TicketStatus.IN_PROGRESS, TicketStatus.WAITING_PARTS
+                ),
+                cb.lessThanOrEqualTo(root.get("resolutionDueAt"), now)
+            );
+            case AWAITING_ACCEPTANCE -> cb.equal(root.get("status"), TicketStatus.SUBMITTED);
+            case AWAITING_ASSIGNMENT -> cb.equal(root.get("status"), TicketStatus.ACCEPTED);
+            case AWAITING_START -> cb.equal(root.get("status"), TicketStatus.ASSIGNED);
+            case IN_PROGRESS -> cb.equal(root.get("status"), TicketStatus.IN_PROGRESS);
+            case WAITING_PARTS -> cb.equal(root.get("status"), TicketStatus.WAITING_PARTS);
+            case AWAITING_CLOSURE -> cb.equal(root.get("status"), TicketStatus.RESOLVED);
+            case COST_DRAFT -> cb.and(
+                cb.equal(root.get("status"), TicketStatus.RESOLVED),
+                costStatus(root, query, cb, CostStatus.DRAFT, true)
+            );
+            case COST_READY -> cb.and(
+                cb.equal(root.get("status"), TicketStatus.RESOLVED),
+                costStatus(root, query, cb, CostStatus.READY, false)
+            );
+        };
+    }
+
+    private Predicate costStatus(
+        Root<MaintenanceTicket> root,
+        jakarta.persistence.criteria.CriteriaQuery<?> query,
+        jakarta.persistence.criteria.CriteriaBuilder cb,
+        CostStatus status,
+        boolean includeMissing
+    ) {
+        Subquery<UUID> matching = query.subquery(UUID.class);
+        Root<TicketCostSummary> cost = matching.from(TicketCostSummary.class);
+        matching.select(cost.get("ticketId")).where(
+            cb.equal(cost.get("ticketId"), root.get("id")),
+            cb.equal(cost.get("status"), status)
+        );
+        if (!includeMissing) return cb.exists(matching);
+        Subquery<UUID> any = query.subquery(UUID.class);
+        Root<TicketCostSummary> anyCost = any.from(TicketCostSummary.class);
+        any.select(anyCost.get("ticketId")).where(cb.equal(anyCost.get("ticketId"), root.get("id")));
+        return cb.or(cb.exists(matching), cb.not(cb.exists(any)));
     }
 
     private Specification<MaintenanceTicket> visibleTo(Actor actor) {
         return (root, query, cb) -> {
             if (elevated(actor)) return cb.conjunction();
             if (actor.has(RoleName.TECHNICIAN)) return cb.equal(root.get("assigneeId"), actor.id());
+            if (actor.customer()) {
+                Predicate customer=cb.equal(root.get("customerId"),actor.customerId());
+                if ("ALL_SITES".equals(actor.siteScope())) return customer;
+                return cb.and(customer,actor.siteIds().isEmpty()?cb.disjunction():root.get("siteId").in(actor.siteIds()));
+            }
             return cb.equal(root.get("requesterId"), actor.id());
         };
     }
@@ -611,9 +800,13 @@ public class TicketService {
     private void ensureVisible(MaintenanceTicket t, Actor actor) {
         if (
             !elevated(actor) &&
-            !t.getRequesterId().equals(actor.id()) &&
+            !(actor.customer() && actor.canAccess(t.getCustomerId(),t.getSiteId())) &&
             !actor.id().equals(t.getAssigneeId())
         ) throw ApiException.forbidden("Không có quyền xem phiếu");
+    }
+
+    private boolean canSeeCosts(MaintenanceTicket ticket,Actor actor){
+        return !actor.customer()&&(elevated(actor)||actor.id().equals(ticket.getAssigneeId()));
     }
 
     private boolean elevated(Actor actor) {

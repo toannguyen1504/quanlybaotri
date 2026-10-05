@@ -25,9 +25,21 @@ describe('TicketListPage', () => {
     submittedAt: new Date(Date.now() - 10 * 60 * 60 * 1000).toISOString(),
     responseDueAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
     resolutionDueAt: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
-    chargeType: 'PENDING',
-    partsCost: 0,
-    chargeAmount: 0,
+    customerId: 'customer-1',
+    customerName: 'Công ty ABC',
+    siteId: 'site-1',
+    siteName: 'Nhà máy Hà Nội',
+    createdById: 'requester-1',
+    createdByName: 'Người yêu cầu',
+    warrantyStatusAtCreation: 'IN_WARRANTY',
+    costVisible: true,
+    costStatus: 'DRAFT',
+    partsTotal: 0,
+    laborTotal: 0,
+    outsourcedTotal: 0,
+    travelTotal: 0,
+    otherTotal: 0,
+    grandTotal: 0,
     version: 0,
     ...changes,
   });
@@ -41,9 +53,19 @@ describe('TicketListPage', () => {
       size: 20,
     };
     const api = {
-      get: vi.fn((path: string) =>
-        of(path === '/tickets/summary' ? { total: 7, open: 4, dueSoon: 2, overdue: 1 } : page),
-      ),
+      get: vi.fn((path: string) => {
+        if (path === '/tickets/summary') {
+          return of({ total: 7, open: 4, dueSoon: 2, overdue: 1 });
+        }
+        if (path === '/customers' || path === '/customer-sites') {
+          return of([]);
+        }
+        if (path === '/equipment-categories') return of([]);
+        if (path === '/equipment' || path === '/users') {
+          return of({ content: [], totalElements: 0, totalPages: 0, number: 0, size: 500 });
+        }
+        return of(page);
+      }),
       download: vi.fn(() => of(new Blob(['excel']))),
     };
     const route = { queryParamMap: of(convertToParamMap(query)) };
@@ -77,6 +99,13 @@ describe('TicketListPage', () => {
       q: 'máy in',
       status: 'IN_PROGRESS',
       priority: 'HIGH',
+      customerId: 'customer-1',
+      siteId: 'site-1',
+      equipmentId: 'equipment-1',
+      equipmentCategoryId: 'category-1',
+      technicianId: 'technician-1',
+      warrantyStatus: '',
+      queue: 'COST_READY',
       view: 'DUE_SOON',
       page: '2',
     });
@@ -85,6 +114,13 @@ describe('TicketListPage', () => {
       q: 'máy in',
       status: 'IN_PROGRESS',
       priority: 'HIGH',
+      customerId: 'customer-1',
+      siteId: 'site-1',
+      equipmentId: 'equipment-1',
+      equipmentCategoryId: 'category-1',
+      technicianId: 'technician-1',
+      warrantyStatus: '',
+      queue: 'COST_READY',
       view: 'DUE_SOON',
       page: 1,
       size: 20,
@@ -104,7 +140,20 @@ describe('TicketListPage', () => {
 
     expect(navigate).toHaveBeenCalledWith([], {
       relativeTo: expect.anything(),
-      queryParams: { q: null, status: null, priority: null, view: 'OVERDUE', page: null },
+      queryParams: {
+        q: null,
+        status: null,
+        priority: null,
+        customerId: null,
+        siteId: null,
+        equipmentId: null,
+        equipmentCategoryId: null,
+        technicianId: null,
+        warrantyStatus: null,
+        queue: null,
+        view: 'OVERDUE',
+        page: null,
+      },
     });
     expect(component.slaLabel(completed)).toBe('Đã hoàn tất');
     expect(component.slaTime(completed)).toBe('Không còn cảnh báo SLA');
@@ -126,6 +175,13 @@ describe('TicketListPage', () => {
       q: 'máy in',
       status: 'IN_PROGRESS',
       priority: 'HIGH',
+      customerId: '',
+      siteId: '',
+      equipmentId: '',
+      equipmentCategoryId: '',
+      technicianId: '',
+      warrantyStatus: '',
+      queue: '',
       view: 'DUE_SOON',
     });
     expect(saveFile).toHaveBeenCalledWith(

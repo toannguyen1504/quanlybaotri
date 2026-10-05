@@ -1,6 +1,8 @@
 import { Component, inject, OnInit, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { Api } from '../core/api';
+import { Customer, CustomerSite, WarrantyStatus } from '../core/models';
 
 interface Dashboard {
   byStatus: Record<string, number>;
@@ -9,10 +11,11 @@ interface Dashboard {
   byCategory: Record<string, number>;
   sla: { onTime: number; overdue: number };
 }
+type DepartmentOption = CustomerSite;
 
 @Component({
   selector: 'app-dashboard',
-  imports: [RouterLink],
+  imports: [RouterLink, FormsModule],
   template: `<div class="page dashboard-page">
     <header class="dashboard-hero">
       <div>
@@ -29,6 +32,13 @@ interface Dashboard {
         </button>
       </div>
     </header>
+
+    <section class="dashboard-card dashboard-scope-filters" aria-label="Bộ lọc tổng quan">
+      <label>Khách hàng<select [(ngModel)]="dashboardCustomerId" (ngModelChange)="dashboardSiteId = ''"><option value="">Tất cả</option>@for (customer of branches(); track customer.id) { <option [value]="customer.id">{{ customer.name }}</option> }</select></label>
+      <label>Địa điểm<select [(ngModel)]="dashboardSiteId"><option value="">Tất cả</option>@for (site of dashboardSites(); track site.id) { <option [value]="site.id">{{ site.name }}</option> }</select></label>
+      <label>Bảo hành<select [(ngModel)]="dashboardWarrantyStatus"><option value="">Tất cả</option><option value="IN_WARRANTY">Còn bảo hành</option><option value="OUT_OF_WARRANTY">Hết bảo hành</option><option value="UNKNOWN">Chưa rõ</option></select></label>
+      <button class="primary" type="button" (click)="load()">Áp dụng</button>
+    </section>
 
     @if (error()) {
       <section class="dashboard-alert" role="alert">
@@ -1016,6 +1026,9 @@ interface Dashboard {
         grid-template-columns: repeat(2, 1fr);
       }
     }
+    .dashboard-scope-filters { display: grid; grid-template-columns: repeat(3, minmax(160px, 1fr)) auto; gap: 12px; align-items: end; margin-bottom: 20px; }
+    .dashboard-scope-filters label { display: grid; gap: 6px; color: var(--muted); font-size: 12px; font-weight: 700; }
+    .dashboard-scope-filters select { min-height: 40px; padding: 8px; border: 1px solid #dce3e8; border-radius: 8px; background: #fff; }
     @media (max-width: 520px) {
       .dashboard-kpis {
         grid-template-columns: 1fr;
@@ -1054,6 +1067,7 @@ interface Dashboard {
       .dashboard-skeleton:nth-child(n + 5) {
         grid-column: auto;
       }
+      .dashboard-scope-filters { grid-template-columns: 1fr; }
     }
   `,
 })
@@ -1079,15 +1093,26 @@ export class DashboardPage implements OnInit {
   readonly data = signal<Dashboard | null>(null);
   readonly loading = signal(true);
   readonly error = signal('');
+  readonly branches = signal<Customer[]>([]);
+  readonly departments = signal<DepartmentOption[]>([]);
+  dashboardCustomerId = '';
+  dashboardSiteId = '';
+  dashboardWarrantyStatus: WarrantyStatus | '' = '';
   readonly skeletonItems = [1, 2, 3, 4, 5, 6];
 
   ngOnInit() {
     this.load();
+    this.api.get<Customer[]>('/customers').subscribe((items) => this.branches.set(items));
+    this.api.get<DepartmentOption[]>('/customer-sites').subscribe((items) => this.departments.set(items));
   }
   load() {
     this.loading.set(true);
     this.error.set('');
-    this.api.get<Dashboard>('/reports/dashboard').subscribe({
+    this.api.get<Dashboard>('/reports/dashboard', {
+      customerId: this.dashboardCustomerId,
+      siteId: this.dashboardSiteId,
+      warrantyStatus: this.dashboardWarrantyStatus,
+    }).subscribe({
       next: (dashboard) => {
         this.data.set(dashboard);
         this.loading.set(false);
@@ -1098,6 +1123,7 @@ export class DashboardPage implements OnInit {
       },
     });
   }
+  dashboardSites() { return this.departments().filter((item) => !this.dashboardCustomerId || item.customerId === this.dashboardCustomerId); }
   totalTickets(dashboard: Dashboard) {
     return Object.values(dashboard.byStatus).reduce((total, value) => total + value, 0);
   }

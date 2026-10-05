@@ -16,6 +16,7 @@ import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 class TelegramDeliveryWorkerTest {
 
@@ -35,7 +36,14 @@ class TelegramDeliveryWorkerTest {
         links = mock(TelegramLinkRepository.class);
         identities = mock(IdentityClient.class);
         client = mock(TelegramClient.class);
-        worker = new TelegramDeliveryWorker(properties, deliveries, links, identities, client);
+        worker = new TelegramDeliveryWorker(
+            properties,
+            deliveries,
+            links,
+            identities,
+            client,
+            new TelegramKeyboardFactory(properties)
+        );
     }
 
     @Test
@@ -44,7 +52,7 @@ class TelegramDeliveryWorkerTest {
         TelegramDelivery delivery = delivery(userId);
         TelegramLink link = link(userId);
         arrange(delivery, link);
-        when(client.sendMessage(anyLong(), anyString(), nullable(String.class))).thenThrow(
+        when(client.sendMessage(anyLong(), anyString(), anyList())).thenThrow(
             new TelegramApiException(429, "Too Many Requests", 30)
         );
         Instant before = Instant.now();
@@ -62,7 +70,7 @@ class TelegramDeliveryWorkerTest {
         TelegramDelivery delivery = delivery(userId);
         TelegramLink link = link(userId);
         arrange(delivery, link);
-        when(client.sendMessage(anyLong(), anyString(), nullable(String.class))).thenThrow(
+        when(client.sendMessage(anyLong(), anyString(), anyList())).thenThrow(
             new TelegramApiException(403, "Forbidden", null)
         );
 
@@ -73,16 +81,67 @@ class TelegramDeliveryWorkerTest {
     }
 
     @Test
-    void omitsTicketButtonForLocalhostAndStillSendsMessage() {
+    void omitsOpenButtonForLocalhostAndStillSendsMessage() {
         UUID userId = UUID.randomUUID();
         TelegramDelivery delivery = delivery(userId);
         arrange(delivery, link(userId));
-        when(client.sendMessage(anyLong(), anyString(), isNull())).thenReturn(99L);
+        when(client.sendMessage(anyLong(), anyString(), anyList())).thenReturn(99L);
 
         worker.deliver();
 
         assertThat(delivery.getStatus()).isEqualTo(TelegramDelivery.Status.SENT);
-        verify(client).sendMessage(eq(123L), eq("Thông báo phiếu"), isNull());
+        verify(client).sendMessage(eq(123L), eq("Thông báo phiếu"), eq(List.of()));
+    }
+
+    @Test
+    void sendsAcceptAndOpenButtonsForAssignedTicket() {
+        properties.setAppPublicUrl("https://maintenance.example.test");
+        UUID userId = UUID.randomUUID();
+        TelegramDelivery delivery = new TelegramDelivery(
+            UUID.randomUUID(),
+            userId,
+            "Thông báo phiếu",
+            UUID.randomUUID(),
+            TelegramDelivery.Action.START_ASSIGNED_TICKET
+        );
+        arrange(delivery, link(userId));
+        when(client.sendMessage(anyLong(), anyString(), anyList())).thenReturn(99L);
+
+        worker.deliver();
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<List<TelegramClient.InlineButton>>> buttons = ArgumentCaptor.forClass(
+            List.class
+        );
+        verify(client).sendMessage(eq(123L), eq("Thông báo phiếu"), buttons.capture());
+        assertThat(buttons.getValue()).hasSize(2);
+        assertThat(buttons.getValue().get(0).get(0).text()).isEqualTo("Tiếp nhận phiếu");
+        assertThat(buttons.getValue().get(0).get(0).callbackData()).isEqualTo(
+            "start:" + delivery.getId()
+        );
+        assertThat(buttons.getValue().get(1).get(0).url()).contains(
+            "/tickets/" + delivery.getReferenceId()
+        );
+    }
+
+    @Test
+    void keepsAcceptButtonWhenPublicTicketUrlIsLocalhost() {
+        UUID userId = UUID.randomUUID();
+        TelegramDelivery delivery = actionableDelivery(userId);
+        arrange(delivery, link(userId));
+        when(client.sendMessage(anyLong(), anyString(), anyList())).thenReturn(99L);
+
+        worker.deliver();
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<List<TelegramClient.InlineButton>>> buttons = ArgumentCaptor.forClass(
+            List.class
+        );
+        verify(client).sendMessage(eq(123L), eq("Thông báo phiếu"), buttons.capture());
+        assertThat(buttons.getValue()).hasSize(1);
+        assertThat(buttons.getValue().get(0).get(0).callbackData()).isEqualTo(
+            "start:" + delivery.getId()
+        );
     }
 
     private void arrange(TelegramDelivery delivery, TelegramLink link) {
@@ -113,6 +172,16 @@ class TelegramDeliveryWorkerTest {
             userId,
             "Thông báo phiếu",
             UUID.randomUUID()
+        );
+    }
+
+    private TelegramDelivery actionableDelivery(UUID userId) {
+        return new TelegramDelivery(
+            UUID.randomUUID(),
+            userId,
+            "Thông báo phiếu",
+            UUID.randomUUID(),
+            TelegramDelivery.Action.START_ASSIGNED_TICKET
         );
     }
 

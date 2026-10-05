@@ -155,6 +155,7 @@ public class InventoryService {
             used.put("partId", p.getId());
             used.put("partCode", p.getCode());
             used.put("partName", p.getName());
+            used.put("unit", p.getUnit());
             used.put("quantity", r.quantity());
             used.put("unitCost", cost);
             used.put("usedById", actor.id());

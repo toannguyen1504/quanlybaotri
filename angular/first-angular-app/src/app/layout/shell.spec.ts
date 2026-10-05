@@ -70,4 +70,14 @@ describe('Shell', () => {
     fixture.detectChanges();
     expect(element.querySelector('.app-shell')?.classList.contains('mobile-menu-open')).toBe(false);
   });
+
+  it('links managers to the statistics report', async () => {
+    const fixture = await setup();
+    const element = fixture.nativeElement as HTMLElement;
+    const link = element.querySelector<HTMLAnchorElement>('a[href="/reports"]');
+
+    expect(link?.textContent).toContain('Báo cáo thống kê');
+    expect(link?.getAttribute('aria-label')).toBe('Báo cáo thống kê');
+    expect(element.textContent).not.toContain('Hạch toán nội bộ');
+  });
 });

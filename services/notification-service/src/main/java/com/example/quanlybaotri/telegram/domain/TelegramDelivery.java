@@ -8,6 +8,10 @@ import java.util.UUID;
 @Table(name = "telegram_deliveries")
 public class TelegramDelivery {
 
+    public enum Action {
+        START_ASSIGNED_TICKET,
+    }
+
     public enum Status {
         PENDING,
         SENT,
@@ -29,6 +33,10 @@ public class TelegramDelivery {
 
     @Column(name = "reference_id")
     private UUID referenceId;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "telegram_action", length = 40)
+    private Action action;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
@@ -63,11 +71,22 @@ public class TelegramDelivery {
         String messageText,
         UUID referenceId
     ) {
+        this(notificationId, userId, messageText, referenceId, null);
+    }
+
+    public TelegramDelivery(
+        UUID notificationId,
+        UUID userId,
+        String messageText,
+        UUID referenceId,
+        Action action
+    ) {
         id = UUID.randomUUID();
         this.notificationId = notificationId;
         this.userId = userId;
         this.messageText = messageText;
         this.referenceId = referenceId;
+        this.action = action;
         status = Status.PENDING;
         nextAttemptAt = Instant.now();
         createdAt = nextAttemptAt;
@@ -116,6 +135,14 @@ public class TelegramDelivery {
 
     public UUID getReferenceId() {
         return referenceId;
+    }
+
+    public Action getAction() {
+        return action;
+    }
+
+    public Long getTelegramMessageId() {
+        return telegramMessageId;
     }
 
     public int getAttempts() {

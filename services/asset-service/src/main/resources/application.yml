@@ -34,14 +34,32 @@ spring:
         initial-interval: 1s
         multiplier: 2
         max-interval: 10s
+  servlet:
+    multipart:
+      max-file-size: 205MB
+      max-request-size: 210MB
 app:
   identity-url: ${IDENTITY_SERVICE_URL:http://identity-service:8081}
   organization-url: ${ORGANIZATION_SERVICE_URL:http://organization-service:8086}
   service-client.secret: ${ASSET_SERVICE_CLIENT_SECRET:change-asset-service-client-secret}
+  storage:
+    endpoint: ${S3_ENDPOINT:}
+    public-endpoint: ${S3_PUBLIC_ENDPOINT:${S3_ENDPOINT:}}
+    region: ${S3_REGION:us-east-1}
+    path-style: ${S3_PATH_STYLE:false}
+    bucket: ${S3_BUCKET:asset-documents}
+    access-key: ${S3_ACCESS_KEY:}
+    secret-key: ${S3_SECRET_KEY:}
+    preview-minutes: ${S3_PREVIEW_MINUTES:2}
+    cleanup-delay: ${S3_CLEANUP_DELAY:60000}
 server:
   port: 8082
+  tomcat:
+    max-http-form-post-size: 210MB
+    max-swallow-size: 210MB
 management:
   server.port: 9000
   endpoints.web.exposure.include: health,info,prometheus
   endpoint.health.probes.enabled: true
+  endpoint.health.group.readiness.include: readinessState,s3ObjectStorage
 logging.structured.format.console: logstash

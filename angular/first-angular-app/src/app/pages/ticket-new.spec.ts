@@ -4,6 +4,7 @@ import { provideRouter, Router } from '@angular/router';
 import { of, Subject, throwError } from 'rxjs';
 import { describe, expect, it, vi } from 'vitest';
 import { Api } from '../core/api';
+import { AuthService } from '../core/auth';
 import { Equipment, Page, Ticket } from '../core/models';
 import { TicketNewPage } from './ticket-new';
 
@@ -17,8 +18,11 @@ describe('TicketNewPage', () => {
     location: 'Tầng 5',
     categoryId: 'category-1',
     categoryName: 'Máy in',
-    departmentId: 'department-1',
-    departmentName: 'Kế toán',
+    siteId: 'site-1',
+    siteName: 'Nhà máy Hà Nội',
+    customerId: 'customer-1',
+    customerName: 'Công ty ABC',
+    warrantyStatus: 'IN_WARRANTY',
     status: 'ACTIVE',
     active: true,
     version: 0,
@@ -40,9 +44,21 @@ describe('TicketNewPage', () => {
     submittedAt: new Date().toISOString(),
     responseDueAt: new Date().toISOString(),
     resolutionDueAt: new Date().toISOString(),
-    chargeType: 'PENDING',
-    partsCost: 0,
-    chargeAmount: 0,
+    customerId: 'customer-1',
+    customerName: 'Công ty ABC',
+    siteId: 'site-1',
+    siteName: 'Nhà máy Hà Nội',
+    createdById: 'requester-1',
+    createdByName: 'Người yêu cầu',
+    warrantyStatusAtCreation: 'IN_WARRANTY',
+    costVisible: true,
+    costStatus: 'DRAFT',
+    partsTotal: 0,
+    laborTotal: 0,
+    outsourcedTotal: 0,
+    travelTotal: 0,
+    otherTotal: 0,
+    grandTotal: 0,
     version: 0,
   });
 
@@ -58,10 +74,15 @@ describe('TicketNewPage', () => {
     const api = {
       get: vi.fn(() => getResult),
       post: vi.fn(() => postResult),
+      uploadWithProgress: vi.fn(() => of({ type: 4, body: {} })),
     };
     await TestBed.configureTestingModule({
       imports: [TicketNewPage],
-      providers: [provideRouter([]), { provide: Api, useValue: api }],
+      providers: [
+        provideRouter([]),
+        { provide: Api, useValue: api },
+        { provide: AuthService, useValue: { hasAny: () => false } },
+      ],
     }).compileComponents();
     const fixture = TestBed.createComponent(TicketNewPage);
     fixture.detectChanges();
@@ -168,6 +189,7 @@ describe('TicketNewPage', () => {
       title: '  Máy in không nhận giấy  ',
       description: '  Máy báo lỗi khay giấy.  ',
       priority: 'HIGH',
+      requesterId: '',
     };
 
     component.submit(formStub());
@@ -176,6 +198,7 @@ describe('TicketNewPage', () => {
     expect(api.post).toHaveBeenCalledTimes(1);
     expect(api.post).toHaveBeenCalledWith('/tickets', {
       equipmentId: 'equipment-1',
+      requesterId: null,
       title: 'Máy in không nhận giấy',
       description: 'Máy báo lỗi khay giấy.',
       priority: 'HIGH',
@@ -196,6 +219,7 @@ describe('TicketNewPage', () => {
       title: 'Máy in lỗi',
       description: 'Không thể tiếp tục in tài liệu',
       priority: 'MEDIUM',
+      requesterId: '',
     };
 
     component.submit(formStub());
@@ -207,5 +231,37 @@ describe('TicketNewPage', () => {
     expect(
       (fixture.nativeElement as HTMLElement).querySelector('[role="alert"]')?.textContent,
     ).toContain('Không thể tiếp nhận yêu cầu lúc này');
+  });
+
+  it('keeps the created ticket and retries attachments without creating a duplicate ticket', async () => {
+    const { component, api, router } = await setup();
+    vi.spyOn(router, 'navigate').mockResolvedValue(true);
+    component.model = {
+      equipmentId: 'equipment-1',
+      title: 'Máy in lỗi',
+      description: 'Có video ghi lại lỗi thiết bị',
+      priority: 'MEDIUM',
+      requesterId: '',
+    };
+    component.evidence.set([
+      { file: new File(['video'], 'failure.mp4', { type: 'video/mp4' }), progress: 0, status: 'pending' },
+    ]);
+    api.uploadWithProgress.mockReturnValueOnce(
+      throwError(() => ({ error: { detail: 'Object storage unavailable' } })),
+    );
+
+    component.submit(formStub());
+
+    expect(api.post).toHaveBeenCalledTimes(1);
+    expect(component.createdTicketId()).toBe('ticket-1');
+    expect(component.evidence()[0].status).toBe('failed');
+
+    api.uploadWithProgress.mockReturnValueOnce(
+      of({ type: 4, body: {} }),
+    );
+    component.submit(formStub());
+
+    expect(api.post).toHaveBeenCalledTimes(1);
+    expect(api.uploadWithProgress).toHaveBeenCalledTimes(2);
   });
 });

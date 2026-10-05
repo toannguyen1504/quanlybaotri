@@ -98,6 +98,55 @@ services:
       retries: 20
     restart: unless-stopped
 
+  minio:
+    image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
+    command: ['server', '/data', '--console-address', ':9001']
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-change-minio-root-password}
+    ports:
+      - '127.0.0.1:9000:9000'
+      - '127.0.0.1:9001:9001'
+    volumes:
+      - minio-data:/data
+    networks: [edge, backend]
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:9000/minio/health/live']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  minio-init:
+    image: quay.io/minio/mc:RELEASE.2025-08-13T08-35-41Z
+    entrypoint: ['/bin/sh', '-ec']
+    command:
+      - >-
+        mc alias set local http://minio:9000 "$${MINIO_ROOT_USER}" "$${MINIO_ROOT_PASSWORD}";
+        mc mb --ignore-existing local/maintenance-attachments;
+        mc mb --ignore-existing local/asset-documents;
+        mc anonymous set none local/maintenance-attachments;
+        mc anonymous set none local/asset-documents;
+        mc admin user add local "$${MAINTENANCE_ACCESS_KEY}" "$${MAINTENANCE_SECRET_KEY}" || true;
+        mc admin user add local "$${ASSET_ACCESS_KEY}" "$${ASSET_SECRET_KEY}" || true;
+        mc admin policy create local maintenance-storage /policies/maintenance-policy.json || true;
+        mc admin policy create local asset-storage /policies/asset-policy.json || true;
+        mc admin policy attach local maintenance-storage --user "$${MAINTENANCE_ACCESS_KEY}";
+        mc admin policy attach local asset-storage --user "$${ASSET_ACCESS_KEY}";
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-change-minio-root-password}
+      MAINTENANCE_ACCESS_KEY: ${MAINTENANCE_S3_ACCESS_KEY:-maintenance-service}
+      MAINTENANCE_SECRET_KEY: ${MAINTENANCE_S3_SECRET_KEY:-change-maintenance-s3-secret}
+      ASSET_ACCESS_KEY: ${ASSET_S3_ACCESS_KEY:-asset-service}
+      ASSET_SECRET_KEY: ${ASSET_S3_SECRET_KEY:-change-asset-s3-secret}
+    volumes:
+      - ./infra/minio:/policies:ro
+    networks: [backend]
+    depends_on:
+      minio: { condition: service_healthy }
+    restart: 'no'
+
   identity-service:
     build:
       context: .
@@ -111,6 +160,7 @@ services:
       BOOTSTRAP_ADMIN_USERNAME: ${BOOTSTRAP_ADMIN_USERNAME}
       BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD}
       BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL}
+      CUSTOMER_SCOPE_MIGRATION_ENABLED: ${CUSTOMER_SCOPE_MIGRATION_ENABLED:-false}
       ORGANIZATION_SERVICE_URL: http://organization-service:8086
       IDENTITY_SERVICE_CLIENT_SECRET: ${IDENTITY_SERVICE_CLIENT_SECRET}
       ASSET_SERVICE_CLIENT_SECRET: ${ASSET_SERVICE_CLIENT_SECRET}
@@ -171,6 +221,13 @@ services:
       DB_PASSWORD: ${ASSET_DB_PASSWORD}
       ORGANIZATION_SERVICE_URL: http://organization-service:8086
       ASSET_SERVICE_CLIENT_SECRET: ${ASSET_SERVICE_CLIENT_SECRET}
+      S3_ENDPOINT: http://minio:9000
+      S3_PUBLIC_ENDPOINT: ${S3_PUBLIC_ENDPOINT:-http://localhost:9000}
+      S3_REGION: us-east-1
+      S3_PATH_STYLE: 'true'
+      S3_BUCKET: asset-documents
+      S3_ACCESS_KEY: ${ASSET_S3_ACCESS_KEY:-asset-service}
+      S3_SECRET_KEY: ${ASSET_S3_SECRET_KEY:-change-asset-s3-secret}
     tmpfs: [/tmp]
     read_only: true
     networks: [backend]
@@ -179,6 +236,7 @@ services:
       rabbitmq: { condition: service_healthy }
       identity-service: { condition: service_healthy }
       organization-service: { condition: service_healthy }
+      minio-init: { condition: service_completed_successfully }
     healthcheck:
       <<: *java-healthcheck
       test:
@@ -197,12 +255,21 @@ services:
       DB_URL: jdbc:postgresql://postgres:5432/maintenance_db
       DB_USERNAME: maintenance_app
       DB_PASSWORD: ${MAINTENANCE_DB_PASSWORD}
-      FILE_STORAGE_ROOT: /data/uploads
       IDENTITY_URL: http://identity-service:8081
       ASSET_URL: http://asset-service:8082
+      INVENTORY_SERVICE_URL: http://inventory-service:8084
+      ORGANIZATION_URL: http://organization-service:8086
+      COSTING_ENFORCE_APPROVAL: ${COSTING_ENFORCE_APPROVAL:-false}
       MAINTENANCE_SERVICE_CLIENT_SECRET: ${MAINTENANCE_SERVICE_CLIENT_SECRET}
+      S3_ENDPOINT: http://minio:9000
+      S3_PUBLIC_ENDPOINT: ${S3_PUBLIC_ENDPOINT:-http://localhost:9000}
+      S3_REGION: us-east-1
+      S3_PATH_STYLE: 'true'
+      S3_BUCKET: maintenance-attachments
+      S3_ACCESS_KEY: ${MAINTENANCE_S3_ACCESS_KEY:-maintenance-service}
+      S3_SECRET_KEY: ${MAINTENANCE_S3_SECRET_KEY:-change-maintenance-s3-secret}
     volumes:
-      - attachments:/data/uploads
+      - attachments:/legacy-uploads:ro
     tmpfs: [/tmp]
     read_only: true
     networks: [backend]
@@ -212,6 +279,7 @@ services:
       redis: { condition: service_healthy }
       identity-service: { condition: service_healthy }
       asset-service: { condition: service_healthy }
+      minio-init: { condition: service_completed_successfully }
     healthcheck:
       <<: *java-healthcheck
       test:
@@ -260,6 +328,7 @@ services:
       DB_USERNAME: notification_app
       DB_PASSWORD: ${NOTIFICATION_DB_PASSWORD}
       IDENTITY_SERVICE_URL: http://identity-service:8081
+      MAINTENANCE_SERVICE_URL: http://maintenance-service:8083
       NOTIFICATION_SERVICE_CLIENT_SECRET: ${NOTIFICATION_SERVICE_CLIENT_SECRET}
       TELEGRAM_ENABLED: ${TELEGRAM_ENABLED:-false}
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
@@ -273,6 +342,7 @@ services:
       rabbitmq: { condition: service_healthy }
       redis: { condition: service_healthy }
       identity-service: { condition: service_healthy }
+      maintenance-service: { condition: service_healthy }
     healthcheck:
       <<: *java-healthcheck
       test:
@@ -362,6 +432,7 @@ volumes:
   postgres-data:
   rabbitmq-data:
   redis-data:
+  minio-data:
   attachments:
   identity-keys:
   prometheus-data:

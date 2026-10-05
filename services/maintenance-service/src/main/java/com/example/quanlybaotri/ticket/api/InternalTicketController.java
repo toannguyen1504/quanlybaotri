@@ -1,14 +1,17 @@
 package com.example.quanlybaotri.ticket.api;
 
 import com.example.quanlybaotri.shared.api.ApiException;
+import com.example.quanlybaotri.ticket.application.TicketService;
 import com.example.quanlybaotri.ticket.domain.TicketStatus;
 import com.example.quanlybaotri.ticket.persistence.TicketRepository;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.NotNull;
 import java.util.Set;
 import java.util.UUID;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
@@ -18,10 +21,25 @@ public class InternalTicketController {
 
     private final TicketRepository tickets;
     private final JwtDecoder decoder;
+    private final TicketService service;
 
-    public InternalTicketController(TicketRepository tickets, JwtDecoder decoder) {
+    public InternalTicketController(
+        TicketRepository tickets,
+        JwtDecoder decoder,
+        TicketService service
+    ) {
         this.tickets = tickets;
         this.decoder = decoder;
+        this.service = service;
+    }
+
+    @PostMapping("/{id}/telegram-start")
+    @PreAuthorize("authentication.name == 'notification-service'")
+    public TicketService.TelegramStartResult startFromTelegram(
+        @PathVariable UUID id,
+        @Valid @RequestBody TelegramStartRequest request
+    ) {
+        return service.startFromTelegram(id, request.technicianId());
     }
 
     @GetMapping("/{id}/access")
@@ -44,9 +62,12 @@ public class InternalTicketController {
         boolean elevated =
             roles != null &&
             roles.stream().anyMatch(Set.of("ROLE_ADMIN", "ROLE_MANAGER")::contains);
+        String accountType=user.getClaimAsString("account_type"),customer=user.getClaimAsString("customer_id"),siteScope=user.getClaimAsString("site_scope");
+        java.util.List<String> sites=user.getClaimAsStringList("site_ids");
+        boolean customerVisible="CUSTOMER".equals(accountType)&&customer!=null&&customer.equals(ticket.getCustomerId().toString())&&("ALL_SITES".equals(siteScope)||(sites!=null&&sites.contains(ticket.getSiteId().toString())));
         boolean visible =
             elevated ||
-            ticket.getRequesterId().equals(actor) ||
+            customerVisible ||
             actor.equals(ticket.getAssigneeId());
         if (!visible) throw ApiException.forbidden("Không có quyền truy cập phiếu");
         if (
@@ -100,6 +121,8 @@ public class InternalTicketController {
             ids = ids == null ? java.util.List.of() : java.util.List.copyOf(ids);
         }
     }
+
+    public record TelegramStartRequest(@NotNull UUID technicianId) {}
 
     public record Authorization(
         UUID ticketId,

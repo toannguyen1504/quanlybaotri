@@ -3,7 +3,6 @@ package com.example.quanlybaotri.identity.api;
 import com.example.quanlybaotri.identity.application.AuthService;
 import com.example.quanlybaotri.identity.application.TokenStore;
 import com.example.quanlybaotri.identity.domain.UserAccount;
-import com.example.quanlybaotri.organization.client.OrganizationClient;
 import com.example.quanlybaotri.shared.security.CurrentUser;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -26,18 +25,15 @@ public class AuthController {
     private final AuthService auth;
     private final CurrentUser currentUser;
     private final TokenStore tokenStore;
-    private final OrganizationClient organizations;
 
     public AuthController(
         AuthService auth,
         CurrentUser currentUser,
-        TokenStore tokenStore,
-        OrganizationClient organizations
+        TokenStore tokenStore
     ) {
         this.auth = auth;
         this.currentUser = currentUser;
         this.tokenStore = tokenStore;
-        this.organizations = organizations;
     }
 
     @PostMapping("/login")
@@ -70,10 +66,7 @@ public class AuthController {
     @GetMapping("/me")
     public MeResponse me() {
         UserAccount u = currentUser.require();
-        return MeResponse.from(
-            u,
-            u.getDepartmentId() == null ? null : organizations.find(u.getDepartmentId())
-        );
+        return MeResponse.from(u);
     }
 
     private String clientIp(HttpServletRequest request) {
@@ -91,21 +84,29 @@ public class AuthController {
         String email,
         String fullName,
         String phone,
-        java.util.UUID departmentId,
-        String departmentName,
+        com.example.quanlybaotri.identity.domain.AccountType accountType,
+        java.util.UUID customerId,
+        com.example.quanlybaotri.identity.domain.SiteScope siteScope,
+        Set<java.util.UUID> siteIds,
+        com.example.quanlybaotri.identity.domain.RegionScope regionScope,
+        Set<java.util.UUID> regionIds,
         boolean enabled,
         boolean mustChangePassword,
         Set<String> roles
     ) {
-        public static MeResponse from(UserAccount u, OrganizationClient.DepartmentRef department) {
+        public static MeResponse from(UserAccount u) {
             return new MeResponse(
                 u.getId(),
                 u.getUsername(),
                 u.getEmail(),
                 u.getFullName(),
                 u.getPhone(),
-                u.getDepartmentId(),
-                department == null ? null : department.name(),
+                u.getAccountType(),
+                u.getCustomerId(),
+                u.getSiteScope(),
+                u.getSiteIds(),
+                u.getRegionScope(),
+                u.getRegionIds(),
                 u.isEnabled(),
                 u.isMustChangePassword(),
                 u

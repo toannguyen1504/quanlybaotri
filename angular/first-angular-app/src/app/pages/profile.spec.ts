@@ -16,8 +16,9 @@ describe('ProfilePage', () => {
       fullName: 'Nguyễn Văn A',
       email: 'a@example.test',
       phone: '0901234567',
-      departmentId: 'department-1',
-      departmentName: 'Công nghệ thông tin',
+      accountType: 'INTERNAL',
+      siteScope: 'ALL_SITES',
+      siteIds: [],
       enabled: true,
       mustChangePassword: false,
       roles: ['TECHNICIAN'],
@@ -54,9 +55,7 @@ describe('ProfilePage', () => {
     expect(element.querySelector('.account-hero')?.textContent).toContain('Nguyễn Văn A');
     expect(element.querySelector('.account-role-tags')?.textContent).toContain('Kỹ thuật viên');
     expect(element.querySelector('.account-edit-card')).not.toBeNull();
-    expect(element.querySelector('.account-facts-card')?.textContent).toContain(
-      'Công nghệ thông tin',
-    );
+    expect(element.querySelector('.account-facts-card')?.textContent).toContain('Toàn hệ thống');
     expect(element.querySelector('.account-security-card')).not.toBeNull();
     expect(element.querySelector('.telegram-action')?.textContent).toContain('Liên kết Telegram');
     expect(api.get).toHaveBeenCalledWith('/notifications/telegram');

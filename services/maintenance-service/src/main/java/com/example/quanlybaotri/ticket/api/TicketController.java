@@ -6,6 +6,9 @@ import com.example.quanlybaotri.shared.security.CurrentUser;
 import com.example.quanlybaotri.ticket.application.TicketExcelExporter;
 import com.example.quanlybaotri.ticket.application.TicketService;
 import com.example.quanlybaotri.ticket.domain.*;
+import com.example.quanlybaotri.cost.domain.CostStatus;
+import com.example.quanlybaotri.cost.domain.TicketCostSummary;
+import com.example.quanlybaotri.organization.client.OrganizationClient;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 import java.math.BigDecimal;
@@ -47,10 +50,18 @@ public class TicketController {
         @RequestParam(required = false) String q,
         @RequestParam(required = false) TicketStatus status,
         @RequestParam(required = false) TicketPriority priority,
+        @RequestParam(required = false) UUID customerId,
+        @RequestParam(required = false) UUID siteId,
+        @RequestParam(required = false) UUID equipmentId,
+        @RequestParam(required = false) UUID equipmentCategoryId,
+        @RequestParam(required = false) UUID technicianId,
+        @RequestParam(required = false) WarrantyStatus warrantyStatus,
+        @RequestParam(required = false) TicketWorkQueue queue,
         @RequestParam(defaultValue = "ALL") TicketListView view,
         Pageable pageable
     ) {
-        return service.list(current.require(), q, status, priority, view, pageable);
+        return service.list(current.require(), q, status, priority, customerId, siteId,
+            equipmentId, equipmentCategoryId, technicianId, warrantyStatus, queue, view, pageable);
     }
 
     @GetMapping("/export")
@@ -58,6 +69,13 @@ public class TicketController {
         @RequestParam(required = false) String q,
         @RequestParam(required = false) TicketStatus status,
         @RequestParam(required = false) TicketPriority priority,
+        @RequestParam(required = false) UUID customerId,
+        @RequestParam(required = false) UUID siteId,
+        @RequestParam(required = false) UUID equipmentId,
+        @RequestParam(required = false) UUID equipmentCategoryId,
+        @RequestParam(required = false) UUID technicianId,
+        @RequestParam(required = false) WarrantyStatus warrantyStatus,
+        @RequestParam(required = false) TicketWorkQueue queue,
         @RequestParam(defaultValue = "ALL") TicketListView view
     ) {
         Instant generatedAt = Instant.now();
@@ -66,6 +84,13 @@ public class TicketController {
             q,
             status,
             priority,
+            customerId,
+            siteId,
+            equipmentId,
+            equipmentCategoryId,
+            technicianId,
+            warrantyStatus,
+            queue,
             view
         );
         byte[] content = excelExporter.export(tickets, generatedAt);
@@ -127,7 +152,7 @@ public class TicketController {
     @PostMapping("/{id}/assign")
     @PreAuthorize("hasAnyRole('MANAGER','ADMIN')")
     public TicketView assign(@PathVariable UUID id, @Valid @RequestBody AssignRequest r) {
-        return service.assign(id, r.technicianId(), r.reason(), current.require());
+        return service.assign(id, r.technicianId(), r.reason(), r.outsideRegionConfirmed(), current.require());
     }
 
     @PostMapping("/{id}/start")
@@ -170,12 +195,6 @@ public class TicketController {
         return service.changePriority(id, r.priority(), current.require());
     }
 
-    @PostMapping("/{id}/charge-type")
-    @PreAuthorize("hasAnyRole('TECHNICIAN','MANAGER','ADMIN')")
-    public TicketView chargeType(@PathVariable UUID id, @Valid @RequestBody ChargeTypeRequest r) {
-        return service.changeChargeType(id, r.chargeType(), current.require());
-    }
-
     @PostMapping("/{id}/work-logs")
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasRole('TECHNICIAN')")
@@ -195,6 +214,7 @@ public class TicketController {
 
     public record CreateTicketRequest(
         @NotNull UUID equipmentId,
+        UUID requesterId,
         @NotBlank @Size(max = 200) String title,
         @NotBlank @Size(max = 10000) String description,
         @NotNull TicketPriority priority
@@ -202,11 +222,9 @@ public class TicketController {
 
     public record ReasonRequest(@NotBlank @Size(max = 5000) String reason) {}
 
-    public record AssignRequest(@NotNull UUID technicianId, @Size(max = 500) String reason) {}
+    public record AssignRequest(@NotNull UUID technicianId, @Size(max = 500) String reason, boolean outsideRegionConfirmed) {}
 
     public record PriorityRequest(@NotNull TicketPriority priority) {}
-
-    public record ChargeTypeRequest(@NotNull TicketChargeType chargeType) {}
 
     public record WorkLogRequest(
         @NotBlank @Size(max = 10000) String content,
@@ -221,8 +239,16 @@ public class TicketController {
         UUID equipmentId,
         String equipmentCode,
         String equipmentName,
+        UUID customerId,
+        String customerName,
+        UUID siteId,
+        String siteName,
+        UUID regionId,
+        String regionName,
         UUID requesterId,
         String requesterName,
+        UUID createdById,
+        String createdByName,
         UUID assigneeId,
         String assigneeName,
         String title,
@@ -237,17 +263,28 @@ public class TicketController {
         Instant resolvedAt,
         Instant closedAt,
         String resolutionSummary,
-        TicketChargeType chargeType,
-        BigDecimal partsCost,
-        BigDecimal chargeAmount,
+        WarrantyStatus warrantyStatusAtCreation,
+        Instant warrantyEndAtCreation,
+        boolean costVisible,
+        CostStatus costStatus,
+        BigDecimal partsTotal,
+        BigDecimal laborTotal,
+        BigDecimal outsourcedTotal,
+        BigDecimal travelTotal,
+        BigDecimal otherTotal,
+        BigDecimal grandTotal,
         long version
     ) {
         public static TicketView from(
             MaintenanceTicket t,
             AssetClient.EquipmentRef equipment,
-            Map<UUID, IdentityClient.UserRef> users
+            Map<UUID, IdentityClient.UserRef> users,
+            OrganizationClient.DepartmentRef department,
+            TicketCostSummary costs,
+            boolean costVisible
         ) {
             IdentityClient.UserRef requester = users.get(t.getRequesterId()),
+                createdBy = users.get(t.getCreatedById()),
                 assignee = t.getAssigneeId() == null ? null : users.get(t.getAssigneeId());
             return new TicketView(
                 t.getId(),
@@ -255,8 +292,16 @@ public class TicketController {
                 t.getEquipmentId(),
                 equipment == null ? null : equipment.assetCode(),
                 equipment == null ? null : equipment.name(),
+                t.getCustomerId(),
+                department == null ? null : department.customerName(),
+                t.getSiteId(),
+                department == null ? null : department.name(),
+                department == null ? null : department.regionId(),
+                department == null ? null : department.regionName(),
                 t.getRequesterId(),
                 requester == null ? null : requester.fullName(),
+                t.getCreatedById(),
+                createdBy == null ? null : createdBy.fullName(),
                 t.getAssigneeId(),
                 assignee == null ? null : assignee.fullName(),
                 t.getTitle(),
@@ -271,9 +316,16 @@ public class TicketController {
                 t.getResolvedAt(),
                 t.getClosedAt(),
                 t.getResolutionSummary(),
-                t.getChargeType(),
-                t.getPartsCost(),
-                t.getChargeAmount(),
+                t.getWarrantyStatusAtCreation(),
+                t.getWarrantyEndAtCreation(),
+                costVisible,
+                costVisible ? (costs == null ? CostStatus.DRAFT : costs.getStatus()) : null,
+                costVisible ? (costs == null ? BigDecimal.ZERO : costs.getPartsTotal()) : null,
+                costVisible ? (costs == null ? BigDecimal.ZERO : costs.getLaborTotal()) : null,
+                costVisible ? (costs == null ? BigDecimal.ZERO : costs.getOutsourcedTotal()) : null,
+                costVisible ? (costs == null ? BigDecimal.ZERO : costs.getTravelTotal()) : null,
+                costVisible ? (costs == null ? BigDecimal.ZERO : costs.getOtherTotal()) : null,
+                costVisible ? (costs == null ? BigDecimal.ZERO : costs.getGrandTotal()) : null,
                 t.getVersion()
             );
         }

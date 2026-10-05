@@ -1,5 +1,7 @@
 package com.example.quanlybaotri.ticket.domain;
 
+import com.example.quanlybaotri.cost.domain.TicketCostItem;
+
 import jakarta.persistence.*;
 import java.time.Instant;
 import java.util.UUID;
@@ -19,8 +21,16 @@ public class Attachment {
     @JoinColumn(name = "work_log_id")
     private WorkLog workLog;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "cost_item_id")
+    private TicketCostItem costItem;
+
     @Column(name = "uploaded_by_id", nullable = false)
     private UUID uploadedById;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "attachment_type", nullable = false, length = 30)
+    private AttachmentType type;
 
     @Column(name = "storage_key", nullable = false, unique = true, length = 255)
     private String storageKey;
@@ -40,29 +50,45 @@ public class Attachment {
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
+    @Column(name = "deleted_at")
+    private Instant deletedAt;
+
+    @Column(name = "deleted_by_id")
+    private UUID deletedById;
+
     protected Attachment() {}
 
     public Attachment(
         MaintenanceTicket t,
         WorkLog w,
+        TicketCostItem costItem,
         UUID userId,
+        AttachmentType type,
         String key,
         String name,
-        String type,
+        String contentType,
         long size,
         String hash
     ) {
         id = UUID.randomUUID();
         ticket = t;
         workLog = w;
+        this.costItem = costItem;
         uploadedById = userId;
+        this.type = type;
         storageKey = key;
         originalName = name;
-        contentType = type;
+        this.contentType = contentType;
         fileSize = size;
         sha256 = hash;
         createdAt = Instant.now();
     }
+
+    public UUID getCostItemId() { return costItem == null ? null : costItem.getId(); }
+    public UUID getWorkLogId() { return workLog == null ? null : workLog.getId(); }
+    public AttachmentType getType() { return type; }
+    public Instant getDeletedAt() { return deletedAt; }
+    public void markDeleted(UUID actorId) { deletedAt = Instant.now(); deletedById = actorId; }
 
     public UUID getId() {
         return id;

@@ -57,7 +57,12 @@ public class InternalUserController {
         String username,
         String fullName,
         String email,
-        UUID departmentId,
+        com.example.quanlybaotri.identity.domain.AccountType accountType,
+        UUID customerId,
+        com.example.quanlybaotri.identity.domain.SiteScope siteScope,
+        Set<UUID> siteIds,
+        RegionScope regionScope,
+        Set<UUID> regionIds,
         boolean enabled,
         Set<RoleName> roles
     ) {
@@ -67,7 +72,12 @@ public class InternalUserController {
                 u.getUsername(),
                 u.getFullName(),
                 u.getEmail(),
-                u.getDepartmentId(),
+                u.getAccountType(),
+                u.getCustomerId(),
+                u.getSiteScope(),
+                u.getSiteIds(),
+                u.getRegionScope(),
+                u.getRegionIds(),
                 u.isEnabled(),
                 u
                     .getRoles()

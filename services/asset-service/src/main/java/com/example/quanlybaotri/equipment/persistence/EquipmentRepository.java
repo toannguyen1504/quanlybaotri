@@ -8,16 +8,23 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.repository.query.Param;
 
-public interface EquipmentRepository extends JpaRepository<Equipment, UUID> {
+public interface EquipmentRepository extends JpaRepository<Equipment, UUID>, JpaSpecificationExecutor<Equipment> {
     boolean existsByAssetCodeIgnoreCase(String code);
+    boolean existsByAssetCodeIgnoreCaseAndIdNot(String code, UUID id);
 
     long countByCategoryId(UUID categoryId);
 
     @Override
     @EntityGraph(attributePaths = { "category" })
     Page<Equipment> findAll(Pageable pageable);
+
+    @Override
+    @EntityGraph(attributePaths = { "category" })
+    Page<Equipment> findAll(Specification<Equipment> specification, Pageable pageable);
 
     @EntityGraph(attributePaths = { "category" })
     Page<Equipment> findByStatus(EquipmentStatus status, Pageable pageable);
@@ -45,4 +52,7 @@ public interface EquipmentRepository extends JpaRepository<Equipment, UUID> {
 
     @EntityGraph(attributePaths = { "category" })
     java.util.List<Equipment> findByIdIn(java.util.Collection<UUID> ids);
+
+    @Query("select e.id from Equipment e where e.category.id = :categoryId")
+    java.util.List<UUID> findIdsByCategoryId(@Param("categoryId") UUID categoryId);
 }

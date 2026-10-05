@@ -72,8 +72,8 @@ interface TelegramLinkRequest {
         </div>
         <div class="account-hero-meta">
           <div>
-            <span>Phòng ban</span>
-            <b>{{ user.departmentName || 'Chưa được phân công' }}</b>
+            <span>Loại tài khoản</span>
+            <b>{{ user.accountType === 'CUSTOMER' ? 'Khách hàng' : 'Nhân sự nội bộ' }}</b>
           </div>
           <div>
             <span>Email liên hệ</span>
@@ -122,7 +122,7 @@ interface TelegramLinkRequest {
           </div>
           <div class="account-form-note">
             <span aria-hidden="true">i</span>
-            <p>Tên đăng nhập, phòng ban và vai trò được quản lý bởi quản trị viên.</p>
+            <p>Tên đăng nhập, phạm vi khách hàng và vai trò được quản lý bởi quản trị viên.</p>
           </div>
           <div class="account-form-actions">
             <button type="button" class="secondary" (click)="resetForm()">Khôi phục</button>
@@ -147,8 +147,8 @@ interface TelegramLinkRequest {
                 <dd>{{ user.username }}</dd>
               </div>
               <div>
-                <dt>Phòng ban</dt>
-                <dd>{{ user.departmentName || 'Chưa gán' }}</dd>
+                <dt>Phạm vi địa điểm</dt>
+                <dd>{{ user.accountType === 'CUSTOMER' ? (user.siteScope === 'ALL_SITES' ? 'Toàn bộ địa điểm' : user.siteIds.length + ' địa điểm') : 'Toàn hệ thống' }}</dd>
               </div>
               <div>
                 <dt>Vai trò</dt>

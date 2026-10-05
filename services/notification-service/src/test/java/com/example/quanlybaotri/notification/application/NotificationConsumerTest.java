@@ -2,6 +2,7 @@ package com.example.quanlybaotri.notification.application;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import com.example.quanlybaotri.identity.client.IdentityClient;
 import com.example.quanlybaotri.notification.domain.Notification;
@@ -17,6 +18,7 @@ import java.util.UUID;
 import java.util.function.Consumer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.support.TransactionTemplate;
 import tools.jackson.databind.ObjectMapper;
@@ -68,7 +70,14 @@ class NotificationConsumerTest {
         consumer.consume(ticketEvent(actor, requester, assignee));
 
         verify(notifications, times(2)).save(any(Notification.class));
-        verify(deliveries).save(any(TelegramDelivery.class));
+        ArgumentCaptor<TelegramDelivery> delivery = ArgumentCaptor.forClass(
+            TelegramDelivery.class
+        );
+        verify(deliveries).save(delivery.capture());
+        assertThat(delivery.getValue().getUserId()).isEqualTo(assignee);
+        assertThat(delivery.getValue().getAction()).isEqualTo(
+            TelegramDelivery.Action.START_ASSIGNED_TICKET
+        );
     }
 
     @Test
@@ -80,6 +89,42 @@ class NotificationConsumerTest {
 
         verify(links, never()).findByUserIdAndActiveTrue(assignee);
         verify(deliveries, never()).save(any());
+    }
+
+    @Test
+    void onlyAssigneeDeliveryReceivesTelegramAction() throws Exception {
+        UUID actor = UUID.randomUUID();
+        UUID requester = UUID.randomUUID();
+        UUID assignee = UUID.randomUUID();
+        when(links.findByUserIdAndActiveTrue(requester)).thenReturn(
+            Optional.of(new TelegramLink(requester, 111L, 111L, "requester"))
+        );
+        when(links.findByUserIdAndActiveTrue(assignee)).thenReturn(
+            Optional.of(new TelegramLink(assignee, 222L, 222L, "assignee"))
+        );
+
+        consumer.consume(ticketEvent(actor, requester, assignee));
+
+        ArgumentCaptor<TelegramDelivery> captured = ArgumentCaptor.forClass(
+            TelegramDelivery.class
+        );
+        verify(deliveries, times(2)).save(captured.capture());
+        TelegramDelivery requesterDelivery = captured
+            .getAllValues()
+            .stream()
+            .filter(delivery -> delivery.getUserId().equals(requester))
+            .findFirst()
+            .orElseThrow();
+        TelegramDelivery assigneeDelivery = captured
+            .getAllValues()
+            .stream()
+            .filter(delivery -> delivery.getUserId().equals(assignee))
+            .findFirst()
+            .orElseThrow();
+        assertThat(requesterDelivery.getAction()).isNull();
+        assertThat(assigneeDelivery.getAction()).isEqualTo(
+            TelegramDelivery.Action.START_ASSIGNED_TICKET
+        );
     }
 
     private String ticketEvent(UUID actor, UUID requester, UUID assignee) {

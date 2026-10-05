@@ -7,16 +7,18 @@ import { DashboardPage } from './dashboard';
 
 describe('DashboardPage', () => {
   it('renders dashboard distributions as charts', async () => {
-    const api = {
-      get: vi.fn(() =>
-        of({
+    const dashboard = {
           byStatus: { IN_PROGRESS: 6, CLOSED: 4 },
           byPriority: { CRITICAL: 1, HIGH: 2, MEDIUM: 3, LOW: 4 },
           byTechnician: { 'Kỹ thuật viên B': 2, 'Kỹ thuật viên A': 5 },
           byCategory: { 'Máy in': 3, 'Máy chủ': 1 },
           sla: { onTime: 8, overdue: 2 },
-        }),
-      ),
+        };
+    const api = {
+      get: vi.fn((path: string) => {
+        if (path === '/reports/dashboard') return of(dashboard);
+        return of([]);
+      }),
     };
     await TestBed.configureTestingModule({
       imports: [DashboardPage],

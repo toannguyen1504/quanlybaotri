@@ -1,15 +1,19 @@
 import { Component, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Api } from '../core/api';
-import { Page, Role, User } from '../core/models';
+import { AuthService } from '../core/auth';
+import {
+  AccountType,
+  Customer,
+  CustomerSite,
+  Page,
+  Region,
+  RegionScope,
+  Role,
+  SiteScope,
+  User,
+} from '../core/models';
 import { PaginationComponent } from '../shared/pagination';
-
-interface Department {
-  id: string;
-  code: string;
-  name: string;
-  active: boolean;
-}
 
 type UserStatusFilter = 'ALL' | 'ACTIVE' | 'LOCKED';
 
@@ -138,36 +142,105 @@ type UserStatusFilter = 'ALL' | 'ACTIVE' | 'LOCKED';
             />
             <small>Người dùng sẽ được yêu cầu đổi mật khẩu sau lần đăng nhập đầu tiên.</small>
           </label>
-          <label>
-            <span>Phòng ban</span>
-            <select name="departmentId" [(ngModel)]="model.departmentId">
-              <option value="">Chưa gán phòng ban</option>
-              @for (department of departments(); track department.id) {
-                <option [value]="department.id">{{ department.name }}</option>
-              }
-            </select>
-          </label>
-        </div>
-
-        <fieldset class="users-role-picker">
-          <legend>Vai trò và quyền truy cập</legend>
-          <div>
-            @for (role of allRoles; track role) {
-              <label [class.selected]="model.roles.includes(role)">
-                <input
-                  type="checkbox"
-                  [checked]="model.roles.includes(role)"
-                  (change)="toggleRole(role)"
-                />
-                <span class="user-role-icon" aria-hidden="true">{{ roleInitial(role) }}</span>
-                <span>
-                  <b>{{ roleLabel(role) }}</b>
-                  <small>{{ roleDescription(role) }}</small>
-                </span>
+          @if (isAdmin()) {
+            <label>
+              <span>Loại tài khoản <i>*</i></span>
+              <select
+                name="accountType"
+                [(ngModel)]="model.accountType"
+                (ngModelChange)="accountTypeChanged()"
+              >
+                <option value="CUSTOMER">Khách hàng</option>
+                <option value="INTERNAL">Nội bộ</option>
+              </select>
+            </label>
+          }
+          @if (model.accountType === 'CUSTOMER') {
+            <label>
+              <span>Khách hàng <i>*</i></span>
+              <select
+                name="customerId"
+                [(ngModel)]="model.customerId"
+                (ngModelChange)="customerChanged()"
+                required
+              >
+                <option value="">Chọn khách hàng</option>
+                @for (customer of customers(); track customer.id) {
+                  <option [value]="customer.id">{{ customer.name }}</option>
+                }
+              </select>
+            </label>
+            <label>
+              <span>Phạm vi địa điểm <i>*</i></span>
+              <select name="siteScope" [(ngModel)]="model.siteScope">
+                <option value="ALL_SITES">Tất cả địa điểm</option>
+                <option value="SELECTED_SITES">Các địa điểm được chọn</option>
+              </select>
+            </label>
+            @if (model.siteScope === 'SELECTED_SITES') {
+              <label>
+                <span>Địa điểm được cấp quyền <i>*</i></span>
+                <select name="siteIds" [(ngModel)]="model.siteIds" multiple required>
+                  @for (site of formSites(); track site.id) {
+                    <option [value]="site.id">{{ site.name }}</option>
+                  }
+                </select>
+                <small>Giữ Ctrl/Cmd để chọn nhiều địa điểm.</small>
               </label>
             }
-          </div>
-        </fieldset>
+          }
+        </div>
+
+        @if (model.accountType === 'INTERNAL') {
+          <fieldset class="users-role-picker">
+            <legend>Vai trò và quyền truy cập</legend>
+            <div>
+              @for (role of internalRoles; track role) {
+                <label [class.selected]="model.roles.includes(role)">
+                  <input
+                    type="checkbox"
+                    [checked]="model.roles.includes(role)"
+                    (change)="toggleRole(role)"
+                  />
+                  <span class="user-role-icon" aria-hidden="true">{{ roleInitial(role) }}</span>
+                  <span>
+                    <b>{{ roleLabel(role) }}</b>
+                    <small>{{ roleDescription(role) }}</small>
+                  </span>
+                </label>
+              }
+            </div>
+          </fieldset>
+          @if (model.roles.includes('TECHNICIAN')) {
+            <fieldset class="users-region-picker">
+              <legend>Khu vực phụ trách của kỹ thuật viên</legend>
+              <div class="users-form-grid">
+                <label>
+                  <span>Phạm vi khu vực <i>*</i></span>
+                  <select
+                    name="regionScope"
+                    [(ngModel)]="model.regionScope"
+                    (ngModelChange)="regionScopeChanged()"
+                  >
+                    <option value="ALL_REGIONS">Toàn bộ khu vực</option>
+                    <option value="SELECTED_REGIONS">Các khu vực được chọn</option>
+                  </select>
+                </label>
+                @if (model.regionScope === 'SELECTED_REGIONS') {
+                  <label>
+                    <span>Khu vực được phân công <i>*</i></span>
+                    <select name="regionIds" [(ngModel)]="model.regionIds" multiple required>
+                      @for (region of activeRegions(); track region.id) {
+                        <option [value]="region.id">{{ region.name }} ({{ region.code }})</option>
+                      }
+                    </select>
+                    <small>Giữ Ctrl/Cmd để chọn nhiều khu vực.</small>
+                  </label>
+                }
+              </div>
+            </fieldset>
+          }
+        }
 
         @if (formError()) {
           <div class="alert">{{ formError() }}</div>
@@ -217,15 +290,38 @@ type UserStatusFilter = 'ALL' | 'ACTIVE' | 'LOCKED';
           </select>
         </label>
         <label>
-          <span>Phòng ban</span>
+          <span>Khách hàng</span>
+          <select
+            name="branchFilter"
+            [(ngModel)]="branchFilter"
+            (ngModelChange)="departmentFilter = ''; resetPage()"
+          >
+            <option value="">Tất cả khách hàng</option>
+            @for (branch of branches(); track branch.id) {
+              <option [value]="branch.id">{{ branch.name }}</option>
+            }
+          </select>
+        </label>
+        <label>
+          <span>Khu vực kỹ thuật viên</span>
+          <select name="regionFilter" [(ngModel)]="regionFilter" (ngModelChange)="resetPage()">
+            <option value="">Tất cả khu vực</option>
+            <option value="ALL_REGIONS">Toàn bộ khu vực</option>
+            <option value="UNASSIGNED">Chưa phân vùng</option>
+            @for (region of regions(); track region.id) {
+              <option [value]="region.id">{{ region.name }}</option>
+            }
+          </select>
+        </label>
+        <label>
+          <span>Địa điểm</span>
           <select
             name="departmentFilter"
             [(ngModel)]="departmentFilter"
             (ngModelChange)="resetPage()"
           >
-            <option value="">Tất cả phòng ban</option>
-            <option value="UNASSIGNED">Chưa gán phòng ban</option>
-            @for (department of departments(); track department.id) {
+            <option value="">Tất cả địa điểm</option>
+            @for (department of filteredDepartments(); track department.id) {
               <option [value]="department.id">{{ department.name }}</option>
             }
           </select>
@@ -277,7 +373,7 @@ type UserStatusFilter = 'ALL' | 'ACTIVE' | 'LOCKED';
             <tr>
               <th>Người dùng</th>
               <th>Liên hệ</th>
-              <th>Phòng ban</th>
+              <th>Phạm vi truy cập</th>
               <th>Vai trò</th>
               <th>Bảo mật</th>
               <th>Trạng thái</th>
@@ -303,9 +399,10 @@ type UserStatusFilter = 'ALL' | 'ACTIVE' | 'LOCKED';
                   </div>
                 </td>
                 <td>
-                  <span class="user-department">{{
-                    user.departmentName || 'Chưa phân phòng'
-                  }}</span>
+                  <span class="user-department">{{ accessLabel(user) }}</span>
+                  @if (user.roles.includes('TECHNICIAN')) {
+                    <small class="user-region-scope">{{ technicianRegionLabel(user) }}</small>
+                  }
                 </td>
                 <td>
                   <div class="user-role-list">
@@ -328,6 +425,9 @@ type UserStatusFilter = 'ALL' | 'ACTIVE' | 'LOCKED';
                 </td>
                 <td>
                   <div class="user-row-actions">
+                    @if (user.roles.includes('TECHNICIAN') && isAdmin()) {
+                      <button type="button" (click)="openRegionEditor(user)">Khu vực</button>
+                    }
                     <button type="button" (click)="openReset(user)">Đặt mật khẩu</button>
                     <button
                       type="button"
@@ -368,7 +468,10 @@ type UserStatusFilter = 'ALL' | 'ACTIVE' | 'LOCKED';
             </div>
             <div class="user-card-contact">
               <span>{{ user.email }}</span>
-              <span>{{ user.departmentName || 'Chưa phân phòng' }}</span>
+              <span>{{ accessLabel(user) }}</span>
+              @if (user.roles.includes('TECHNICIAN')) {
+                <span>{{ technicianRegionLabel(user) }}</span>
+              }
             </div>
             <div class="user-role-list">
               @for (role of sortedRoles(user.roles); track role) {
@@ -379,6 +482,11 @@ type UserStatusFilter = 'ALL' | 'ACTIVE' | 'LOCKED';
               <span class="user-security pending"><i></i>Cần đổi mật khẩu lần đầu</span>
             }
             <div class="user-card-actions">
+              @if (user.roles.includes('TECHNICIAN') && isAdmin()) {
+                <button type="button" class="secondary" (click)="openRegionEditor(user)">
+                  Khu vực
+                </button>
+              }
               <button type="button" class="secondary" (click)="openReset(user)">
                 Đặt mật khẩu
               </button>
@@ -408,6 +516,57 @@ type UserStatusFilter = 'ALL' | 'ACTIVE' | 'LOCKED';
         <p>Hãy thử thay đổi từ khóa hoặc điều kiện lọc.</p>
         <button type="button" class="secondary" (click)="clearFilters()">Xóa bộ lọc</button>
       </section>
+    }
+
+    @if (regionTarget(); as user) {
+      <div class="users-modal-backdrop" (click)="closeRegionEditor()">
+        <form
+          class="users-modal"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="technician-region-title"
+          (click)="$event.stopPropagation()"
+          (ngSubmit)="saveTechnicianRegions()"
+        >
+          <div class="users-modal-icon" aria-hidden="true">KV</div>
+          <h2 id="technician-region-title">Khu vực phụ trách</h2>
+          <p>
+            Cấu hình phạm vi điều phối cho <b>{{ user.fullName }}</b
+            >.
+          </p>
+          <label>
+            <span>Phạm vi khu vực</span>
+            <select
+              name="editRegionScope"
+              [(ngModel)]="editRegionScope"
+              (ngModelChange)="editRegionScopeChanged()"
+            >
+              <option value="ALL_REGIONS">Toàn bộ khu vực</option>
+              <option value="SELECTED_REGIONS">Các khu vực được chọn</option>
+            </select>
+          </label>
+          @if (editRegionScope === 'SELECTED_REGIONS') {
+            <label>
+              <span>Khu vực được phân công</span>
+              <select name="editRegionIds" [(ngModel)]="editRegionIds" multiple required>
+                @for (region of regionsForUser(user); track region.id) {
+                  <option [value]="region.id">{{ region.name }} ({{ region.code }})</option>
+                }
+              </select>
+              <small>Khu vực đã ngừng hoạt động chỉ được giữ lại, không thể chọn mới.</small>
+            </label>
+          }
+          @if (regionError()) {
+            <div class="alert">{{ regionError() }}</div>
+          }
+          <div>
+            <button type="button" class="secondary" (click)="closeRegionEditor()">Hủy</button>
+            <button class="primary" [disabled]="savingRegions()">
+              {{ savingRegions() ? 'Đang lưu...' : 'Lưu khu vực' }}
+            </button>
+          </div>
+        </form>
+      </div>
     }
 
     @if (resetTarget(); as user) {
@@ -455,36 +614,51 @@ type UserStatusFilter = 'ALL' | 'ACTIVE' | 'LOCKED';
 })
 export class UsersPage implements OnInit {
   private readonly api = inject(Api);
+  private readonly auth = inject(AuthService);
 
   readonly users = signal<User[]>([]);
-  readonly departments = signal<Department[]>([]);
+  readonly departments = signal<CustomerSite[]>([]);
+  readonly branches = signal<Customer[]>([]);
+  readonly regions = signal<Region[]>([]);
   readonly showForm = signal(false);
   readonly loading = signal(true);
   readonly saving = signal(false);
   readonly resetting = signal(false);
   readonly updatingUserId = signal<string | null>(null);
+  readonly savingRegions = signal(false);
   readonly loadError = signal('');
   readonly formError = signal('');
   readonly resetError = signal('');
+  readonly regionError = signal('');
   readonly message = signal('');
   readonly resetTarget = signal<User | null>(null);
+  readonly regionTarget = signal<User | null>(null);
   readonly skeletonRows = [1, 2, 3, 4, 5];
   readonly allRoles: Role[] = ['REQUESTER', 'TECHNICIAN', 'MANAGER', 'ADMIN'];
+  readonly internalRoles: Role[] = ['TECHNICIAN', 'MANAGER', 'ADMIN'];
 
   query = '';
   roleFilter: Role | '' = '';
   departmentFilter = '';
+  branchFilter = '';
+  regionFilter = '';
   statusFilter: UserStatusFilter = 'ALL';
   readonly pageSize = 10;
   currentPage = 0;
   newPassword = '';
+  editRegionScope: RegionScope = 'SELECTED_REGIONS';
+  editRegionIds: string[] = [];
   model = this.empty();
 
   ngOnInit() {
     this.load();
-    this.api.get<Department[]>('/departments').subscribe({
+    this.api.get<CustomerSite[]>('/customer-sites').subscribe({
       next: (departments) => this.departments.set(departments.filter((item) => item.active)),
     });
+    this.api
+      .get<Customer[]>('/customers')
+      .subscribe((items) => this.branches.set(items.filter((item) => item.active)));
+    this.api.get<Region[]>('/regions').subscribe((items) => this.regions.set(items));
   }
 
   load() {
@@ -507,20 +681,107 @@ export class UsersPage implements OnInit {
     return this.users().filter((user) => {
       const matchesKeyword =
         !keyword ||
-        [user.fullName, user.username, user.email, user.phone, user.departmentName].some((value) =>
-          value?.toLocaleLowerCase('vi').includes(keyword),
+        [user.fullName, user.username, user.email, user.phone, this.accessLabel(user)].some(
+          (value) => value?.toLocaleLowerCase('vi').includes(keyword),
         );
       const matchesRole = !this.roleFilter || user.roles.includes(this.roleFilter);
       const matchesDepartment =
         !this.departmentFilter ||
-        (this.departmentFilter === 'UNASSIGNED'
-          ? !user.departmentId
-          : user.departmentId === this.departmentFilter);
+        user.siteScope === 'ALL_SITES' ||
+        user.siteIds.includes(this.departmentFilter);
+      const matchesBranch = !this.branchFilter || user.customerId === this.branchFilter;
       const matchesStatus =
         this.statusFilter === 'ALL' ||
         (this.statusFilter === 'ACTIVE' ? user.enabled : !user.enabled);
-      return matchesKeyword && matchesRole && matchesDepartment && matchesStatus;
+      const matchesRegion =
+        !this.regionFilter ||
+        (this.regionFilter === 'ALL_REGIONS'
+          ? user.regionScope === 'ALL_REGIONS'
+          : this.regionFilter === 'UNASSIGNED'
+            ? !user.regionScope || user.regionScope === 'UNASSIGNED'
+            : user.regionScope === 'ALL_REGIONS' || user.regionIds?.includes(this.regionFilter));
+      return (
+        matchesKeyword &&
+        matchesRole &&
+        matchesBranch &&
+        matchesDepartment &&
+        matchesStatus &&
+        matchesRegion
+      );
     });
+  }
+
+  filteredDepartments() {
+    return this.departments().filter(
+      (item) => !this.branchFilter || item.customerId === this.branchFilter,
+    );
+  }
+
+  formSites() {
+    return this.departments().filter((item) => item.customerId === this.model.customerId);
+  }
+
+  customers() {
+    return this.branches();
+  }
+
+  activeRegions() {
+    return this.regions().filter((region) => region.active);
+  }
+
+  regionsForUser(user: User) {
+    const selected = new Set(user.regionIds ?? []);
+    return this.regions().filter((region) => region.active || selected.has(region.id));
+  }
+
+  isAdmin() {
+    return this.auth.hasAny(['ADMIN']);
+  }
+
+  accountTypeChanged() {
+    if (this.model.accountType === 'CUSTOMER') {
+      this.model.roles = ['REQUESTER'];
+      this.model.siteScope = 'SELECTED_SITES';
+      this.model.regionScope = 'UNASSIGNED';
+      this.model.regionIds = [];
+    } else {
+      this.model.customerId = '';
+      this.model.siteIds = [];
+      this.model.siteScope = 'ALL_SITES';
+      this.model.roles = ['TECHNICIAN'];
+      this.model.regionScope = 'SELECTED_REGIONS';
+    }
+  }
+
+  regionScopeChanged() {
+    if (this.model.regionScope !== 'SELECTED_REGIONS') this.model.regionIds = [];
+  }
+
+  customerChanged() {
+    this.model.siteIds = [];
+  }
+
+  accessLabel(user: User) {
+    if (user.accountType === 'INTERNAL') return 'Nội bộ · toàn hệ thống';
+    const customer =
+      this.branches().find((item) => item.id === user.customerId)?.name ?? 'Khách hàng';
+    if (user.siteScope === 'ALL_SITES') return `${customer} · tất cả địa điểm`;
+    const names = user.siteIds
+      .map((id) => this.departments().find((site) => site.id === id)?.name)
+      .filter(Boolean);
+    return `${customer} · ${names.join(', ') || user.siteIds.length + ' địa điểm'}`;
+  }
+
+  technicianRegionLabel(user: User) {
+    if (user.regionScope === 'ALL_REGIONS') return 'Phụ trách toàn bộ khu vực';
+    if (user.regionScope === 'SELECTED_REGIONS') {
+      const names = (user.regionIds ?? []).map(
+        (id) =>
+          this.regions().find((region) => region.id === id)?.name ?? 'Khu vực không còn hoạt động',
+      );
+      return names.length ? `Khu vực: ${names.join(', ')}` : 'Chưa phân vùng';
+    }
+    return 'Chưa phân vùng';
   }
 
   pagedUsers() {
@@ -552,6 +813,8 @@ export class UsersPage implements OnInit {
     return (
       !!this.query.trim() ||
       !!this.roleFilter ||
+      !!this.regionFilter ||
+      !!this.branchFilter ||
       !!this.departmentFilter ||
       this.statusFilter !== 'ALL'
     );
@@ -560,6 +823,8 @@ export class UsersPage implements OnInit {
   clearFilters() {
     this.query = '';
     this.roleFilter = '';
+    this.regionFilter = '';
+    this.branchFilter = '';
     this.departmentFilter = '';
     this.statusFilter = 'ALL';
     this.resetPage();
@@ -584,6 +849,13 @@ export class UsersPage implements OnInit {
     this.model.roles = this.model.roles.includes(role)
       ? this.model.roles.filter((item) => item !== role)
       : [...this.model.roles, role];
+    if (role === 'TECHNICIAN') {
+      if (this.model.roles.includes('TECHNICIAN')) this.model.regionScope = 'SELECTED_REGIONS';
+      else {
+        this.model.regionScope = 'UNASSIGNED';
+        this.model.regionIds = [];
+      }
+    }
   }
 
   save() {
@@ -592,7 +864,26 @@ export class UsersPage implements OnInit {
     this.formError.set('');
     this.message.set('');
     this.api
-      .post<User>('/users', { ...this.model, departmentId: this.model.departmentId || null })
+      .post<User>('/users', {
+        ...this.model,
+        customerId: this.model.accountType === 'CUSTOMER' ? this.model.customerId : null,
+        siteScope: this.model.accountType === 'CUSTOMER' ? this.model.siteScope : 'ALL_SITES',
+        siteIds:
+          this.model.accountType === 'CUSTOMER' && this.model.siteScope === 'SELECTED_SITES'
+            ? this.model.siteIds
+            : [],
+        roles: this.model.accountType === 'CUSTOMER' ? ['REQUESTER'] : this.model.roles,
+        regionScope:
+          this.model.accountType === 'INTERNAL' && this.model.roles.includes('TECHNICIAN')
+            ? this.model.regionScope
+            : 'UNASSIGNED',
+        regionIds:
+          this.model.accountType === 'INTERNAL' &&
+          this.model.roles.includes('TECHNICIAN') &&
+          this.model.regionScope === 'SELECTED_REGIONS'
+            ? this.model.regionIds
+            : [],
+      })
       .subscribe({
         next: (user) => {
           this.saving.set(false);
@@ -618,8 +909,13 @@ export class UsersPage implements OnInit {
         password: null,
         fullName: user.fullName,
         phone: user.phone ?? null,
-        departmentId: user.departmentId ?? null,
+        accountType: user.accountType,
+        customerId: user.customerId ?? null,
+        siteScope: user.siteScope,
+        siteIds: user.siteIds,
         roles: user.roles,
+        regionScope: user.regionScope ?? 'UNASSIGNED',
+        regionIds: user.regionIds ?? [],
         enabled: !user.enabled,
       })
       .subscribe({
@@ -637,6 +933,66 @@ export class UsersPage implements OnInit {
         error: (error) => {
           this.updatingUserId.set(null);
           this.loadError.set(error?.error?.detail ?? 'Không thể cập nhật trạng thái tài khoản.');
+        },
+      });
+  }
+
+  openRegionEditor(user: User) {
+    this.regionTarget.set(user);
+    this.editRegionScope = user.regionScope === 'ALL_REGIONS' ? 'ALL_REGIONS' : 'SELECTED_REGIONS';
+    this.editRegionIds = [...(user.regionIds ?? [])];
+    this.regionError.set('');
+    this.message.set('');
+  }
+
+  closeRegionEditor() {
+    if (this.savingRegions()) return;
+    this.regionTarget.set(null);
+    this.editRegionIds = [];
+    this.regionError.set('');
+  }
+
+  editRegionScopeChanged() {
+    if (this.editRegionScope !== 'SELECTED_REGIONS') this.editRegionIds = [];
+  }
+
+  saveTechnicianRegions() {
+    const user = this.regionTarget();
+    if (!user || this.savingRegions()) return;
+    if (this.editRegionScope === 'SELECTED_REGIONS' && !this.editRegionIds.length) {
+      this.regionError.set('Phải chọn ít nhất một khu vực phụ trách.');
+      return;
+    }
+    this.savingRegions.set(true);
+    this.regionError.set('');
+    this.api
+      .put<User>('/users/' + user.id, {
+        username: user.username,
+        email: user.email,
+        password: null,
+        fullName: user.fullName,
+        phone: user.phone ?? null,
+        accountType: user.accountType,
+        customerId: user.customerId ?? null,
+        siteScope: user.siteScope,
+        siteIds: user.siteIds,
+        roles: user.roles,
+        regionScope: this.editRegionScope,
+        regionIds: this.editRegionScope === 'SELECTED_REGIONS' ? this.editRegionIds : [],
+        enabled: user.enabled,
+      })
+      .subscribe({
+        next: (updated) => {
+          this.users.update((items) =>
+            items.map((item) => (item.id === updated.id ? updated : item)),
+          );
+          this.savingRegions.set(false);
+          this.regionTarget.set(null);
+          this.message.set(`Đã cập nhật khu vực phụ trách cho ${updated.fullName}.`);
+        },
+        error: (error) => {
+          this.savingRegions.set(false);
+          this.regionError.set(error?.error?.detail ?? 'Không thể cập nhật khu vực phụ trách.');
         },
       });
   }
@@ -728,8 +1084,13 @@ export class UsersPage implements OnInit {
       password: '',
       fullName: '',
       phone: '',
-      departmentId: '',
+      accountType: 'CUSTOMER' as AccountType,
+      customerId: '',
+      siteScope: 'SELECTED_SITES' as SiteScope,
+      siteIds: [] as string[],
       roles: ['REQUESTER'] as Role[],
+      regionScope: 'UNASSIGNED' as RegionScope,
+      regionIds: [] as string[],
       enabled: true,
     };
   }

@@ -1,6 +1,8 @@
 package com.example.quanlybaotri.shared.security;
 
 import java.time.Instant;
+import java.util.HashMap;
+import java.util.Map;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -10,7 +12,7 @@ public class ServiceTokenProvider {
 
     private final RestClient client;
     private final String secret;
-    private volatile Cached cached;
+    private final Map<String, Cached> cache = new HashMap<>();
 
     public ServiceTokenProvider(
         RestClient.Builder b,
@@ -23,9 +25,9 @@ public class ServiceTokenProvider {
 
     public synchronized String token(String audience) {
         Instant now = Instant.now();
+        Cached cached = cache.get(audience);
         if (
             cached != null &&
-            cached.audience.equals(audience) &&
             cached.expiresAt.isAfter(now.plusSeconds(30))
         ) return cached.value;
         TokenResponse r = client
@@ -41,11 +43,12 @@ public class ServiceTokenProvider {
             .retrieve()
             .body(TokenResponse.class);
         if (r == null) throw new IllegalStateException("Identity returned no service token");
-        cached = new Cached(audience, r.accessToken(), now.plusSeconds(r.expiresIn()));
-        return cached.value;
+        Cached issued = new Cached(r.accessToken(), now.plusSeconds(r.expiresIn()));
+        cache.put(audience, issued);
+        return issued.value;
     }
 
-    private record Cached(String audience, String value, Instant expiresAt) {}
+    private record Cached(String value, Instant expiresAt) {}
 
     private record TokenResponse(String accessToken, String tokenType, long expiresIn) {}
 }
