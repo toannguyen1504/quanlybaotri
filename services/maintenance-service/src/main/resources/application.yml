@@ -7,7 +7,11 @@ spring:
   jpa:
     hibernate.ddl-auto: validate
     open-in-view: false
-  flyway.enabled: true
+  flyway:
+    enabled: true
+    # V11__vnpay_payments.sql was intentionally moved to payment-service.
+    # Existing maintenance databases retain that applied history entry.
+    ignore-migration-patterns: 'versioned:missing'
   data.redis:
     host: ${REDIS_HOST:redis}
     port: ${REDIS_PORT:6379}
@@ -54,8 +58,9 @@ app:
   asset-url: ${ASSET_URL:http://asset-service:8082}
   inventory-url: ${INVENTORY_SERVICE_URL:http://inventory-service:8084}
   organization-url: ${ORGANIZATION_URL:http://organization-service:8086}
+  payment-url: ${PAYMENT_SERVICE_URL:http://payment-service:8087}
   service-client.secret: ${MAINTENANCE_SERVICE_CLIENT_SECRET:maintenance-service-dev-secret}
-  costing.enforce-approval: ${COSTING_ENFORCE_APPROVAL:false}
+  reporting.statistics-cache.ttl: ${STATISTICS_REPORT_CACHE_TTL:1m}
 management:
   server.port: 9000
   endpoints.web.exposure.include: health,info,prometheus

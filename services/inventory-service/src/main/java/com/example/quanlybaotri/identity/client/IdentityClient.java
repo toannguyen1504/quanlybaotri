@@ -49,6 +49,10 @@ public class IdentityClient {
         }
     }
 
+    public UserRef get(UUID id) {
+        return resolve(List.of(id)).get(id);
+    }
+
     private void headers(org.springframework.http.HttpHeaders h) {
         h.setBearerAuth(tokens.token("identity-service"));
         String c = MDC.get("correlationId");

@@ -1,0 +1,477 @@
+<main class="auth-page">
+  <aside class="auth-story" aria-label="Giới thiệu Maintenance Hub">
+    <div class="story-grid" aria-hidden="true"></div>
+
+    <div class="auth-brand">
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <path d="M12 3 4.5 6.5v5.2c0 4.4 3 7.7 7.5 9.3 4.5-1.6 7.5-4.9 7.5-9.3V6.5L12 3Z" />
+          <path d="m8.8 12 2 2 4.5-4.5" />
+        </svg>
+      </span>
+      <span class="brand-copy">
+        <strong>Maintenance Hub</strong>
+        <span>Nền tảng vận hành thiết bị</span>
+      </span>
+    </div>
+
+    <div class="story-content">
+      <p class="story-kicker">QUẢN LÝ BẢO TRÌ TẬP TRUNG</p>
+      <h1>Mọi sự cố.<br /><span>Một luồng xử lý.</span></h1>
+      <p class="story-lead">
+        Kết nối đội ngũ, thiết bị và quy trình trên một nền tảng duy nhất — rõ ràng từ lúc tiếp nhận
+        đến khi hoàn tất.
+      </p>
+
+      <div class="story-points">
+        <div class="story-point">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.8"
+            aria-hidden="true"
+          >
+            <circle cx="12" cy="12" r="8" />
+            <path d="M12 8v4l2.5 1.5" />
+          </svg>
+          <strong>Theo dõi 24/7</strong>
+          <span>Kiểm soát SLA liên tục</span>
+        </div>
+        <div class="story-point">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.8"
+            aria-hidden="true"
+          >
+            <path d="M4 18V9m6 9V5m6 13v-7m4 7H2" />
+          </svg>
+          <strong>Dữ liệu tức thời</strong>
+          <span>Báo cáo luôn cập nhật</span>
+        </div>
+        <div class="story-point">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.8"
+            aria-hidden="true"
+          >
+            <path d="M8 12.5 10.5 15 16 9.5" />
+            <circle cx="12" cy="12" r="9" />
+          </svg>
+          <strong>Minh bạch 100%</strong>
+          <span>Lưu vết mọi thay đổi</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="story-footer"><i aria-hidden="true"></i> Hệ thống đang hoạt động ổn định</div>
+  </aside>
+
+  <section class="auth-workspace">
+    <div class="auth-card" [class.register-mode]="tab() === 'register'">
+      <div class="auth-brand auth-mobile-brand">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <path d="M12 3 4.5 6.5v5.2c0 4.4 3 7.7 7.5 9.3 4.5-1.6 7.5-4.9 7.5-9.3V6.5L12 3Z" />
+            <path d="m8.8 12 2 2 4.5-4.5" />
+          </svg>
+        </span>
+        <span class="brand-copy">
+          <strong>Maintenance Hub</strong>
+          <span>Nền tảng vận hành thiết bị</span>
+        </span>
+      </div>
+
+      <div class="auth-tabs" role="tablist" aria-label="Chọn hình thức xác thực">
+        <button
+          type="button"
+          role="tab"
+          [attr.aria-selected]="tab() === 'login'"
+          [class.active]="tab() === 'login'"
+          (click)="selectTab('login')"
+        >
+          Đăng nhập
+        </button>
+        <button
+          type="button"
+          role="tab"
+          [attr.aria-selected]="tab() === 'register'"
+          [class.active]="tab() === 'register'"
+          (click)="selectTab('register')"
+        >
+          Đăng ký tài khoản
+        </button>
+      </div>
+
+      @if (resultMessage()) {
+        <div class="auth-result" [class.rejected]="resultStatus() === 'REJECTED'" role="status">
+          <span class="result-icon" aria-hidden="true">{{
+            resultStatus() === 'REJECTED' ? '!' : '✓'
+          }}</span>
+          <div>
+            <strong>{{ resultTitle() }}</strong>
+            <span>{{ resultMessage() }}</span>
+          </div>
+        </div>
+      }
+
+      @if (tab() === 'login') {
+        <form (ngSubmit)="submitLogin()" [attr.aria-busy]="loading()">
+          <header class="form-head">
+            <p class="form-kicker">CHÀO MỪNG TRỞ LẠI</p>
+            <h2>Đăng nhập hệ thống</h2>
+            <p>Nhập thông tin tài khoản để tiếp tục công việc của bạn.</p>
+          </header>
+
+          <label class="field">
+            Tên đăng nhập hoặc email
+            <span class="control">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                aria-hidden="true"
+              >
+                <circle cx="12" cy="8" r="3.5" />
+                <path d="M5 20c.5-4 3-6 7-6s6.5 2 7 6" />
+              </svg>
+              <input
+                name="username"
+                [(ngModel)]="username"
+                autocomplete="username"
+                placeholder="Tên đăng nhập hoặc email"
+                required
+              />
+            </span>
+          </label>
+
+          <label class="field">
+            Mật khẩu
+            <span class="control password-control">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                aria-hidden="true"
+              >
+                <rect x="5" y="10" width="14" height="10" rx="2" />
+                <path d="M8 10V7a4 4 0 0 1 8 0v3" />
+              </svg>
+              <input
+                name="password"
+                [(ngModel)]="password"
+                [type]="showLoginPassword() ? 'text' : 'password'"
+                autocomplete="current-password"
+                placeholder="Nhập mật khẩu"
+                required
+              />
+              <button
+                class="password-toggle"
+                type="button"
+                (click)="showLoginPassword.set(!showLoginPassword())"
+                [attr.aria-label]="showLoginPassword() ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  aria-hidden="true"
+                >
+                  <path d="M3 12s3.2-5 9-5 9 5 9 5-3.2 5-9 5-9-5-9-5Z" />
+                  <circle cx="12" cy="12" r="2.5" />
+                </svg>
+              </button>
+            </span>
+          </label>
+
+          @if (error()) {
+            <div class="alert" role="alert">{{ error() }}</div>
+          }
+
+          <button class="submit-button" [disabled]="loading()">
+            @if (loading()) {
+              <i class="spinner" aria-hidden="true"></i>
+              Đang xác thực...
+            } @else {
+              Đăng nhập
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                aria-hidden="true"
+              >
+                <path d="M5 12h14m-5-5 5 5-5 5" />
+              </svg>
+            }
+          </button>
+        </form>
+      } @else {
+        <form (ngSubmit)="submitRegistration()" [attr.aria-busy]="loading()">
+          <header class="form-head">
+            <p class="form-kicker">BẮT ĐẦU CÙNG MAINTENANCE HUB</p>
+            <h2>Tạo tài khoản mới</h2>
+            <p>
+              Điền thông tin bên dưới. Quản trị viên sẽ xác minh và kích hoạt tài khoản cho bạn.
+            </p>
+          </header>
+
+          <div class="auth-grid">
+            <label class="field">
+              Họ và tên
+              <span class="control">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  aria-hidden="true"
+                >
+                  <circle cx="12" cy="8" r="3.5" />
+                  <path d="M5 20c.5-4 3-6 7-6s6.5 2 7 6" />
+                </svg>
+                <input
+                  name="fullName"
+                  [(ngModel)]="registration.fullName"
+                  maxlength="150"
+                  autocomplete="name"
+                  placeholder="Nguyễn Văn An"
+                  required
+                />
+              </span>
+            </label>
+
+            <label class="field">
+              Email
+              <span class="control">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  aria-hidden="true"
+                >
+                  <rect x="3" y="5" width="18" height="14" rx="2" />
+                  <path d="m4 7 8 6 8-6" />
+                </svg>
+                <input
+                  name="email"
+                  [(ngModel)]="registration.email"
+                  type="email"
+                  maxlength="190"
+                  autocomplete="email"
+                  placeholder="email@congty.vn"
+                  required
+                />
+              </span>
+            </label>
+
+            <label class="field">
+              <span>Số điện thoại <small class="optional">Không bắt buộc</small></span>
+              <span class="control">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M7 3h3l1.3 4-2 1.6a15 15 0 0 0 6.1 6.1l1.6-2L21 14v3c0 2.2-1.8 4-4 4C9.3 20.5 3.5 14.7 3 7c0-2.2 1.8-4 4-4Z"
+                  />
+                </svg>
+                <input
+                  name="phone"
+                  [(ngModel)]="registration.phone"
+                  maxlength="30"
+                  autocomplete="tel"
+                  placeholder="09xx xxx xxx"
+                />
+              </span>
+            </label>
+
+            <label class="field">
+              Tên đơn vị / công ty
+              <span class="control">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  aria-hidden="true"
+                >
+                  <path d="M4 21V7l8-4 8 4v14M8 10h2m4 0h2m-8 4h2m4 0h2M9 21v-3h6v3" />
+                </svg>
+                <input
+                  name="organizationName"
+                  [(ngModel)]="registration.organizationName"
+                  maxlength="190"
+                  placeholder="Tên đơn vị của bạn"
+                  required
+                />
+              </span>
+            </label>
+
+            <label class="field">
+              Mật khẩu
+              <span class="control password-control">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  aria-hidden="true"
+                >
+                  <rect x="5" y="10" width="14" height="10" rx="2" />
+                  <path d="M8 10V7a4 4 0 0 1 8 0v3" />
+                </svg>
+                <input
+                  name="registerPassword"
+                  [(ngModel)]="registration.password"
+                  [type]="showRegisterPassword() ? 'text' : 'password'"
+                  minlength="8"
+                  maxlength="100"
+                  autocomplete="new-password"
+                  placeholder="Tối thiểu 8 ký tự"
+                  required
+                />
+                <button
+                  class="password-toggle"
+                  type="button"
+                  (click)="showRegisterPassword.set(!showRegisterPassword())"
+                  [attr.aria-label]="showRegisterPassword() ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    aria-hidden="true"
+                  >
+                    <path d="M3 12s3.2-5 9-5 9 5 9 5-3.2 5-9 5-9-5-9-5Z" />
+                    <circle cx="12" cy="12" r="2.5" />
+                  </svg>
+                </button>
+              </span>
+            </label>
+
+            <label class="field">
+              Xác nhận mật khẩu
+              <span class="control password-control">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  aria-hidden="true"
+                >
+                  <rect x="5" y="10" width="14" height="10" rx="2" />
+                  <path d="M8 10V7a4 4 0 0 1 8 0v3" />
+                </svg>
+                <input
+                  name="confirmation"
+                  [(ngModel)]="registration.confirmation"
+                  [type]="showConfirmationPassword() ? 'text' : 'password'"
+                  minlength="8"
+                  maxlength="100"
+                  autocomplete="new-password"
+                  placeholder="Nhập lại mật khẩu"
+                  required
+                />
+                <button
+                  class="password-toggle"
+                  type="button"
+                  (click)="showConfirmationPassword.set(!showConfirmationPassword())"
+                  [attr.aria-label]="showConfirmationPassword() ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    aria-hidden="true"
+                  >
+                    <path d="M3 12s3.2-5 9-5 9 5 9 5-3.2 5-9 5-9-5-9-5Z" />
+                    <circle cx="12" cy="12" r="2.5" />
+                  </svg>
+                </button>
+              </span>
+            </label>
+
+            <label class="field full">
+              <span>Ghi chú <small class="optional">Không bắt buộc</small></span>
+              <span class="control textarea-control">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  aria-hidden="true"
+                >
+                  <path d="M5 4h14v16H5zM8 8h8m-8 4h8m-8 4h5" />
+                </svg>
+                <textarea
+                  name="note"
+                  [(ngModel)]="registration.note"
+                  maxlength="1000"
+                  placeholder="Mô tả nhu cầu sử dụng hoặc thông tin để quản trị viên xác minh"
+                ></textarea>
+              </span>
+            </label>
+          </div>
+
+          @if (error()) {
+            <div class="alert" role="alert">{{ error() }}</div>
+          }
+
+          <button class="submit-button" [disabled]="loading()">
+            @if (loading()) {
+              <i class="spinner" aria-hidden="true"></i>
+              Đang gửi đăng ký...
+            } @else {
+              Gửi yêu cầu đăng ký
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                aria-hidden="true"
+              >
+                <path d="M5 12h14m-5-5 5 5-5 5" />
+              </svg>
+            }
+          </button>
+        </form>
+      }
+
+      @if (googleEnabled()) {
+        <div class="google-divider"><span>hoặc tiếp tục với</span></div>
+        <div #googleButton class="google-button" aria-label="Đăng nhập bằng Google"></div>
+        @if (googleError()) {
+          <small class="hint">{{ googleError() }}</small>
+        }
+      }
+
+      <p class="security-note">
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          aria-hidden="true"
+        >
+          <path d="M12 3 4.5 6.5v5.2c0 4.4 3 7.7 7.5 9.3 4.5-1.6 7.5-4.9 7.5-9.3V6.5L12 3Z" />
+          <path d="m9 12 2 2 4-4" />
+        </svg>
+        Thông tin của bạn được mã hóa và bảo mật
+      </p>
+    </div>
+  </section>
+</main>

@@ -26,6 +26,7 @@ services:
       ORGANIZATION_DB_PASSWORD: ${ORGANIZATION_DB_PASSWORD}
       ASSET_DB_PASSWORD: ${ASSET_DB_PASSWORD}
       MAINTENANCE_DB_PASSWORD: ${MAINTENANCE_DB_PASSWORD}
+      PAYMENT_DB_PASSWORD: ${PAYMENT_DB_PASSWORD:-change-payment-db-password}
       INVENTORY_DB_PASSWORD: ${INVENTORY_DB_PASSWORD}
       NOTIFICATION_DB_PASSWORD: ${NOTIFICATION_DB_PASSWORD}
     volumes:
@@ -42,6 +43,7 @@ services:
 
   rabbitmq:
     image: rabbitmq:4-management-alpine
+    command: rabbitmq-server
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
@@ -49,6 +51,7 @@ services:
       - '15672:15672'
     volumes:
       - rabbitmq-data:/var/lib/rabbitmq
+      - ./infra/rabbitmq/enabled_plugins:/etc/rabbitmq/enabled_plugins:ro
     networks: [backend]
     healthcheck:
       test: ['CMD', 'rabbitmq-diagnostics', '-q', 'ping']
@@ -160,18 +163,20 @@ services:
       BOOTSTRAP_ADMIN_USERNAME: ${BOOTSTRAP_ADMIN_USERNAME}
       BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD}
       BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       CUSTOMER_SCOPE_MIGRATION_ENABLED: ${CUSTOMER_SCOPE_MIGRATION_ENABLED:-false}
       ORGANIZATION_SERVICE_URL: http://organization-service:8086
       IDENTITY_SERVICE_CLIENT_SECRET: ${IDENTITY_SERVICE_CLIENT_SECRET}
       ASSET_SERVICE_CLIENT_SECRET: ${ASSET_SERVICE_CLIENT_SECRET}
       MAINTENANCE_SERVICE_CLIENT_SECRET: ${MAINTENANCE_SERVICE_CLIENT_SECRET}
+      PAYMENT_SERVICE_CLIENT_SECRET: ${PAYMENT_SERVICE_CLIENT_SECRET:-change-payment-service-client-secret}
       INVENTORY_SERVICE_CLIENT_SECRET: ${INVENTORY_SERVICE_CLIENT_SECRET}
       NOTIFICATION_SERVICE_CLIENT_SECRET: ${NOTIFICATION_SERVICE_CLIENT_SECRET}
     volumes:
       - identity-keys:/data/keys
     tmpfs: [/tmp]
     read_only: true
-    networks: [backend]
+    networks: [backend, google-egress]
     depends_on:
       postgres: { condition: service_healthy }
       rabbitmq-init: { condition: service_completed_successfully }
@@ -259,7 +264,8 @@ services:
       ASSET_URL: http://asset-service:8082
       INVENTORY_SERVICE_URL: http://inventory-service:8084
       ORGANIZATION_URL: http://organization-service:8086
-      COSTING_ENFORCE_APPROVAL: ${COSTING_ENFORCE_APPROVAL:-false}
+      PAYMENT_SERVICE_URL: http://payment-service:8087
+      STATISTICS_REPORT_CACHE_TTL: ${STATISTICS_REPORT_CACHE_TTL:-1m}
       MAINTENANCE_SERVICE_CLIENT_SECRET: ${MAINTENANCE_SERVICE_CLIENT_SECRET}
       S3_ENDPOINT: http://minio:9000
       S3_PUBLIC_ENDPOINT: ${S3_PUBLIC_ENDPOINT:-http://localhost:9000}
@@ -287,6 +293,41 @@ services:
           'CMD-SHELL',
           'wget -qO- http://127.0.0.1:9000/actuator/health/readiness >/dev/null || exit 1',
         ]
+    restart: unless-stopped
+
+  payment-service:
+    build:
+      context: .
+      dockerfile: services/payment-service/Dockerfile
+    environment:
+      <<: *service-environment
+      DB_URL: jdbc:postgresql://postgres:5432/payment_db
+      DB_USERNAME: payment_app
+      DB_PASSWORD: ${PAYMENT_DB_PASSWORD:-change-payment-db-password}
+      IDENTITY_URL: http://identity-service:8081
+      MAINTENANCE_SERVICE_URL: http://maintenance-service:8083
+      ORGANIZATION_SERVICE_URL: http://organization-service:8086
+      PAYMENT_SERVICE_CLIENT_SECRET: ${PAYMENT_SERVICE_CLIENT_SECRET:-change-payment-service-client-secret}
+      VNPAY_TMN_CODE: ${VNPAY_TMN_CODE:-}
+      VNPAY_HASH_SECRET: ${VNPAY_HASH_SECRET:-}
+      VNPAY_PAYMENT_URL: ${VNPAY_PAYMENT_URL:-https://sandbox.vnpayment.vn/paymentv2/vpcpay.html}
+      VNPAY_QUERY_URL: ${VNPAY_QUERY_URL:-https://sandbox.vnpayment.vn/merchant_webapi/api/transaction}
+      VNPAY_RETURN_URL: ${VNPAY_RETURN_URL:-http://localhost:8080/api/v1/payments/vnpay/return}
+      VNPAY_IPN_URL: ${VNPAY_IPN_URL:-http://localhost:8080/api/v1/payments/vnpay/ipn}
+      VNPAY_FRONTEND_RESULT_URL: ${VNPAY_FRONTEND_RESULT_URL:-http://localhost:4200/payment-result}
+      VNPAY_PAYMENT_EXPIRY: ${VNPAY_PAYMENT_EXPIRY:-15m}
+    tmpfs: [/tmp]
+    read_only: true
+    networks: [backend, vnpay-egress]
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      identity-service: { condition: service_healthy }
+      organization-service: { condition: service_healthy }
+      maintenance-service: { condition: service_healthy }
+    healthcheck:
+      <<: *java-healthcheck
+      test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:9000/actuator/health/readiness >/dev/null || exit 1']
     restart: unless-stopped
 
   inventory-service:
@@ -329,11 +370,15 @@ services:
       DB_PASSWORD: ${NOTIFICATION_DB_PASSWORD}
       IDENTITY_SERVICE_URL: http://identity-service:8081
       MAINTENANCE_SERVICE_URL: http://maintenance-service:8083
+      INVENTORY_SERVICE_URL: http://inventory-service:8084
       NOTIFICATION_SERVICE_CLIENT_SECRET: ${NOTIFICATION_SERVICE_CLIENT_SECRET}
       TELEGRAM_ENABLED: ${TELEGRAM_ENABLED:-false}
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
       TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME:-technician001_bot}
       TELEGRAM_APP_PUBLIC_URL: ${TELEGRAM_APP_PUBLIC_URL:-http://localhost:4200}
+      TELEGRAM_CONVERSATION_TTL: ${TELEGRAM_CONVERSATION_TTL:-2h}
+      RABBITMQ_STOMP_PORT: 61613
+      CHAT_ALLOWED_ORIGIN_PATTERNS: ${CHAT_ALLOWED_ORIGIN_PATTERNS:-http://localhost:*}
     tmpfs: [/tmp]
     read_only: true
     networks: [backend, telegram-egress]
@@ -343,6 +388,7 @@ services:
       redis: { condition: service_healthy }
       identity-service: { condition: service_healthy }
       maintenance-service: { condition: service_healthy }
+      inventory-service: { condition: service_healthy }
     healthcheck:
       <<: *java-healthcheck
       test:
@@ -361,6 +407,7 @@ services:
       IDENTITY_SERVICE_URL: http://identity-service:8081
       ASSET_SERVICE_URL: http://asset-service:8082
       MAINTENANCE_SERVICE_URL: http://maintenance-service:8083
+      PAYMENT_SERVICE_URL: http://payment-service:8087
       INVENTORY_SERVICE_URL: http://inventory-service:8084
       ORGANIZATION_SERVICE_URL: http://organization-service:8086
       NOTIFICATION_SERVICE_URL: http://notification-service:8085
@@ -374,6 +421,7 @@ services:
       organization-service: { condition: service_healthy }
       asset-service: { condition: service_healthy }
       maintenance-service: { condition: service_healthy }
+      payment-service: { condition: service_healthy }
       inventory-service: { condition: service_healthy }
       notification-service: { condition: service_healthy }
     healthcheck:
@@ -427,6 +475,8 @@ networks:
   backend:
     internal: true
   telegram-egress:
+  google-egress:
+  vnpay-egress:
 
 volumes:
   postgres-data:

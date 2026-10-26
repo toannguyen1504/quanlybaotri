@@ -1,0 +1,79 @@
+<div class="operations-page">
+  @if (canViewMovements()) {
+    <section class="operations-toolbar" aria-label="Khoảng thời gian biến động kho">
+      <label><span>Từ ngày</span><input type="date" [(ngModel)]="from" /></label>
+      <label><span>Đến ngày</span><input type="date" [(ngModel)]="to" /></label>
+      <button type="button" class="primary" (click)="applyPeriod()">Áp dụng</button>
+    </section>
+  }
+  @if (loading()) {
+    <div class="operations-state">Đang tổng hợp dữ liệu kho...</div>
+  } @else if (error()) {
+    <div class="operations-state" role="alert">{{ error() }}</div>
+  } @else if (summary(); as data) {
+    <section class="operations-stats">
+      <article class="operations-stat">
+        <span>▦</span>
+        <div>
+          <small>Tổng mã hàng</small><b>{{ data.total }}</b
+          ><em>{{ data.active }} mã đang sử dụng</em>
+        </div>
+      </article>
+      <article class="operations-stat warning">
+        <span>!</span>
+        <div>
+          <small>Sắp hết</small><b>{{ data.lowStock }}</b
+          ><em>Đã chạm định mức cảnh báo</em>
+        </div>
+      </article>
+      <article class="operations-stat danger">
+        <span>0</span>
+        <div>
+          <small>Hết hàng</small><b>{{ data.outOfStock }}</b
+          ><em>Cần bổ sung sớm</em>
+        </div>
+      </article>
+      <article class="operations-stat success">
+        <span>₫</span>
+        <div>
+          <small>Giá trị tồn kho</small><b>{{ data.inventoryValue | number: '1.0-0' }} ₫</b
+          ><em>Theo đơn giá mặc định</em>
+        </div>
+      </article>
+    </section>
+    @if (canViewMovements()) {
+      <section class="operations-panel">
+        <div class="operations-panel-head">
+          <div>
+            <h2>Biến động trong kỳ</h2>
+            <p>Khối lượng nhập, xuất và điều chỉnh gần đây.</p>
+          </div>
+        </div>
+        <div class="operations-stats" style="padding: 16px">
+          <article class="operations-stat success">
+            <span>↓</span>
+            <div>
+              <small>Đã nhập</small><b>{{ data.receivedQuantity | number: '1.0-3' }}</b>
+            </div>
+          </article>
+          <article class="operations-stat warning">
+            <span>↑</span>
+            <div>
+              <small>Đã xuất</small><b>{{ data.issuedQuantity | number: '1.0-3' }}</b>
+            </div>
+          </article>
+          <article class="operations-stat">
+            <span>≋</span>
+            <div>
+              <small>Điều chỉnh</small><b>{{ data.adjustedQuantity | number: '1.0-3' }}</b>
+            </div>
+          </article>
+        </div>
+        <div class="operations-actions" style="gap: 12px">
+          <a class="primary button-link" routerLink="/parts/alerts">Xem cảnh báo tồn kho</a
+          ><a class="secondary button-link" routerLink="/parts/movements">Xem lịch sử kho</a>
+        </div>
+      </section>
+    }
+  }
+</div>

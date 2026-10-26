@@ -42,11 +42,19 @@ spring:
             - id: notification
               uri: ${NOTIFICATION_SERVICE_URL:http://notification-service:8085}
               predicates:
-                - Path=/api/v1/notifications/**
+                - Path=/api/v1/notifications/**,/api/v1/chat/**
+            - id: payment-ticket
+              uri: ${PAYMENT_SERVICE_URL:http://payment-service:8087}
+              predicates:
+                - Path=/api/v1/tickets/*/payments
+            - id: payment
+              uri: ${PAYMENT_SERVICE_URL:http://payment-service:8087}
+              predicates:
+                - Path=/api/v1/payments/**
             - id: maintenance
               uri: ${MAINTENANCE_SERVICE_URL:http://maintenance-service:8083}
               predicates:
-                - Path=/api/v1/tickets/**,/api/v1/sla-policies/**,/api/v1/labor-rates/**,/api/v1/attachments/**,/api/v1/reports/**,/api/v1/cost-migration/**
+                - Path=/api/v1/tickets/**,/api/v1/sla-policies/**,/api/v1/attachments/**,/api/v1/reports/**,/api/v1/cost-migration/**,/api/v1/system-feedback/**,/api/v1/feedback-management/**
 
 server:
   port: 8080

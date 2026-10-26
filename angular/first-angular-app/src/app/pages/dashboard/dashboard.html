@@ -1,0 +1,300 @@
+<div class="page dashboard-page">
+  <header class="dashboard-hero">
+    <div>
+      <div class="dashboard-eyebrow"><i></i> Trung tâm vận hành</div>
+      <h1>Tổng quan bảo trì</h1>
+      <p>Nắm bắt khối lượng công việc, hiệu suất SLA và tình hình phân bổ nguồn lực.</p>
+      <span class="dashboard-period"><span aria-hidden="true">◷</span> 30 ngày gần nhất</span>
+    </div>
+    <div class="dashboard-hero-actions">
+      <a routerLink="/tickets" class="dashboard-view-link">Xem danh sách phiếu <span>→</span></a>
+      <button type="button" class="dashboard-refresh" [disabled]="loading()" (click)="load()">
+        <span [class.spinning]="loading()" aria-hidden="true">↻</span>
+        {{ loading() ? 'Đang cập nhật' : 'Làm mới dữ liệu' }}
+      </button>
+    </div>
+  </header>
+
+  <section class="dashboard-card dashboard-scope-filters" aria-label="Bộ lọc tổng quan">
+    <label
+      >Khách hàng<select [(ngModel)]="dashboardCustomerId" (ngModelChange)="dashboardSiteId = ''">
+        <option value="">Tất cả</option>
+        @for (customer of branches(); track customer.id) {
+          <option [value]="customer.id">{{ customer.name }}</option>
+        }
+      </select></label
+    >
+    <label
+      >Địa điểm<select [(ngModel)]="dashboardSiteId">
+        <option value="">Tất cả</option>
+        @for (site of dashboardSites(); track site.id) {
+          <option [value]="site.id">{{ site.name }}</option>
+        }
+      </select></label
+    >
+    <label
+      >Bảo hành<select [(ngModel)]="dashboardWarrantyStatus">
+        <option value="">Tất cả</option>
+        <option value="IN_WARRANTY">Còn bảo hành</option>
+        <option value="OUT_OF_WARRANTY">Hết bảo hành</option>
+        <option value="UNKNOWN">Chưa rõ</option>
+      </select></label
+    >
+    <button class="primary" type="button" (click)="load()">Áp dụng</button>
+  </section>
+
+  @if (error()) {
+    <section class="dashboard-alert" role="alert">
+      <span aria-hidden="true">!</span>
+      <div>
+        <b>Không thể cập nhật dữ liệu</b><small>{{ error() }}</small>
+      </div>
+      <button type="button" (click)="load()">Thử lại</button>
+    </section>
+  }
+
+  @if (data(); as d) {
+    <section class="dashboard-kpis" aria-label="Chỉ số vận hành chính">
+      <article class="dashboard-kpi total">
+        <div class="dashboard-kpi-head">
+          <span class="dashboard-kpi-icon">◇</span><small>Toàn bộ yêu cầu</small>
+        </div>
+        <strong>{{ totalTickets(d) }}</strong>
+        <p>Phiếu phát sinh trong kỳ</p>
+        <i></i>
+      </article>
+      <article class="dashboard-kpi open">
+        <div class="dashboard-kpi-head">
+          <span class="dashboard-kpi-icon">↗</span><small>Đang xử lý</small>
+        </div>
+        <strong>{{ open(d) }}</strong>
+        <p>Phiếu đang cần theo dõi</p>
+        <i></i>
+      </article>
+      <article class="dashboard-kpi success">
+        <div class="dashboard-kpi-head">
+          <span class="dashboard-kpi-icon">✓</span><small>Đã hoàn tất</small>
+        </div>
+        <strong>{{ completed(d) }}</strong>
+        <p>{{ completionRate(d) }}% tổng số yêu cầu</p>
+        <i></i>
+      </article>
+      <article class="dashboard-kpi risk">
+        <div class="dashboard-kpi-head">
+          <span class="dashboard-kpi-icon">!</span><small>Quá hạn SLA</small>
+        </div>
+        <strong>{{ d.sla.overdue }}</strong>
+        <p>{{ d.sla.overdue ? 'Cần ưu tiên xử lý' : 'Không có cảnh báo tồn đọng' }}</p>
+        <i></i>
+      </article>
+    </section>
+
+    <section class="dashboard-grid">
+      <article class="dashboard-card status-panel">
+        <div class="dashboard-card-head">
+          <div>
+            <span>Luồng công việc</span>
+            <h2>Phiếu theo trạng thái</h2>
+            <p>Phân bổ yêu cầu qua từng bước trong quy trình bảo trì.</p>
+          </div>
+          <em
+            ><b>{{ totalTickets(d) }}</b> phiếu</em
+          >
+        </div>
+        <div class="status-chart">
+          @for (row of statusRows(d.byStatus); track row.key) {
+            <div class="status-bar-row">
+              <div>
+                <i [style.background]="row.color"></i><b>{{ row.label }}</b
+                ><small>{{ share(row.value, d.byStatus) }}%</small>
+              </div>
+              <div class="status-track">
+                <i
+                  [style.width.%]="percent(row.value, d.byStatus)"
+                  [style.background]="row.color"
+                ></i>
+              </div>
+              <strong>{{ row.value }}</strong>
+            </div>
+          } @empty {
+            <div class="dashboard-empty">
+              <span>◇</span>
+              <p>Chưa có dữ liệu trạng thái</p>
+            </div>
+          }
+        </div>
+      </article>
+
+      <article class="dashboard-card sla-panel">
+        <div class="dashboard-card-head">
+          <div>
+            <span>Chất lượng dịch vụ</span>
+            <h2>Hiệu suất SLA</h2>
+            <p>Tỷ lệ xử lý trong thời hạn cam kết.</p>
+          </div>
+        </div>
+        @if (slaTotal(d) > 0) {
+          <div class="sla-chart-wrap">
+            <div
+              class="sla-donut"
+              role="img"
+              [attr.aria-label]="'Đúng hạn SLA ' + slaRate(d) + '%'"
+              [style.background]="slaGradient(d)"
+            >
+              <div>
+                <strong>{{ slaRate(d) }}<small>%</small></strong
+                ><span>Đúng hạn</span>
+              </div>
+            </div>
+          </div>
+          <div class="sla-breakdown">
+            <div>
+              <i class="on-time"></i><span>Đúng hạn</span><b>{{ d.sla.onTime }}</b>
+            </div>
+            <div>
+              <i class="late"></i><span>Quá hạn</span><b>{{ d.sla.overdue }}</b>
+            </div>
+          </div>
+          <p class="sla-insight" [class.warning]="d.sla.overdue > 0">
+            <span>{{ d.sla.overdue ? '!' : '✓' }}</span
+            >{{ slaInsight(d) }}
+          </p>
+        } @else {
+          <div class="dashboard-empty">
+            <span>◇</span>
+            <p>Chưa có dữ liệu SLA</p>
+          </div>
+        }
+      </article>
+
+      <article class="dashboard-card priority-panel">
+        <div class="dashboard-card-head">
+          <div>
+            <span>Mức độ ưu tiên</span>
+            <h2>Phân bổ yêu cầu</h2>
+            <p>Tỷ trọng phiếu theo mức độ cần xử lý.</p>
+          </div>
+        </div>
+        @if (priorityTotal(d.byPriority) > 0) {
+          <div class="priority-chart-layout">
+            <div
+              class="priority-donut"
+              role="img"
+              [attr.aria-label]="priorityAriaLabel(d.byPriority)"
+              [style.background]="priorityGradient(d.byPriority)"
+            >
+              <div>
+                <strong>{{ priorityTotal(d.byPriority) }}</strong
+                ><span>Tổng phiếu</span>
+              </div>
+            </div>
+            <div class="priority-legend">
+              @for (item of priorityRows(d.byPriority); track item.key) {
+                <div class="priority-legend-row">
+                  <i [style.background]="item.color"></i>
+                  <div>
+                    <span>{{ item.label }}</span
+                    ><small>{{ item.percent }}%</small>
+                  </div>
+                  <b>{{ item.value }}</b>
+                </div>
+              }
+            </div>
+          </div>
+        } @else {
+          <div class="dashboard-empty">
+            <span>◇</span>
+            <p>Chưa có dữ liệu ưu tiên</p>
+          </div>
+        }
+      </article>
+
+      <article class="dashboard-card ranking-panel technician-panel">
+        <div class="dashboard-card-head">
+          <div>
+            <span>Nguồn lực</span>
+            <h2>Khối lượng kỹ thuật viên</h2>
+            <p>Số phiếu được phân công trong 30 ngày gần nhất.</p>
+          </div>
+          @if (rankedEntries(d.byTechnician).length) {
+            <em>{{ rankedEntries(d.byTechnician).length }} người</em>
+          }
+        </div>
+        <div class="ranking-chart technician-chart">
+          @for (row of rankedEntries(d.byTechnician); track row[0]; let rank = $index) {
+            <div class="ranking-row">
+              <span class="ranking-position">{{ rank + 1 }}</span
+              ><span class="ranking-avatar">{{ initial(row[0]) }}</span>
+              <div class="ranking-content">
+                <div class="ranking-label">
+                  <div>
+                    <b>{{ row[0] }}</b
+                    ><small>{{ share(row[1], d.byTechnician) }}% tổng khối lượng</small>
+                  </div>
+                  <strong>{{ row[1] }} <small>phiếu</small></strong>
+                </div>
+                <div class="ranking-track">
+                  <i [style.width.%]="relativePercent(row[1], d.byTechnician)"></i>
+                </div>
+              </div>
+            </div>
+          } @empty {
+            <div class="dashboard-empty">
+              <span>◇</span>
+              <p>Chưa có dữ liệu phân công</p>
+            </div>
+          }
+        </div>
+      </article>
+
+      <article class="dashboard-card category-panel">
+        <div class="dashboard-card-head">
+          <div>
+            <span>Tài sản</span>
+            <h2>Nhóm thiết bị phát sinh bảo trì</h2>
+            <p>Nhận diện nhanh nhóm thiết bị tạo ra nhiều yêu cầu nhất.</p>
+          </div>
+          @if (rankedEntries(d.byCategory)[0]; as leadingCategory) {
+            <div class="dashboard-highlight">
+              <small>Nhiều nhất</small><b>{{ leadingCategory[0] }}</b>
+            </div>
+          }
+        </div>
+        <div class="ranking-chart category-chart">
+          @for (row of rankedEntries(d.byCategory); track row[0]) {
+            <div class="ranking-row">
+              <div class="ranking-label compact">
+                <div>
+                  <b>{{ row[0] }}</b
+                  ><small>{{ share(row[1], d.byCategory) }}% tổng số phiếu</small>
+                </div>
+                <strong>{{ row[1] }} <small>phiếu</small></strong>
+              </div>
+              <div class="ranking-track">
+                <i [style.width.%]="relativePercent(row[1], d.byCategory)"></i>
+              </div>
+            </div>
+          } @empty {
+            <div class="dashboard-empty">
+              <span>◇</span>
+              <p>Chưa có dữ liệu nhóm thiết bị</p>
+            </div>
+          }
+        </div>
+      </article>
+    </section>
+  } @else if (loading()) {
+    <section class="dashboard-loading" aria-label="Đang tải dữ liệu tổng quan">
+      @for (item of skeletonItems; track item) {
+        <div class="dashboard-skeleton"></div>
+      }
+    </section>
+  } @else {
+    <section class="dashboard-empty-state">
+      <span>!</span>
+      <h2>Chưa thể hiển thị tổng quan</h2>
+      <p>Hãy kiểm tra kết nối và thử tải lại dữ liệu.</p>
+      <button type="button" class="primary" (click)="load()">Tải lại</button>
+    </section>
+  }
+</div>

@@ -1,0 +1,324 @@
+<div class="equipment-registry">
+  @if (mode === 'warranty') {
+    <nav class="equipment-tabs" role="tablist" aria-label="Thời hạn bảo hành">
+      <button
+        type="button"
+        role="tab"
+        [class.active]="warrantyBucket === 'ALL'"
+        [attr.aria-selected]="warrantyBucket === 'ALL'"
+        (click)="selectWarranty('ALL')"
+      >
+        <span><b>Tất cả</b><small>Toàn bộ thiết bị</small></span
+        ><strong>{{ warrantyCount('ALL') }}</strong>
+      </button>
+      <button
+        type="button"
+        role="tab"
+        [class.active]="warrantyBucket === 'IN_WARRANTY'"
+        [attr.aria-selected]="warrantyBucket === 'IN_WARRANTY'"
+        (click)="selectWarranty('IN_WARRANTY')"
+      >
+        <span><b>Còn hạn</b><small>Đang trong bảo hành</small></span
+        ><strong>{{ warrantyCount('IN_WARRANTY') }}</strong>
+      </button>
+      <button
+        type="button"
+        role="tab"
+        [class.active]="warrantyBucket === 'EXPIRING'"
+        [attr.aria-selected]="warrantyBucket === 'EXPIRING'"
+        (click)="selectWarranty('EXPIRING')"
+      >
+        <span><b>Sắp hết hạn</b><small>Trong 30 ngày tới</small></span
+        ><strong>{{ warrantyCount('EXPIRING') }}</strong>
+      </button>
+      <button
+        type="button"
+        role="tab"
+        [class.active]="warrantyBucket === 'OUT_OF_WARRANTY'"
+        [attr.aria-selected]="warrantyBucket === 'OUT_OF_WARRANTY'"
+        (click)="selectWarranty('OUT_OF_WARRANTY')"
+      >
+        <span><b>Hết hạn</b><small>Cần gia hạn hoặc theo dõi</small></span
+        ><strong>{{ warrantyCount('OUT_OF_WARRANTY') }}</strong>
+      </button>
+      <button
+        type="button"
+        role="tab"
+        [class.active]="warrantyBucket === 'UNKNOWN'"
+        [attr.aria-selected]="warrantyBucket === 'UNKNOWN'"
+        (click)="selectWarranty('UNKNOWN')"
+      >
+        <span><b>Chưa rõ</b><small>Thiếu thông tin bảo hành</small></span
+        ><strong>{{ warrantyCount('UNKNOWN') }}</strong>
+      </button>
+    </nav>
+  } @else if (mode !== 'maintenance') {
+    <nav class="equipment-tabs" role="tablist" aria-label="Trạng thái thiết bị">
+      @for (item of tabs; track item.value) {
+        <button
+          type="button"
+          role="tab"
+          [class.active]="tab === item.value"
+          [attr.aria-selected]="tab === item.value"
+          (click)="selectTab(item.value)"
+        >
+          <span class="tab-icon" [attr.data-tab]="item.value" aria-hidden="true"></span>
+          <span
+            ><b>{{ item.label }}</b
+            ><small>{{ item.hint }}</small></span
+          >
+          <strong>{{ tabCount(item.key) }}</strong>
+        </button>
+      }
+    </nav>
+  }
+
+  <section class="panel registry-toolbar" aria-label="Tìm và lọc thiết bị">
+    <div class="toolbar-primary">
+      <label class="search-field">
+        <span class="sr-only">Tìm kiếm thiết bị</span>
+        <i aria-hidden="true">⌕</i>
+        <input
+          name="equipmentQuery"
+          [(ngModel)]="q"
+          placeholder="Tìm mã, tên, serial, hãng, model hoặc vị trí..."
+          (keyup.enter)="applyFilters()"
+        />
+      </label>
+      <label class="sort-field">
+        <span>Sắp xếp</span>
+        <select [(ngModel)]="sort" (change)="applyFilters()">
+          @for (item of sorts; track item.value) {
+            <option [value]="item.value">{{ item.label }}</option>
+          }
+        </select>
+      </label>
+      <button type="button" class="primary" (click)="applyFilters()">Tìm kiếm</button>
+      <button
+        type="button"
+        class="advanced-toggle"
+        [class.active]="advancedFiltersOpen()"
+        [attr.aria-expanded]="advancedFiltersOpen()"
+        aria-controls="equipment-advanced-filters"
+        (click)="advancedFiltersOpen.set(!advancedFiltersOpen())"
+      >
+        Bộ lọc nâng cao
+        @if (advancedFilterCount()) {
+          <span>{{ advancedFilterCount() }}</span>
+        }
+      </button>
+    </div>
+
+    @if (advancedFiltersOpen()) {
+      <div id="equipment-advanced-filters" class="advanced-filters">
+        <label>
+          <span>Loại thiết bị</span>
+          <select [(ngModel)]="categoryId">
+            <option value="">Tất cả loại</option>
+            @for (category of categories(); track category.id) {
+              <option [value]="category.id">{{ category.name }}</option>
+            }
+          </select>
+        </label>
+        <label>
+          <span>Khách hàng</span>
+          <select [(ngModel)]="customerId" (change)="customerChanged()">
+            <option value="">Tất cả khách hàng</option>
+            @for (customer of customers(); track customer.id) {
+              <option [value]="customer.id">{{ customer.name }}</option>
+            }
+          </select>
+        </label>
+        <label>
+          <span>Địa điểm</span>
+          <select [(ngModel)]="siteId">
+            <option value="">Tất cả địa điểm</option>
+            @for (site of filteredSites(); track site.id) {
+              <option [value]="site.id">{{ site.name }}</option>
+            }
+          </select>
+        </label>
+        @if (mode !== 'warranty') {
+          <label>
+            <span>Bảo hành</span>
+            <select [(ngModel)]="warrantyStatus">
+              <option value="">Tất cả bảo hành</option>
+              <option value="IN_WARRANTY">Còn bảo hành</option>
+              <option value="OUT_OF_WARRANTY">Hết bảo hành</option>
+              <option value="UNKNOWN">Chưa rõ</option>
+            </select>
+          </label>
+        }
+        <button type="button" class="primary apply-filter" (click)="applyFilters()">
+          Áp dụng bộ lọc
+        </button>
+      </div>
+    }
+
+    <div class="result-summary">
+      <span>
+        @if (result(); as page) {
+          Tìm thấy <b>{{ page.totalElements }}</b> thiết bị
+        } @else {
+          Đang tổng hợp dữ liệu
+        }
+      </span>
+      @if (hasFilters()) {
+        <button type="button" (click)="clearFilters()">Xóa toàn bộ bộ lọc</button>
+      }
+    </div>
+  </section>
+
+  @if (error()) {
+    <section class="panel registry-state error-state" role="alert">
+      <span aria-hidden="true">!</span>
+      <div>
+        <h2>Không thể tải thiết bị</h2>
+        <p>{{ error() }}</p>
+      </div>
+      <button type="button" class="secondary" (click)="retry()">Thử lại</button>
+    </section>
+  } @else if (loading()) {
+    <section class="panel registry-state" aria-busy="true">
+      <span class="spinner" aria-hidden="true"></span>
+      <div>
+        <h2>Đang tải danh sách</h2>
+        <p>Dữ liệu thiết bị đang được cập nhật...</p>
+      </div>
+    </section>
+  } @else if (result()?.content?.length) {
+    <section class="panel equipment-table-wrap">
+      <table class="equipment-table">
+        <thead>
+          <tr>
+            <th>Thiết bị</th>
+            <th>Phân loại</th>
+            <th>Đơn vị sử dụng</th>
+            <th>Bảo hành</th>
+            <th>Trạng thái</th>
+            <th><span class="sr-only">Thao tác</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (item of result()!.content; track item.id) {
+            <tr>
+              <td>
+                <div class="equipment-identity">
+                  <span aria-hidden="true">TB</span>
+                  <div>
+                    <a [routerLink]="['/equipment', item.id]">{{ item.name }}</a>
+                    <small
+                      >{{ item.assetCode }} · {{ item.serialNumber || 'Chưa có serial' }}</small
+                    >
+                  </div>
+                </div>
+              </td>
+              <td>
+                <b>{{ item.categoryName }}</b
+                ><small>{{ equipmentBrand(item) }}</small>
+              </td>
+              <td>
+                <b>{{ item.customerName }}</b>
+                <small>{{ item.siteName }} · {{ item.location || 'Chưa cập nhật vị trí' }}</small>
+              </td>
+              <td>
+                <span [class]="'warranty ' + item.warrantyStatus.toLowerCase()">
+                  {{ warrantyLabel(item.warrantyStatus) }}
+                </span>
+                <small>
+                  {{
+                    item.warrantyEndAt
+                      ? (item.warrantyEndAt | date: 'dd/MM/yyyy')
+                      : 'Chưa có thời hạn'
+                  }}
+                </small>
+              </td>
+              <td>
+                <span [class]="'equipment-status ' + item.status.toLowerCase()">
+                  {{ statusLabel(item.status) }}
+                </span>
+                @if (!item.active) {
+                  <small class="inactive-note">Ngừng quản lý</small>
+                }
+              </td>
+              <td class="row-actions">
+                <a class="detail-link" [routerLink]="['/equipment', item.id]">Xem chi tiết</a>
+                @if (canManage()) {
+                  <a
+                    class="icon-link"
+                    [routerLink]="['/equipment', item.id, 'edit']"
+                    aria-label="Sửa thiết bị"
+                    title="Sửa thiết bị"
+                    >✎</a
+                  >
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </section>
+
+    <section class="equipment-mobile-list" aria-label="Danh sách thiết bị trên di động">
+      @for (item of result()!.content; track item.id) {
+        <article class="panel equipment-card">
+          <div class="card-head">
+            <div class="equipment-identity">
+              <span aria-hidden="true">TB</span>
+              <div>
+                <b>{{ item.name }}</b
+                ><small>{{ item.assetCode }}</small>
+              </div>
+            </div>
+            <span [class]="'equipment-status ' + item.status.toLowerCase()">
+              {{ statusLabel(item.status) }}
+            </span>
+          </div>
+          <dl>
+            <div>
+              <dt>Loại / model</dt>
+              <dd>{{ item.categoryName }} · {{ equipmentBrand(item) }}</dd>
+            </div>
+            <div>
+              <dt>Khách hàng</dt>
+              <dd>{{ item.customerName }}</dd>
+            </div>
+            <div>
+              <dt>Địa điểm</dt>
+              <dd>{{ item.siteName }} · {{ item.location || 'Chưa cập nhật' }}</dd>
+            </div>
+            <div>
+              <dt>Bảo hành</dt>
+              <dd>{{ warrantyLabel(item.warrantyStatus) }}</dd>
+            </div>
+          </dl>
+          <div class="card-actions">
+            <a class="primary button-link" [routerLink]="['/equipment', item.id]">Xem chi tiết</a>
+            @if (canManage()) {
+              <a class="secondary button-link" [routerLink]="['/equipment', item.id, 'edit']"
+                >Sửa</a
+              >
+            }
+          </div>
+        </article>
+      }
+    </section>
+
+    <app-pagination
+      [totalItems]="result()!.totalElements"
+      [page]="currentPage"
+      [pageSize]="pageSize"
+      itemLabel="thiết bị"
+      (pageChange)="goToPage($event)"
+    />
+  } @else {
+    <section class="panel registry-empty">
+      <span aria-hidden="true">◇</span>
+      <h2>Không có thiết bị phù hợp</h2>
+      <p>Thử chọn tab khác hoặc điều chỉnh điều kiện tìm kiếm.</p>
+      @if (hasFilters()) {
+        <button type="button" class="secondary" (click)="clearFilters()">Xóa bộ lọc</button>
+      }
+    </section>
+  }
+</div>

@@ -1,0 +1,56 @@
+<section class="ticket-chat" [class.embedded]="embedded" aria-label="Trao đổi về phiếu">
+  <header>
+    <div>
+      <span class="chat-kicker">Trao đổi realtime</span>
+      <h2>{{ ticket()?.code || 'Phòng chat' }}</h2>
+    </div>
+    <span class="connection" [class.online]="chat.connected()">
+      {{ chat.connected() ? 'Đang kết nối' : 'Mất kết nối' }}
+    </span>
+  </header>
+
+  @if (error()) {
+    <p class="chat-error" role="alert">{{ error() }}</p>
+  }
+
+  <div class="chat-history" aria-live="polite">
+    @if (nextBefore()) {
+      <button class="load-older" type="button" [disabled]="loadingOlder()" (click)="loadOlder()">
+        {{ loadingOlder() ? 'Đang tải…' : 'Tải tin cũ hơn' }}
+      </button>
+    }
+    @if (loading()) {
+      <p class="chat-state">Đang tải nội dung trao đổi…</p>
+    } @else if (!messages().length) {
+      <p class="chat-state">Chưa có tin nhắn. Hãy bắt đầu trao đổi về phiếu này.</p>
+    }
+    @for (message of messages(); track message.id) {
+      <article class="chat-message" [class.mine]="message.sender.id === auth.user()?.id">
+        <div class="chat-bubble">
+          <div class="chat-meta">
+            <b>{{ message.sender.fullName }}</b>
+            <time>{{ message.createdAt | date: 'HH:mm dd/MM/yyyy' }}</time>
+          </div>
+          <p>{{ message.content }}</p>
+        </div>
+      </article>
+    }
+  </div>
+
+  @if (ticket() && !ticket()!.writable) {
+    <div class="chat-readonly">Phiếu đã kết thúc. Nội dung trao đổi hiện ở chế độ chỉ đọc.</div>
+  } @else {
+    <form class="chat-composer" (submit)="$event.preventDefault(); send()">
+      <textarea
+        name="message"
+        [(ngModel)]="draft"
+        maxlength="5000"
+        rows="2"
+        placeholder="Nhập nội dung trao đổi…"
+        [disabled]="!chat.connected()"
+        (keydown)="onKeydown($event)"
+      ></textarea>
+      <button type="submit" [disabled]="!draft.trim() || !chat.connected()">Gửi</button>
+    </form>
+  }
+</section>

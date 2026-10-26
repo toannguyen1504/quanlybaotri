@@ -11,5 +11,5 @@ public enum TicketWorkQueue {
     WAITING_PARTS,
     AWAITING_CLOSURE,
     COST_DRAFT,
-    COST_READY,
+    COST_QUOTED,
 }

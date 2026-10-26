@@ -21,13 +21,13 @@ class StatisticsReportExcelExporterTest {
             UUID.randomUUID(), "Hà Nội", UUID.randomUUID(), "TB-001", "Máy chủ", "Máy chủ",
             TicketPriority.HIGH, TicketStatus.RESOLVED, UUID.randomUUID(), "Kỹ thuật viên A",
             generatedAt.minusSeconds(7200), generatedAt.minusSeconds(3600),
-            generatedAt.plusSeconds(3600), CostStatus.READY, BigDecimal.valueOf(1_500_000),
-            List.of(TicketWorkQueue.AWAITING_CLOSURE, TicketWorkQueue.COST_READY)
+            generatedAt.plusSeconds(3600), CostStatus.QUOTED, BigDecimal.valueOf(1_500_000),
+            List.of(TicketWorkQueue.AWAITING_CLOSURE, TicketWorkQueue.COST_QUOTED)
         );
         EnumMap<TicketWorkQueue, Long> queues = new EnumMap<>(TicketWorkQueue.class);
         for (TicketWorkQueue queue : TicketWorkQueue.values()) queues.put(queue, 0L);
         queues.put(TicketWorkQueue.AWAITING_CLOSURE, 1L);
-        queues.put(TicketWorkQueue.COST_READY, 1L);
+        queues.put(TicketWorkQueue.COST_QUOTED, 1L);
         Snapshot snapshot = new Snapshot(generatedAt, queues, List.of(ticket));
 
         byte[] bytes = new StatisticsReportExcelExporter().export(snapshot);
@@ -40,7 +40,7 @@ class StatisticsReportExcelExporterTest {
             assertThat(workbook.getSheet("Phiếu tồn đọng").getRow(1).getCell(0).getStringCellValue())
                 .isEqualTo("BT-001");
             assertThat(workbook.getSheet("Phiếu tồn đọng").getRow(1).getCell(14).getStringCellValue())
-                .contains("Chờ xác nhận đóng", "Chi phí chờ duyệt");
+                .contains("Chờ xác nhận đóng", "Chờ khách hàng xác nhận");
         }
     }
 }

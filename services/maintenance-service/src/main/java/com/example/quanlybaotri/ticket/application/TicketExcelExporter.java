@@ -46,14 +46,11 @@ public class TicketExcelExporter {
         "Kết quả xử lý",
         "Trạng thái chi phí",
         "Chi phí linh kiện",
-        "Chi phí nhân công",
-        "Chi phí thuê ngoài",
-        "Chi phí di chuyển",
-        "Chi phí khác",
+        "Chi phí phát sinh",
         "Tổng chi phí",
     };
     private static final int[] WIDTHS = {
-        7, 20, 18, 28, 24, 24, 36, 48, 16, 20, 24, 24, 20, 20, 20, 20, 20, 20, 18, 42, 20, 20, 20, 20, 20, 20, 20,
+        7, 20, 18, 28, 24, 24, 36, 48, 16, 20, 24, 24, 20, 20, 20, 20, 20, 20, 18, 42, 20, 20, 20, 20,
     };
 
     public byte[] export(List<TicketView> tickets, Instant generatedAt) {
@@ -153,11 +150,8 @@ public class TicketExcelExporter {
         setText(row, 19, ticket.resolutionSummary(), textStyle);
         setText(row, 20, ticket.costVisible() ? costStatusLabel(ticket.costStatus()) : null, textStyle);
         setCurrencyOrBlank(row, 21, ticket.partsTotal(), ticket.costVisible(), numberStyle, textStyle);
-        setCurrencyOrBlank(row, 22, ticket.laborTotal(), ticket.costVisible(), numberStyle, textStyle);
-        setCurrencyOrBlank(row, 23, ticket.outsourcedTotal(), ticket.costVisible(), numberStyle, textStyle);
-        setCurrencyOrBlank(row, 24, ticket.travelTotal(), ticket.costVisible(), numberStyle, textStyle);
-        setCurrencyOrBlank(row, 25, ticket.otherTotal(), ticket.costVisible(), numberStyle, textStyle);
-        setCurrencyOrBlank(row, 26, ticket.grandTotal(), ticket.costVisible(), numberStyle, textStyle);
+        setCurrencyOrBlank(row, 22, ticket.otherTotal(), ticket.costVisible(), numberStyle, textStyle);
+        setCurrencyOrBlank(row, 23, ticket.grandTotal(), ticket.costVisible(), numberStyle, textStyle);
     }
 
     private void setText(Row row, int column, String value, CellStyle style) {
@@ -212,8 +206,8 @@ public class TicketExcelExporter {
         if (status == null) return "Bản nháp";
         return switch (status) {
             case DRAFT -> "Bản nháp";
-            case READY -> "Chờ duyệt";
-            case APPROVED -> "Đã duyệt";
+            case QUOTED -> "Chờ khách hàng xác nhận";
+            case ACCEPTED -> "Khách hàng đã chấp nhận";
         };
     }
 

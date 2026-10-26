@@ -29,6 +29,7 @@ class NotificationConsumerTest {
     private NotificationRepository notifications;
     private TelegramLinkRepository links;
     private TelegramDeliveryRepository deliveries;
+    private IdentityClient identities;
     private NotificationConsumer consumer;
 
     @BeforeEach
@@ -38,6 +39,7 @@ class NotificationConsumerTest {
         notifications = mock(NotificationRepository.class);
         links = mock(TelegramLinkRepository.class);
         deliveries = mock(TelegramDeliveryRepository.class);
+        identities = mock(IdentityClient.class);
         TransactionTemplate transactions = mock(TransactionTemplate.class);
         doAnswer(invocation -> {
             Consumer<TransactionStatus> action = invocation.getArgument(0);
@@ -50,7 +52,7 @@ class NotificationConsumerTest {
         consumer = new NotificationConsumer(
             processed,
             notifications,
-            mock(IdentityClient.class),
+            identities,
             new ObjectMapper(),
             transactions,
             links,
@@ -127,6 +129,61 @@ class NotificationConsumerTest {
         );
     }
 
+    @Test
+    void quoteEventsNotifyTheOtherPartyWithoutBroadcastingToManagers() throws Exception {
+        UUID requester = UUID.randomUUID();
+        UUID assignee = UUID.randomUUID();
+
+        consumer.consume(costEvent("COST_QUOTED", assignee, requester, assignee));
+        consumer.consume(costEvent("COST_ACCEPTED", requester, requester, assignee));
+
+        ArgumentCaptor<Notification> captured = ArgumentCaptor.forClass(Notification.class);
+        verify(notifications, times(2)).save(captured.capture());
+        assertThat(captured.getAllValues()).extracting(Notification::getUserId)
+            .containsExactlyInAnyOrder(requester, assignee);
+        verify(identities, never()).enabledByRoles(any());
+    }
+
+    @Test
+    void notifiesManagersWithoutLeakingFeedbackContent() throws Exception {
+        UUID admin = UUID.randomUUID();
+        UUID manager = UUID.randomUUID();
+        UUID requester = UUID.randomUUID();
+        UUID feedbackId = UUID.randomUUID();
+        when(identities.enabledByRoles(java.util.Set.of("ADMIN", "MANAGER")))
+            .thenReturn(java.util.Set.of(admin, manager));
+
+        consumer.consume(systemFeedbackEvent(
+            "CREATED", requester, requester, feedbackId, "SUGGESTION", "NEW"
+        ));
+
+        ArgumentCaptor<Notification> captured = ArgumentCaptor.forClass(Notification.class);
+        verify(notifications, times(2)).save(captured.capture());
+        assertThat(captured.getAllValues()).allSatisfy(notification -> {
+            assertThat(notification.getType()).isEqualTo("SYSTEM_FEEDBACK_NEW");
+            assertThat(notification.getReferenceType()).isEqualTo("SYSTEM_FEEDBACK");
+            assertThat(notification.getReferenceId()).isEqualTo(feedbackId);
+            assertThat(notification.getMessage()).doesNotContain("Nội dung bí mật");
+        });
+    }
+
+    @Test
+    void notifiesRequesterWhenFeedbackStatusChanges() throws Exception {
+        UUID requester = UUID.randomUUID();
+        UUID manager = UUID.randomUUID();
+        UUID feedbackId = UUID.randomUUID();
+
+        consumer.consume(systemFeedbackEvent(
+            "STATUS_CHANGED", requester, manager, feedbackId, "BUG_REPORT", "RESOLVED"
+        ));
+
+        ArgumentCaptor<Notification> captured = ArgumentCaptor.forClass(Notification.class);
+        verify(notifications).save(captured.capture());
+        assertThat(captured.getValue().getUserId()).isEqualTo(requester);
+        assertThat(captured.getValue().getType()).isEqualTo("SYSTEM_FEEDBACK_UPDATED");
+        assertThat(captured.getValue().getReferenceId()).isEqualTo(feedbackId);
+    }
+
     private String ticketEvent(UUID actor, UUID requester, UUID assignee) {
         return """
             {
@@ -146,5 +203,51 @@ class NotificationConsumerTest {
               }
             }
             """.formatted(UUID.randomUUID(), UUID.randomUUID(), actor, requester, assignee);
+    }
+
+    private String systemFeedbackEvent(
+        String action,
+        UUID requester,
+        UUID actor,
+        UUID feedbackId,
+        String category,
+        String status
+    ) {
+        return """
+            {
+              "eventId":"%s",
+              "eventType":"maintenance.system-feedback.changed",
+              "schemaVersion":2,
+              "data":{
+                "feedbackId":"%s",
+                "action":"%s",
+                "requesterId":"%s",
+                "actorId":"%s",
+                "category":"%s",
+                "status":"%s"
+              }
+            }
+            """.formatted(UUID.randomUUID(), feedbackId, action, requester, actor, category, status);
+    }
+
+    private String costEvent(String action, UUID actor, UUID requester, UUID assignee) {
+        return """
+            {
+              "eventId":"%s",
+              "eventType":"maintenance.ticket.changed",
+              "schemaVersion":2,
+              "data":{
+                "ticketId":"%s",
+                "ticketCode":"BT-001",
+                "action":"%s",
+                "status":"RESOLVED",
+                "priority":"MEDIUM",
+                "actorId":"%s",
+                "requesterId":"%s",
+                "assigneeId":"%s",
+                "description":"Cập nhật báo giá"
+              }
+            }
+            """.formatted(UUID.randomUUID(), UUID.randomUUID(), action, actor, requester, assignee);
     }
 }

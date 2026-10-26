@@ -54,6 +54,7 @@ public class NotificationConsumer {
         JsonNode data = root.path("data");
         NotificationCommand command = switch (type) {
             case "maintenance.ticket.changed" -> ticketChanged(eventId, data);
+            case "maintenance.system-feedback.changed" -> systemFeedbackChanged(eventId, data);
             case "inventory.part.low-stock" -> lowStock(eventId, data);
             default -> new NotificationCommand(
                 eventId,
@@ -149,6 +150,58 @@ public class NotificationConsumer {
             null,
             null
         );
+    }
+
+    private NotificationCommand systemFeedbackChanged(UUID eventId, JsonNode d) {
+        String action = text(d, "action");
+        String category = feedbackCategory(text(d, "category"));
+        String status = text(d, "status");
+        Set<UUID> recipients = new LinkedHashSet<>();
+        String type;
+        String title;
+        String message;
+        if ("CREATED".equals(action)) {
+            recipients.addAll(identities.enabledByRoles(Set.of("ADMIN", "MANAGER")));
+            type = "SYSTEM_FEEDBACK_NEW";
+            title = "Phản hồi hệ thống mới";
+            message = "Có phản hồi " + category.toLowerCase(Locale.forLanguageTag("vi-VN")) + " mới cần xử lý.";
+        } else {
+            add(recipients, nullableUuid(d, "requesterId"));
+            type = "SYSTEM_FEEDBACK_UPDATED";
+            title = "Phản hồi hệ thống đã được cập nhật";
+            message = "Phản hồi " + category.toLowerCase(Locale.forLanguageTag("vi-VN")) +
+                " hiện ở trạng thái " + feedbackStatus(status).toLowerCase(Locale.forLanguageTag("vi-VN")) + ".";
+        }
+        recipients.remove(nullableUuid(d, "actorId"));
+        return new NotificationCommand(
+            eventId,
+            recipients,
+            type,
+            title,
+            message,
+            "SYSTEM_FEEDBACK",
+            uuid(d, "feedbackId"),
+            null,
+            null,
+            null
+        );
+    }
+
+    private String feedbackCategory(String value) {
+        return switch (value) {
+            case "BUG_REPORT" -> "Báo lỗi";
+            case "FEATURE_REQUEST" -> "Đề xuất tính năng";
+            default -> "Góp ý";
+        };
+    }
+
+    private String feedbackStatus(String value) {
+        return switch (value) {
+            case "IN_PROGRESS" -> "Đang xử lý";
+            case "RESOLVED" -> "Đã xử lý";
+            case "REJECTED" -> "Từ chối";
+            default -> "Mới";
+        };
     }
 
     private String telegramTicketMessage(JsonNode d) {

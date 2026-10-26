@@ -7,6 +7,7 @@ import com.example.quanlybaotri.cost.persistence.TicketCostSummaryRepository;
 import com.example.quanlybaotri.identity.client.IdentityClient;
 import com.example.quanlybaotri.identity.domain.RoleName;
 import com.example.quanlybaotri.shared.api.ApiException;
+import com.example.quanlybaotri.shared.integration.CommandSource;
 import com.example.quanlybaotri.shared.security.CurrentUser.Actor;
 import com.example.quanlybaotri.shared.storage.*;
 import com.example.quanlybaotri.ticket.api.AttachmentController.AttachmentView;
@@ -68,7 +69,7 @@ public class AttachmentService {
             String hash;try{hash=storage.put(key,validated.contentType(),file.getSize(),file.getInputStream());}catch(IOException ex){throw storageUnavailable();}
             stored=true;
             Attachment attachment=attachments.saveAndFlush(new Attachment(ticket,workLog,costItem,actor.id(),type,key,validated.name(),validated.contentType(),file.getSize(),hash));
-            events.record(ticket,actor.id(),"ATTACHMENT_ADDED",ticket.getStatus(),ticket.getStatus(),"Đã thêm tệp "+attachment.getOriginalName(),Map.of("attachmentId",attachment.getId(),"attachmentType",type.name()));
+            events.record(ticket,actor.id(),"ATTACHMENT_ADDED",ticket.getStatus(),ticket.getStatus(),"Đã thêm tệp "+attachment.getOriginalName(),CommandSource.metadata(Map.of("attachmentId",attachment.getId(),"attachmentType",type.name())));
             return view(attachment,identities.get(actor.id()),actor);
         }catch(ObjectStorageException ex){throw storageUnavailable();}
         catch(RuntimeException ex){
@@ -87,7 +88,7 @@ public class AttachmentService {
     public Preview preview(UUID id,Actor actor){Attachment attachment=active(id);authorizeRead(attachment,actor);if("DOWNLOAD".equals(previewKind(attachment.getContentType())))throw new ApiException(HttpStatus.BAD_REQUEST,"PREVIEW_NOT_SUPPORTED","Định dạng này chỉ hỗ trợ tải xuống");try{return new Preview(storage.presign(attachment.getStorageKey(),attachment.getContentType(),attachment.getOriginalName()).toString(),Instant.now().plus(Duration.ofMinutes(storageProperties.getPreviewMinutes())));}catch(ObjectStorageException ex){throw storageUnavailable();}}
 
     @Transactional
-    public void delete(UUID id,Actor actor){Attachment attachment=active(id);authorizeRead(attachment,actor);MaintenanceTicket ticket=attachment.getTicket();boolean elevated=actor.has(RoleName.ADMIN)||actor.has(RoleName.MANAGER);if(!elevated&&(!actor.id().equals(attachment.getUploadedById())||TERMINAL.contains(ticket.getStatus())))throw ApiException.forbidden("Không có quyền xóa tệp này");if(!elevated&&attachment.getCostItemId()!=null&&costSummaries.findById(ticket.getId()).map(s->s.getStatus()!=CostStatus.DRAFT).orElse(false))throw ApiException.conflict("Không thể xóa chứng từ sau khi bảng chi phí đã được gửi duyệt");attachment.markDeleted(actor.id());events.record(ticket,actor.id(),"ATTACHMENT_DELETED",ticket.getStatus(),ticket.getStatus(),"Đã xóa tệp "+attachment.getOriginalName(),Map.of("attachmentId",attachment.getId(),"attachmentType",attachment.getType().name()));}
+    public void delete(UUID id,Actor actor){Attachment attachment=active(id);authorizeRead(attachment,actor);MaintenanceTicket ticket=attachment.getTicket();boolean elevated=actor.has(RoleName.ADMIN)||actor.has(RoleName.MANAGER);if(!elevated&&(!actor.id().equals(attachment.getUploadedById())||TERMINAL.contains(ticket.getStatus())))throw ApiException.forbidden("Không có quyền xóa tệp này");if(!elevated&&attachment.getCostItemId()!=null&&costSummaries.findById(ticket.getId()).map(s->s.getStatus()!=CostStatus.DRAFT).orElse(false))throw ApiException.conflict("Không thể xóa chứng từ sau khi báo giá đã được gửi cho khách hàng");attachment.markDeleted(actor.id());events.record(ticket,actor.id(),"ATTACHMENT_DELETED",ticket.getStatus(),ticket.getStatus(),"Đã xóa tệp "+attachment.getOriginalName(),CommandSource.metadata(Map.of("attachmentId",attachment.getId(),"attachmentType",attachment.getType().name())));}
 
     @Scheduled(fixedDelayString="${app.storage.cleanup-delay:60000}")
     @Transactional

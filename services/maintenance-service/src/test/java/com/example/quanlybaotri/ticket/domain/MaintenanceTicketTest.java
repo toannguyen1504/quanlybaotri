@@ -48,4 +48,42 @@ class MaintenanceTicketTest {
         assertThat(ticket.getWarrantyStatusAtCreation()).isEqualTo(WarrantyStatus.IN_WARRANTY);
         assertThat(ticket.getWarrantyEndAtCreation()).isEqualTo(warrantyEnd);
     }
+
+    @Test
+    void storesTrimmedOptionalFeedbackOnlyOnce() {
+        var ticket = ticket();
+
+        ticket.submitFeedback(5, "  Xử lý nhanh và rõ ràng  ");
+
+        assertThat(ticket.getFeedbackRating()).isEqualTo(5);
+        assertThat(ticket.getFeedbackComment()).isEqualTo("Xử lý nhanh và rõ ràng");
+        assertThat(ticket.getFeedbackSubmittedAt()).isNotNull();
+        assertThatThrownBy(() -> ticket.submitFeedback(4, "Thay đổi đánh giá"))
+            .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void ignoresEmptyFeedbackAndRejectsInvalidValues() {
+        var ticket = ticket();
+
+        ticket.submitFeedback(null, "   ");
+        assertThat(ticket.getFeedbackSubmittedAt()).isNull();
+        assertThatThrownBy(() -> ticket.submitFeedback(0, null))
+            .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> ticket.submitFeedback(null, "x".repeat(5001)))
+            .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    private MaintenanceTicket ticket() {
+        return new MaintenanceTicket(
+            "BT-2026-000003",
+            UUID.randomUUID(),
+            UUID.randomUUID(),
+            "title",
+            "description",
+            TicketPriority.MEDIUM,
+            Instant.now().plusSeconds(60),
+            Instant.now().plusSeconds(120)
+        );
+    }
 }

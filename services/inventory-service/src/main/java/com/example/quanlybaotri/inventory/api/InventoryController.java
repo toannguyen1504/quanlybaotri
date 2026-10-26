@@ -1,6 +1,7 @@
 package com.example.quanlybaotri.inventory.api;
 
 import com.example.quanlybaotri.identity.client.IdentityClient;
+import com.example.quanlybaotri.identity.domain.RoleName;
 import com.example.quanlybaotri.inventory.application.InventoryService;
 import com.example.quanlybaotri.inventory.application.MaintenanceClient;
 import com.example.quanlybaotri.inventory.domain.*;
@@ -9,6 +10,8 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.*;
 import org.springframework.data.domain.*;
 import org.springframework.http.HttpStatus;
@@ -29,8 +32,39 @@ public class InventoryController {
 
     @GetMapping("/parts")
     @PreAuthorize("hasAnyRole('ADMIN','MANAGER','TECHNICIAN')")
-    public Page<PartView> parts(Pageable p) {
-        return service.list(p);
+    public Page<PartView> parts(
+        @RequestParam(required = false) String q,
+        @RequestParam(required = false) String stockStatus,
+        @RequestParam(required = false) Boolean active,
+        Pageable p
+    ) {
+        return service.list(q, stockStatus, active, p);
+    }
+
+    @GetMapping("/parts/summary")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','TECHNICIAN')")
+    public PartSummary partSummary(
+        @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) LocalDate from,
+        @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) LocalDate to
+    ) {
+        ZoneId zone = ZoneId.of("Asia/Ho_Chi_Minh");
+        LocalDate end = to == null ? LocalDate.now(zone) : to;
+        LocalDate start = from == null ? end.minusDays(29) : from;
+        if (start.isAfter(end)) throw new com.example.quanlybaotri.shared.api.ApiException(
+            org.springframework.http.HttpStatus.BAD_REQUEST,
+            "INVALID_INVENTORY_DATE_RANGE",
+            "NgÃ y báº¯t Ä‘áº§u khÃ´ng Ä‘Æ°á»£c sau ngÃ y káº¿t thÃºc"
+        );
+        PartSummary summary = service.summary(
+            start.atStartOfDay(zone).toInstant(),
+            end.plusDays(1).atStartOfDay(zone).toInstant()
+        );
+        var actor = current.require();
+        if (actor.has(RoleName.ADMIN) || actor.has(RoleName.MANAGER)) return summary;
+        return new PartSummary(
+            summary.total(), summary.active(), summary.lowStock(), summary.outOfStock(),
+            summary.inventoryValue(), null, null, null
+        );
     }
 
     @PostMapping("/parts")
@@ -60,8 +94,30 @@ public class InventoryController {
 
     @GetMapping("/stock-movements")
     @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
-    public Page<MovementView> movements(Pageable p) {
-        return service.movements(p);
+    public Page<MovementView> movements(
+        @RequestParam(required = false) String q,
+        @RequestParam(required = false) UUID partId,
+        @RequestParam(required = false) StockMovementType type,
+        @RequestParam(required = false) UUID ticketId,
+        @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) LocalDate from,
+        @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) LocalDate to,
+        Pageable p
+    ) {
+        ZoneId zone = ZoneId.of("Asia/Ho_Chi_Minh");
+        if (from != null && to != null && from.isAfter(to)) throw new com.example.quanlybaotri.shared.api.ApiException(
+            org.springframework.http.HttpStatus.BAD_REQUEST,
+            "INVALID_INVENTORY_DATE_RANGE",
+            "NgÃ y báº¯t Ä‘áº§u khÃ´ng Ä‘Æ°á»£c sau ngÃ y káº¿t thÃºc"
+        );
+        return service.movements(
+            q,
+            partId,
+            type,
+            ticketId,
+            from == null ? null : from.atStartOfDay(zone).toInstant(),
+            to == null ? null : to.plusDays(1).atStartOfDay(zone).toInstant(),
+            p
+        );
     }
 
     @PostMapping("/tickets/{ticketId}/parts")
@@ -128,6 +184,17 @@ public class InventoryController {
             );
         }
     }
+
+    public record PartSummary(
+        long total,
+        long active,
+        long lowStock,
+        long outOfStock,
+        BigDecimal inventoryValue,
+        BigDecimal receivedQuantity,
+        BigDecimal issuedQuantity,
+        BigDecimal adjustedQuantity
+    ) {}
 
     public record TicketPartView(
         UUID id,

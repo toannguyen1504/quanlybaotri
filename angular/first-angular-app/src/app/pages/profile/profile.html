@@ -1,0 +1,249 @@
+<div class="page account-page">
+  <header class="page-head account-page-head">
+    <div>
+      <p class="eyebrow">TÀI KHOẢN</p>
+      <h1>Hồ sơ của tôi</h1>
+      <p class="muted">Quản lý thông tin cá nhân, tổ chức và bảo mật tài khoản.</p>
+    </div>
+  </header>
+
+  @if (message()) {
+    <div
+      [class]="success() ? 'success-message profile-message' : 'alert profile-message'"
+      role="status"
+    >
+      {{ message() }}
+    </div>
+  }
+
+  @if (auth.user(); as user) {
+    @if (user.mustChangePassword) {
+      <section class="account-password-alert">
+        <span class="account-alert-icon" aria-hidden="true">!</span>
+        <div>
+          <b>Bạn đang sử dụng mật khẩu tạm</b>
+          <p>Hãy đổi mật khẩu được quản trị viên cấp để bảo vệ tài khoản.</p>
+        </div>
+        <a class="primary button" routerLink="/profile/password">Đổi mật khẩu ngay</a>
+      </section>
+    }
+
+    <section class="panel account-hero">
+      <div class="account-avatar" aria-hidden="true">
+        {{ initials(user.fullName || user.username) }}
+      </div>
+      <div class="account-hero-copy">
+        <div class="account-name-row">
+          <div>
+            <h2>{{ user.fullName }}</h2>
+            <p>&#64;{{ user.username }}</p>
+          </div>
+          <span [class]="'account-status ' + (user.enabled ? 'active' : 'inactive')">
+            <i></i>{{ user.enabled ? 'Đang hoạt động' : 'Đã khóa' }}
+          </span>
+        </div>
+        <div class="account-role-tags">
+          @for (role of user.roles; track role) {
+            <span>{{ roleLabel(role) }}</span>
+          }
+        </div>
+      </div>
+      <div class="account-hero-meta">
+        <div>
+          <span>Loại tài khoản</span>
+          <b>{{ user.accountType === 'CUSTOMER' ? 'Khách hàng' : 'Nhân sự nội bộ' }}</b>
+        </div>
+        <div>
+          <span>Email liên hệ</span>
+          <b>{{ user.email }}</b>
+        </div>
+      </div>
+    </section>
+
+    <div class="account-workspace">
+      <form class="panel form account-edit-card" (ngSubmit)="save()">
+        <div class="account-section-head">
+          <span class="account-section-icon" aria-hidden="true">TT</span>
+          <div>
+            <h3>Thông tin liên hệ</h3>
+            <p>Cập nhật thông tin dùng để liên lạc và nhận thông báo.</p>
+          </div>
+        </div>
+        <div class="account-form-grid">
+          <label class="account-full-field"
+            ><span>Họ và tên</span
+            ><input
+              name="fullName"
+              maxlength="150"
+              autocomplete="name"
+              [(ngModel)]="model.fullName"
+              required
+          /></label>
+          <label
+            ><span>Email</span
+            ><input
+              name="email"
+              type="email"
+              autocomplete="email"
+              [(ngModel)]="model.email"
+              required
+          /></label>
+          <label
+            ><span>Số điện thoại</span
+            ><input
+              name="phone"
+              maxlength="30"
+              autocomplete="tel"
+              [(ngModel)]="model.phone"
+              placeholder="Chưa cập nhật"
+          /></label>
+        </div>
+        <div class="account-form-note">
+          <span aria-hidden="true">i</span>
+          <p>Tên đăng nhập, phạm vi khách hàng và vai trò được quản lý bởi quản trị viên.</p>
+        </div>
+        <div class="account-form-actions">
+          <button type="button" class="secondary" (click)="resetForm()">Khôi phục</button>
+          <button class="primary" [disabled]="saving()">
+            {{ saving() ? 'Đang lưu…' : 'Lưu thay đổi' }}
+          </button>
+        </div>
+      </form>
+
+      <aside class="account-side">
+        <section class="panel account-facts-card">
+          <div class="account-section-head compact">
+            <span class="account-section-icon neutral" aria-hidden="true">TK</span>
+            <div>
+              <h3>Thông tin hệ thống</h3>
+              <p>Các thuộc tính do quản trị viên quản lý.</p>
+            </div>
+          </div>
+          <dl class="account-facts">
+            <div>
+              <dt>Tên đăng nhập</dt>
+              <dd>{{ user.username }}</dd>
+            </div>
+            <div>
+              <dt>Phương thức đăng nhập</dt>
+              <dd>
+                {{ user.googleLinked ? 'Google' : ''
+                }}{{ user.googleLinked && user.hasPassword ? ' và ' : ''
+                }}{{ user.hasPassword ? 'Mật khẩu' : '' }}
+              </dd>
+            </div>
+            <div>
+              <dt>Phạm vi địa điểm</dt>
+              <dd>
+                {{
+                  user.accountType === 'CUSTOMER'
+                    ? user.siteScope === 'ALL_SITES'
+                      ? 'Toàn bộ địa điểm'
+                      : user.siteIds.length + ' địa điểm'
+                    : 'Toàn hệ thống'
+                }}
+              </dd>
+            </div>
+            <div>
+              <dt>Vai trò</dt>
+              <dd>{{ roleSummary(user.roles) }}</dd>
+            </div>
+            <div>
+              <dt>Trạng thái</dt>
+              <dd class="account-state-text" [class.inactive]="!user.enabled">
+                {{ user.enabled ? 'Hoạt động bình thường' : 'Tài khoản đã khóa' }}
+              </dd>
+            </div>
+          </dl>
+        </section>
+
+        @if (isTechnician()) {
+          <section class="panel account-telegram-card">
+            <div class="account-section-head compact">
+              <span class="account-section-icon telegram" aria-hidden="true">TG</span>
+              <div>
+                <h3>Thông báo Telegram</h3>
+                <p>Nhận cập nhật về các phiếu bảo trì được giao.</p>
+              </div>
+            </div>
+
+            @if (telegramLoading()) {
+              <p class="muted telegram-state">Đang kiểm tra trạng thái…</p>
+            } @else if (!telegramStatus()?.available) {
+              <p class="telegram-state unavailable">Kênh Telegram chưa được cấu hình.</p>
+            } @else if (telegramStatus()?.linked) {
+              <div class="telegram-linked">
+                <span><i></i>Đã liên kết</span>
+                <b>
+                  {{
+                    telegramStatus()?.telegramUsername
+                      ? '&#64;' + telegramStatus()?.telegramUsername
+                      : 'Tài khoản Telegram'
+                  }}
+                </b>
+              </div>
+              <button
+                type="button"
+                class="secondary telegram-action"
+                [disabled]="telegramBusy()"
+                (click)="disconnectTelegram()"
+              >
+                {{ telegramBusy() ? 'Đang xử lý…' : 'Ngắt liên kết' }}
+              </button>
+            } @else {
+              <p class="telegram-state">
+                Mở bot và bấm Start để liên kết an toàn với tài khoản này.
+              </p>
+              <button
+                type="button"
+                class="primary telegram-action"
+                [disabled]="telegramBusy()"
+                (click)="connectTelegram()"
+              >
+                {{ telegramBusy() ? 'Đang tạo liên kết…' : 'Liên kết Telegram' }}
+              </button>
+            }
+
+            @if (telegramMessage()) {
+              <p class="telegram-feedback" role="status">{{ telegramMessage() }}</p>
+            }
+          </section>
+        }
+
+        <section
+          class="panel account-security-card"
+          [class.requires-change]="user.mustChangePassword"
+        >
+          <div class="account-security-icon" aria-hidden="true">◆</div>
+          <div>
+            <span class="account-security-label">BẢO MẬT TÀI KHOẢN</span>
+            <h3>
+              {{
+                !user.hasPassword
+                  ? 'Thiết lập mật khẩu'
+                  : user.mustChangePassword
+                    ? 'Cần đổi mật khẩu'
+                    : 'Mật khẩu của bạn'
+              }}
+            </h3>
+            <p>
+              {{
+                !user.hasPassword
+                  ? 'Tạo mật khẩu để có thể đăng nhập bằng email ngoài phương thức Google.'
+                  : user.mustChangePassword
+                    ? 'Mật khẩu hiện tại là mật khẩu tạm và cần được thay đổi.'
+                    : 'Nên sử dụng mật khẩu mạnh và không dùng chung với tài khoản khác.'
+              }}
+            </p>
+          </div>
+          <a class="account-security-action" routerLink="/profile/password">
+            <span>{{ user.hasPassword ? 'Đổi mật khẩu' : 'Thiết lập mật khẩu' }}</span
+            ><strong>→</strong>
+          </a>
+        </section>
+      </aside>
+    </div>
+  } @else {
+    <section class="panel loading">Đang tải thông tin tài khoản...</section>
+  }
+</div>

@@ -44,6 +44,16 @@ public class IdentityClient {
             .body(UserRef.class);
     }
 
+    public Map<UUID, UserRef> resolve(Collection<UUID> ids) {
+        if (ids == null || ids.isEmpty()) return Map.of();
+        UserRef[] result = client.post().uri("/internal/v1/users/resolve")
+            .headers(this::headers).body(new ResolveRequest(new LinkedHashSet<>(ids)))
+            .retrieve().body(UserRef[].class);
+        Map<UUID, UserRef> resolved = new LinkedHashMap<>();
+        if (result != null) for (UserRef user : result) resolved.put(user.id(), user);
+        return resolved;
+    }
+
     private void headers(org.springframework.http.HttpHeaders h) {
         h.setBearerAuth(tokens.token("identity-service"));
         String c = MDC.get("correlationId");
@@ -52,15 +62,34 @@ public class IdentityClient {
 
     private record SearchRequest(Set<String> roles, boolean enabledOnly) {}
 
+    private record ResolveRequest(Collection<UUID> ids) {}
+
     public record UserRef(
         UUID id,
         String username,
         String fullName,
         String email,
-        UUID departmentId,
+        String accountType,
+        UUID customerId,
+        String siteScope,
+        Set<UUID> siteIds,
+        String regionScope,
+        Set<UUID> regionIds,
         boolean enabled,
         Set<String> roles
     ) {
+        public UserRef(
+            UUID id,
+            String username,
+            String fullName,
+            String email,
+            UUID ignoredDepartmentId,
+            boolean enabled,
+            Set<String> roles
+        ) {
+            this(id, username, fullName, email, null, null, null, Set.of(), null, Set.of(), enabled, roles);
+        }
+
         public boolean isEnabledTechnician() {
             return enabled && roles != null && roles.contains("TECHNICIAN");
         }

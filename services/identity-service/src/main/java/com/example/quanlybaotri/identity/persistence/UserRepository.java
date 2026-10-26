@@ -22,6 +22,17 @@ public interface UserRepository
     Optional<UserAccount> findWithRolesByUsername(String username);
 
     @EntityGraph(attributePaths = { "roles", "siteIds", "regionIds" })
+    @org.springframework.data.jpa.repository.Query(
+        "select distinct u from UserAccount u where lower(u.username)=lower(:identifier) or lower(u.email)=lower(:identifier)"
+    )
+    Optional<UserAccount> findWithRolesByUsernameOrEmail(
+        @org.springframework.data.repository.query.Param("identifier") String identifier
+    );
+
+    @EntityGraph(attributePaths = { "roles", "siteIds", "regionIds" })
+    Optional<UserAccount> findWithRolesByGoogleSubject(String googleSubject);
+
+    @EntityGraph(attributePaths = { "roles", "siteIds", "regionIds" })
     Optional<UserAccount> findWithRolesById(UUID id);
 
     @EntityGraph(attributePaths = { "roles", "siteIds", "regionIds" })

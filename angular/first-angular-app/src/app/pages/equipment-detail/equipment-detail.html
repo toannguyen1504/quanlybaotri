@@ -1,0 +1,449 @@
+<div class="equipment-detail-page">
+  <a class="back-link" routerLink="/equipment">← Danh sách thiết bị</a>
+
+  @if (error()) {
+    <section class="panel detail-state error-state" role="alert">
+      <span aria-hidden="true">!</span>
+      <div>
+        <h1>Không thể mở thiết bị</h1>
+        <p>{{ error() }}</p>
+      </div>
+      <button type="button" class="secondary" (click)="loadEquipment()">Thử lại</button>
+    </section>
+  } @else if (loading()) {
+    <section class="panel detail-state" aria-busy="true">
+      <span class="spinner" aria-hidden="true"></span>
+      <div>
+        <h1>Đang tải thiết bị</h1>
+        <p>Vui lòng chờ trong giây lát...</p>
+      </div>
+    </section>
+  } @else if (equipment(); as item) {
+    @if (notice()) {
+      <div class="success-message" role="status">
+        ✓ {{ notice()
+        }}<button type="button" aria-label="Đóng thông báo" (click)="notice.set('')">×</button>
+      </div>
+    }
+
+    <header class="detail-hero panel">
+      <div class="hero-identity">
+        <span aria-hidden="true">TB</span>
+        <div>
+          <p>{{ item.assetCode }}</p>
+          <h1>{{ item.name }}</h1>
+          <div class="hero-badges">
+            <span [class]="'equipment-status ' + item.status.toLowerCase()">{{
+              statusLabel(item.status)
+            }}</span>
+            <span [class]="'warranty ' + item.warrantyStatus.toLowerCase()">{{
+              warrantyLabel(item.warrantyStatus)
+            }}</span>
+            @if (!item.active) {
+              <span class="inactive">Ngừng quản lý</span>
+            }
+          </div>
+        </div>
+      </div>
+      <div class="hero-actions">
+        @if (canCreateTicket(item)) {
+          <a
+            class="primary button-link"
+            routerLink="/tickets/new"
+            [queryParams]="{ equipmentId: item.id }"
+            >＋ Tạo phiếu bảo trì</a
+          >
+        }
+        @if (canManage()) {
+          <a class="secondary button-link" [routerLink]="['/equipment', item.id, 'edit']"
+            >✎ Chỉnh sửa</a
+          >
+        }
+      </div>
+      <dl class="hero-facts">
+        <div>
+          <dt>Loại thiết bị</dt>
+          <dd>{{ item.categoryName }}</dd>
+        </div>
+        <div>
+          <dt>Hãng / model</dt>
+          <dd>{{ item.manufacturer || '—' }} · {{ item.model || '—' }}</dd>
+        </div>
+        <div>
+          <dt>Đơn vị sử dụng</dt>
+          <dd>{{ item.customerName }}</dd>
+        </div>
+        <div>
+          <dt>Địa điểm</dt>
+          <dd>{{ item.siteName }} · {{ item.location || 'Chưa cập nhật' }}</dd>
+        </div>
+      </dl>
+    </header>
+
+    <nav class="detail-tabs" role="tablist" aria-label="Thông tin thiết bị">
+      <button
+        type="button"
+        role="tab"
+        [class.active]="tab === 'overview'"
+        [attr.aria-selected]="tab === 'overview'"
+        (click)="selectTab('overview')"
+      >
+        <span aria-hidden="true">▦</span> Tổng quan
+      </button>
+      <button
+        type="button"
+        role="tab"
+        [class.active]="tab === 'history'"
+        [attr.aria-selected]="tab === 'history'"
+        (click)="selectTab('history')"
+      >
+        <span aria-hidden="true">↺</span> Lịch sử sửa chữa
+        @if (history(); as page) {
+          <b>{{ page.totalElements }}</b>
+        }
+      </button>
+      @if (canViewDocuments()) {
+        <button
+          type="button"
+          role="tab"
+          [class.active]="tab === 'documents'"
+          [attr.aria-selected]="tab === 'documents'"
+          (click)="selectTab('documents')"
+        >
+          <span aria-hidden="true">▤</span> Tài liệu
+          @if (documentsLoaded) {
+            <b>{{ equipmentDocuments().length }}</b>
+          }
+        </button>
+      }
+    </nav>
+
+    @if (tab === 'overview') {
+      <section class="overview-layout" role="tabpanel">
+        <article class="panel overview-section">
+          <div class="section-heading">
+            <span aria-hidden="true">ID</span>
+            <div>
+              <h2>Nhận diện thiết bị</h2>
+              <p>Thông tin định danh và nhà sản xuất.</p>
+            </div>
+          </div>
+          <dl class="detail-grid">
+            <div>
+              <dt>Mã thiết bị</dt>
+              <dd>{{ item.assetCode }}</dd>
+            </div>
+            <div>
+              <dt>Số serial</dt>
+              <dd>{{ item.serialNumber || 'Chưa cập nhật' }}</dd>
+            </div>
+            <div>
+              <dt>Tên thiết bị</dt>
+              <dd>{{ item.name }}</dd>
+            </div>
+            <div>
+              <dt>Loại thiết bị</dt>
+              <dd>{{ item.categoryName }}</dd>
+            </div>
+            <div>
+              <dt>Hãng sản xuất</dt>
+              <dd>{{ item.manufacturer || 'Chưa cập nhật' }}</dd>
+            </div>
+            <div>
+              <dt>Model</dt>
+              <dd>{{ item.model || 'Chưa cập nhật' }}</dd>
+            </div>
+          </dl>
+        </article>
+        <article class="panel overview-section">
+          <div class="section-heading">
+            <span aria-hidden="true">VT</span>
+            <div>
+              <h2>Đơn vị và vị trí</h2>
+              <p>Nơi thiết bị đang được lắp đặt, sử dụng.</p>
+            </div>
+          </div>
+          <dl class="detail-grid">
+            <div>
+              <dt>Khách hàng</dt>
+              <dd>{{ item.customerName }}</dd>
+            </div>
+            <div>
+              <dt>Địa điểm</dt>
+              <dd>{{ item.siteName }}</dd>
+            </div>
+            <div class="wide">
+              <dt>Vị trí cụ thể</dt>
+              <dd>{{ item.location || 'Chưa cập nhật' }}</dd>
+            </div>
+          </dl>
+        </article>
+        <article class="panel overview-section warranty-section">
+          <div class="section-heading">
+            <span aria-hidden="true">BH</span>
+            <div>
+              <h2>Vòng đời và bảo hành</h2>
+              <p>Các mốc phục vụ theo dõi tài sản.</p>
+            </div>
+          </div>
+          <dl class="detail-grid">
+            <div>
+              <dt>Ngày lắp đặt</dt>
+              <dd>
+                {{ item.installedAt ? (item.installedAt | date: 'dd/MM/yyyy') : 'Chưa cập nhật' }}
+              </dd>
+            </div>
+            <div>
+              <dt>Ngày nghiệm thu</dt>
+              <dd>
+                {{ item.acceptedAt ? (item.acceptedAt | date: 'dd/MM/yyyy') : 'Chưa cập nhật' }}
+              </dd>
+            </div>
+            <div>
+              <dt>Bắt đầu bảo hành</dt>
+              <dd>
+                {{
+                  item.warrantyStartAt
+                    ? (item.warrantyStartAt | date: 'dd/MM/yyyy')
+                    : 'Chưa cập nhật'
+                }}
+              </dd>
+            </div>
+            <div>
+              <dt>Kết thúc bảo hành</dt>
+              <dd>
+                {{
+                  item.warrantyEndAt ? (item.warrantyEndAt | date: 'dd/MM/yyyy') : 'Chưa cập nhật'
+                }}
+              </dd>
+            </div>
+          </dl>
+        </article>
+      </section>
+    }
+
+    @if (tab === 'history') {
+      <section class="panel tab-panel history-panel" role="tabpanel">
+        <div class="panel-heading">
+          <div>
+            <h2>Lịch sử sửa chữa</h2>
+            <p>Các phiếu bảo trì đã phát sinh cho {{ item.assetCode }}.</p>
+          </div>
+          @if (history(); as page) {
+            <strong>{{ page.totalElements }} phiếu</strong>
+          }
+        </div>
+        @if (historyError()) {
+          <div class="tab-state error-state" role="alert">
+            <span>!</span>
+            <div>
+              <b>Không thể tải lịch sử</b>
+              <p>{{ historyError() }}</p>
+            </div>
+            <button class="secondary" (click)="loadHistory()">Thử lại</button>
+          </div>
+        } @else if (historyLoading()) {
+          <div class="tab-state" aria-busy="true">
+            <span class="spinner"></span>
+            <p>Đang tải lịch sử sửa chữa...</p>
+          </div>
+        } @else if (history()?.content?.length) {
+          <div class="history-list">
+            @for (ticket of history()!.content; track ticket.id) {
+              <article class="history-item">
+                <div
+                  class="history-marker"
+                  [attr.data-status]="ticket.status"
+                  aria-hidden="true"
+                ></div>
+                <div class="history-main">
+                  <div class="history-title">
+                    <div>
+                      <a [routerLink]="['/tickets', ticket.id]"
+                        >{{ ticket.code }} · {{ ticket.title }}</a
+                      ><small>Gửi lúc {{ ticket.submittedAt | date: 'dd/MM/yyyy HH:mm' }}</small>
+                    </div>
+                    <span [class]="'ticket-status ' + ticket.status.toLowerCase()">{{
+                      statusLabel(ticket.status)
+                    }}</span>
+                  </div>
+                  <div class="history-meta">
+                    <span
+                      ><small>Ưu tiên</small
+                      ><b [class]="'priority ' + ticket.priority.toLowerCase()">{{
+                        priorityLabel(ticket.priority)
+                      }}</b></span
+                    >
+                    <span
+                      ><small>Kỹ thuật viên</small
+                      ><b>{{ ticket.assigneeName || 'Chưa phân công' }}</b></span
+                    >
+                    <span
+                      ><small>Hoàn tất</small
+                      ><b>{{
+                        completedAt(ticket)
+                          ? (completedAt(ticket) | date: 'dd/MM/yyyy HH:mm')
+                          : 'Chưa hoàn tất'
+                      }}</b></span
+                    >
+                    <span
+                      ><small>Bảo hành khi tạo phiếu</small
+                      ><b>{{ warrantyLabel(ticket.warrantyStatusAtCreation) }}</b></span
+                    >
+                    @if (ticket.costVisible) {
+                      <span
+                        ><small>Chi phí</small
+                        ><b>{{ ticket.grandTotal ?? 0 | number: '1.0-0' }} ₫</b></span
+                      >
+                    }
+                  </div>
+                  <p class="resolution">
+                    <b>Kết quả:</b>
+                    {{ ticket.resolutionSummary || 'Chưa có kết quả xử lý cuối cùng.' }}
+                  </p>
+                  <a class="ticket-link" [routerLink]="['/tickets', ticket.id]"
+                    >Mở chi tiết phiếu →</a
+                  >
+                </div>
+              </article>
+            }
+          </div>
+          <app-pagination
+            [totalItems]="history()!.totalElements"
+            [page]="historyPage"
+            [pageSize]="pageSize"
+            itemLabel="phiếu sửa chữa"
+            (pageChange)="goToHistoryPage($event)"
+          />
+        } @else {
+          <div class="empty-tab">
+            <span aria-hidden="true">↺</span>
+            <h3>Chưa có lịch sử sửa chữa</h3>
+            <p>Thiết bị này chưa phát sinh phiếu bảo trì nào trong phạm vi bạn được xem.</p>
+            @if (canCreateTicket(item)) {
+              <a
+                class="primary button-link"
+                routerLink="/tickets/new"
+                [queryParams]="{ equipmentId: item.id }"
+                >Tạo phiếu đầu tiên</a
+              >
+            }
+          </div>
+        }
+      </section>
+    }
+
+    @if (tab === 'documents' && canViewDocuments()) {
+      <section class="panel tab-panel documents-panel" role="tabpanel">
+        <div class="panel-heading">
+          <div>
+            <h2>Tài liệu thiết bị</h2>
+            <p>Biên bản, hóa đơn và tài liệu kỹ thuật liên quan.</p>
+          </div>
+          <strong>{{ equipmentDocuments().length }} tệp</strong>
+        </div>
+        @if (canManage()) {
+          <div class="document-upload">
+            <label
+              ><span>Loại tài liệu</span
+              ><select [(ngModel)]="documentType">
+                <option value="REPORT">Biên bản</option>
+                <option value="INVOICE">Hóa đơn</option>
+                <option value="DEVICE_DOCUMENT">Tài liệu thiết bị</option>
+                <option value="OTHER">Khác</option>
+              </select></label
+            >
+            <label
+              class="drop-zone"
+              (dragover)="$event.preventDefault()"
+              (drop)="dropDocuments($event)"
+              ><span aria-hidden="true">⇧</span><b>Chọn hoặc kéo thả tệp</b
+              ><small>Tối đa 10 tệp mỗi lần</small
+              ><input
+                type="file"
+                multiple
+                accept=".jpg,.jpeg,.png,.webp,.mp4,.webm,.pdf,.doc,.docx,.xls,.xlsx"
+                (change)="uploadDocuments($event)"
+            /></label>
+          </div>
+        }
+        @if (documentsError()) {
+          <div class="inline-error" role="alert">{{ documentsError() }}</div>
+        }
+        @for (
+          upload of documentUploads();
+          track upload.file.name + upload.file.lastModified;
+          let i = $index
+        ) {
+          <div class="upload-row">
+            <div>
+              <b>{{ upload.file.name }}</b
+              ><small>{{ upload.status === 'failed' ? upload.error : upload.status }}</small>
+            </div>
+            <progress max="100" [value]="upload.progress"></progress>
+            @if (upload.status === 'failed') {
+              <button type="button" (click)="retryDocument(i)">Thử lại</button>
+            }
+          </div>
+        }
+        @if (documentsLoading()) {
+          <div class="tab-state" aria-busy="true">
+            <span class="spinner"></span>
+            <p>Đang tải tài liệu...</p>
+          </div>
+        } @else {
+          <div class="document-list">
+            @for (document of equipmentDocuments(); track document.id) {
+              <article>
+                <span class="file-icon" aria-hidden="true">▤</span
+                ><button type="button" class="file-main" (click)="openDocument(document)">
+                  <b>{{ document.originalName }}</b
+                  ><small
+                    >{{ documentTypeLabel(document.type) }} · {{ document.uploadedByName }} ·
+                    {{ document.createdAt | date: 'dd/MM/yyyy HH:mm' }}</small
+                  ></button
+                ><button type="button" class="text-button" (click)="downloadDocument(document)">
+                  Tải xuống
+                </button>
+                @if (document.canDelete) {
+                  <button
+                    type="button"
+                    class="text-button danger"
+                    (click)="deleteDocument(document)"
+                  >
+                    Xóa
+                  </button>
+                }
+              </article>
+            } @empty {
+              <div class="empty-tab compact">
+                <span aria-hidden="true">▤</span>
+                <h3>Chưa có tài liệu</h3>
+                <p>Tài liệu được tải lên sẽ xuất hiện tại đây.</p>
+              </div>
+            }
+          </div>
+        }
+      </section>
+    }
+
+    @if (documentPreviewUrl()) {
+      <div
+        class="preview-backdrop"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Xem trước tài liệu"
+        (click)="closeDocumentPreview()"
+      >
+        <div class="preview-box" (click)="$event.stopPropagation()">
+          <button type="button" aria-label="Đóng" (click)="closeDocumentPreview()">×</button>
+          @if (documentPreviewKind() === 'IMAGE') {
+            <img [src]="documentPreviewUrl()" alt="Tài liệu thiết bị" />
+          } @else {
+            <video [src]="documentPreviewUrl()" controls></video>
+          }
+        </div>
+      </div>
+    }
+  }
+</div>

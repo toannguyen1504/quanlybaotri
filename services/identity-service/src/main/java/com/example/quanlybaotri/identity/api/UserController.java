@@ -4,6 +4,8 @@ import com.example.quanlybaotri.identity.application.UserService;
 import com.example.quanlybaotri.identity.domain.RoleName;
 import com.example.quanlybaotri.identity.domain.AccountType;
 import com.example.quanlybaotri.identity.domain.RegionScope;
+import com.example.quanlybaotri.identity.domain.RegistrationSource;
+import com.example.quanlybaotri.identity.domain.RegistrationStatus;
 import com.example.quanlybaotri.identity.domain.SiteScope;
 import com.example.quanlybaotri.identity.domain.UserAccount;
 import com.example.quanlybaotri.identity.persistence.RoleRepository;
@@ -13,6 +15,7 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import java.time.Instant;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -54,9 +57,10 @@ public class UserController {
         @RequestParam(required = false) UUID customerId,
         @RequestParam(required = false) UUID siteId,
         @RequestParam(required = false) AccountType accountType,
+        @RequestParam(required = false) RegistrationStatus registrationStatus,
         Pageable pageable
     ) {
-        return service.list(current.require(), customerId, siteId, accountType, pageable);
+        return service.list(current.require(), customerId, siteId, accountType, registrationStatus, pageable);
     }
 
     @PostMapping("/users")
@@ -77,6 +81,18 @@ public class UserController {
     @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
     public void reset(@PathVariable UUID id, @Valid @RequestBody PasswordReset request) {
         service.resetPassword(current.require(), id, request.password());
+    }
+
+    @PostMapping("/users/{id}/approve")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    public UserView approve(@PathVariable UUID id, @Valid @RequestBody RegistrationApproval request) {
+        return service.approveRegistration(current.require(), id, request.customerId(), request.siteScope(), request.siteIds());
+    }
+
+    @PostMapping("/users/{id}/reject")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    public UserView reject(@PathVariable UUID id, @Valid @RequestBody RegistrationRejection request) {
+        return service.rejectRegistration(current.require(), id, request.reason());
     }
 
     @PostMapping("/users/me/password")
@@ -131,9 +147,17 @@ public class UserController {
     public record PasswordReset(@NotBlank @Size(min = 8, max = 100) String password) {}
 
     public record PasswordChange(
-        @NotBlank String currentPassword,
+        String currentPassword,
         @NotBlank @Size(min = 8, max = 100) String newPassword
     ) {}
+
+    public record RegistrationApproval(
+        @NotNull UUID customerId,
+        @NotNull SiteScope siteScope,
+        Set<UUID> siteIds
+    ) {}
+
+    public record RegistrationRejection(@NotBlank @Size(max = 1000) String reason) {}
 
     public record CurrentProfileUpdate(
         @NotBlank @Email String email,
@@ -157,7 +181,17 @@ public class UserController {
         Set<UUID> regionIds,
         boolean enabled,
         boolean mustChangePassword,
-        Set<RoleName> roles
+        Set<RoleName> roles,
+        RegistrationStatus registrationStatus,
+        RegistrationSource registrationSource,
+        String requestedOrganizationName,
+        String registrationNote,
+        String rejectionReason,
+        Instant registeredAt,
+        Instant reviewedAt,
+        UUID reviewedById,
+        boolean hasPassword,
+        boolean googleLinked
     ) {
         public static UserView from(UserAccount u) {
             return new UserView(
@@ -178,7 +212,17 @@ public class UserController {
                     .getRoles()
                     .stream()
                     .map(r -> r.getName())
-                    .collect(java.util.stream.Collectors.toSet())
+                    .collect(java.util.stream.Collectors.toSet()),
+                u.getRegistrationStatus(),
+                u.getRegistrationSource(),
+                u.getRequestedOrganizationName(),
+                u.getRegistrationNote(),
+                u.getRejectionReason(),
+                u.getRegisteredAt(),
+                u.getReviewedAt(),
+                u.getReviewedById(),
+                u.hasPassword(),
+                u.isGoogleLinked()
             );
         }
     }

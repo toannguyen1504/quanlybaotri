@@ -1,6 +1,8 @@
 package com.example.quanlybaotri.telegram.application;
 
-import java.net.http.HttpClient;
+import java.net.URI;
+import java.net.http.*;
+import java.nio.file.*;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -15,17 +17,23 @@ import tools.jackson.databind.JsonNode;
 @Component
 public class TelegramClient {
 
+    private static final long MAX_DOWNLOAD = 20L * 1024L * 1024L;
+
     private final TelegramProperties properties;
     private final RestClient client;
+    private final HttpClient fileClient;
+    private final String fileBaseUrl;
 
     public TelegramClient(TelegramProperties properties) {
         this.properties = properties;
         HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
+        fileClient = http;
         JdkClientHttpRequestFactory factory = new JdkClientHttpRequestFactory(http);
         factory.setReadTimeout(
             Duration.ofSeconds(Math.max(35, properties.getPollTimeoutSeconds() + 10L))
         );
         String token = properties.getBotToken().isBlank() ? "disabled" : properties.getBotToken();
+        fileBaseUrl = "https://api.telegram.org/file/bot" + token + "/";
         client = RestClient.builder()
             .baseUrl("https://api.telegram.org/bot" + token)
             .requestFactory(factory)
@@ -51,17 +59,19 @@ public class TelegramClient {
             JsonNode message = isCallback ? callback.path("message") : item.path("message");
             JsonNode chat = message.path("chat");
             JsonNode from = isCallback ? callback.path("from") : message.path("from");
+            Media media = isCallback ? null : media(message);
             updates.add(
                 new Update(
                     item.path("update_id").asLong(),
-                    message.path("text").asText(""),
+                    message.path("text").asText(message.path("caption").asText("")),
                     chat.path("id").asLong(),
                     chat.path("type").asText(""),
                     from.path("id").asLong(),
                     nullableText(from, "username"),
                     nullableText(callback, "id"),
                     nullableText(callback, "data"),
-                    message.path("message_id").asLong()
+                    message.path("message_id").asLong(),
+                    media
                 )
             );
         }
@@ -107,6 +117,49 @@ public class TelegramClient {
         request.put("text", text);
         request.put("reply_markup", keyboard(buttonRows == null ? List.of() : buttonRows));
         call("editMessageText", request);
+    }
+
+    public DownloadedFile download(Media media) {
+        ensureConfigured();
+        if (media == null || media.fileId() == null) throw new IllegalArgumentException(
+            "Telegram media is missing"
+        );
+        if (media.fileSize() > MAX_DOWNLOAD) throw new IllegalArgumentException(
+            "Tệp Telegram vượt quá giới hạn 20 MB"
+        );
+        String filePath = call("getFile", Map.of("file_id", media.fileId()))
+            .path("result").path("file_path").asText("");
+        if (filePath.isBlank() || filePath.contains("..")) throw new IllegalStateException(
+            "Telegram returned an invalid file path"
+        );
+        String suffix = suffix(media.fileName(), filePath);
+        Path target = null;
+        try {
+            target = Files.createTempFile("telegram-upload-", suffix);
+            HttpRequest request = HttpRequest.newBuilder(URI.create(fileBaseUrl + filePath))
+                .timeout(Duration.ofSeconds(60))
+                .GET()
+                .build();
+            HttpResponse<Path> response = fileClient.send(
+                request,
+                HttpResponse.BodyHandlers.ofFile(target)
+            );
+            long size = Files.size(target);
+            if (response.statusCode() < 200 || response.statusCode() >= 300 || size <= 0 || size > MAX_DOWNLOAD)
+                throw new IllegalStateException("Không thể tải tệp từ Telegram");
+            return new DownloadedFile(
+                target,
+                media.fileName() == null || media.fileName().isBlank()
+                    ? "telegram-" + media.fileUniqueId() + suffix
+                    : media.fileName(),
+                media.mimeType(),
+                size
+            );
+        } catch (Exception failure) {
+            if (target != null) try { Files.deleteIfExists(target); } catch (Exception ignored) {}
+            if (failure instanceof RuntimeException runtime) throw runtime;
+            throw new IllegalStateException("Không thể tải tệp từ Telegram", failure);
+        }
     }
 
     private static Map<String, Object> keyboard(List<List<InlineButton>> rows) {
@@ -162,6 +215,48 @@ public class TelegramClient {
         return value.isBlank() ? null : value;
     }
 
+    private static Media media(JsonNode message) {
+        JsonNode photos = message.path("photo");
+        if (photos.isArray() && photos.size() > 0) {
+            JsonNode photo = photos.get(photos.size() - 1);
+            String unique = photo.path("file_unique_id").asText("photo");
+            return new Media(
+                photo.path("file_id").asText(),
+                unique,
+                "photo-" + unique + ".jpg",
+                "image/jpeg",
+                photo.path("file_size").asLong(0),
+                "PHOTO"
+            );
+        }
+        JsonNode video = message.path("video");
+        if (!video.isMissingNode() && video.hasNonNull("file_id")) return new Media(
+            video.path("file_id").asText(),
+            video.path("file_unique_id").asText("video"),
+            nullableText(video, "file_name"),
+            nullableText(video, "mime_type") == null ? "video/mp4" : nullableText(video, "mime_type"),
+            video.path("file_size").asLong(0),
+            "VIDEO"
+        );
+        JsonNode document = message.path("document");
+        if (!document.isMissingNode() && document.hasNonNull("file_id")) return new Media(
+            document.path("file_id").asText(),
+            document.path("file_unique_id").asText("document"),
+            nullableText(document, "file_name"),
+            nullableText(document, "mime_type"),
+            document.path("file_size").asLong(0),
+            "DOCUMENT"
+        );
+        return null;
+    }
+
+    private static String suffix(String name, String filePath) {
+        String candidate = name == null || name.isBlank() ? filePath : name;
+        int dot = candidate.lastIndexOf('.');
+        String value = dot < 0 ? ".bin" : candidate.substring(dot);
+        return value.matches("\\.[A-Za-z0-9]{1,10}") ? value.toLowerCase() : ".bin";
+    }
+
     public record Update(
         long updateId,
         String text,
@@ -171,8 +266,24 @@ public class TelegramClient {
         String telegramUsername,
         String callbackQueryId,
         String callbackData,
-        long callbackMessageId
+        long callbackMessageId,
+        Media media
     ) {
+        public Update(
+            long updateId,
+            String text,
+            long chatId,
+            String chatType,
+            long telegramUserId,
+            String telegramUsername,
+            String callbackQueryId,
+            String callbackData,
+            long callbackMessageId
+        ) {
+            this(updateId, text, chatId, chatType, telegramUserId, telegramUsername,
+                callbackQueryId, callbackData, callbackMessageId, null);
+        }
+
         public Update(
             long updateId,
             String text,
@@ -181,11 +292,27 @@ public class TelegramClient {
             long telegramUserId,
             String telegramUsername
         ) {
-            this(updateId, text, chatId, chatType, telegramUserId, telegramUsername, null, null, 0);
+            this(updateId, text, chatId, chatType, telegramUserId, telegramUsername, null, null, 0, null);
         }
 
         public boolean isCallbackQuery() {
             return callbackQueryId != null;
+        }
+    }
+
+    public record Media(
+        String fileId,
+        String fileUniqueId,
+        String fileName,
+        String mimeType,
+        long fileSize,
+        String kind
+    ) {}
+
+    public record DownloadedFile(Path path, String filename, String contentType, long size)
+        implements AutoCloseable {
+        @Override public void close() {
+            try { Files.deleteIfExists(path); } catch (Exception ignored) {}
         }
     }
 

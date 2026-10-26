@@ -79,6 +79,15 @@ public class MaintenanceTicket extends BaseEntity {
     @Column(name = "resolution_summary", columnDefinition = "text")
     private String resolutionSummary;
 
+    @Column(name = "feedback_rating")
+    private Integer feedbackRating;
+
+    @Column(name = "feedback_comment", columnDefinition = "text")
+    private String feedbackComment;
+
+    @Column(name = "feedback_submitted_at")
+    private Instant feedbackSubmittedAt;
+
     protected MaintenanceTicket() {}
 
     public MaintenanceTicket(
@@ -197,6 +206,23 @@ public class MaintenanceTicket extends BaseEntity {
         closedAt = Instant.now();
     }
 
+    public void submitFeedback(Integer rating, String comment) {
+        if (feedbackSubmittedAt != null) throw new IllegalStateException(
+            "Phản hồi của phiếu đã được ghi nhận"
+        );
+        if (rating != null && (rating < 1 || rating > 5)) throw new IllegalArgumentException(
+            "Điểm đánh giá phải từ 1 đến 5"
+        );
+        String normalizedComment = comment == null || comment.isBlank() ? null : comment.trim();
+        if (normalizedComment != null && normalizedComment.length() > 5000) throw new IllegalArgumentException(
+            "Nội dung phản hồi không được vượt quá 5000 ký tự"
+        );
+        if (rating == null && normalizedComment == null) return;
+        feedbackRating = rating;
+        feedbackComment = normalizedComment;
+        feedbackSubmittedAt = Instant.now();
+    }
+
     public String getCode() {
         return code;
     }
@@ -271,6 +297,18 @@ public class MaintenanceTicket extends BaseEntity {
 
     public String getResolutionSummary() {
         return resolutionSummary;
+    }
+
+    public Integer getFeedbackRating() {
+        return feedbackRating;
+    }
+
+    public String getFeedbackComment() {
+        return feedbackComment;
+    }
+
+    public Instant getFeedbackSubmittedAt() {
+        return feedbackSubmittedAt;
     }
 
 }

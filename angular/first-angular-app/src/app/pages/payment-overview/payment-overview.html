@@ -1,0 +1,65 @@
+<div class="operations-page">
+  <section class="operations-toolbar" aria-label="Khoảng thời gian dòng tiền">
+    <label><span>Từ ngày</span><input type="date" [(ngModel)]="from" /></label>
+    <label><span>Đến ngày</span><input type="date" [(ngModel)]="to" /></label>
+    <button type="button" class="primary" (click)="applyPeriod()">Áp dụng</button>
+  </section>
+  @if (loading()) {
+    <div class="operations-state">Đang tổng hợp dữ liệu thanh toán...</div>
+  } @else if (error()) {
+    <div class="operations-state" role="alert">
+      <p>{{ error() }}</p>
+      <button class="secondary" (click)="load()">Thử lại</button>
+    </div>
+  } @else if (summary(); as data) {
+    <section class="operations-stats" aria-label="Tổng quan thanh toán">
+      <article class="operations-stat warning">
+        <span>₫</span>
+        <div>
+          <small>Công nợ hiện tại</small><b>{{ data.outstandingAmount | number: '1.0-0' }} ₫</b
+          ><em>{{ data.outstandingCount }} phiếu cần theo dõi</em>
+        </div>
+      </article>
+      <article class="operations-stat">
+        <span>◷</span>
+        <div>
+          <small>Đang chờ xác nhận</small><b>{{ data.pendingCount }}</b
+          ><em>Giao dịch chưa có kết quả cuối</em>
+        </div>
+      </article>
+      <article class="operations-stat success">
+        <span>✓</span>
+        <div>
+          <small>Đã thu trong kỳ</small><b>{{ data.collectedAmount | number: '1.0-0' }} ₫</b
+          ><em>{{ data.succeededCount }} giao dịch thành công</em>
+        </div>
+      </article>
+      <article class="operations-stat danger">
+        <span>!</span>
+        <div>
+          <small>Thất bại trong kỳ</small><b>{{ data.failedCount }}</b
+          ><em>Cần kiểm tra hoặc thử lại</em>
+        </div>
+      </article>
+    </section>
+    <section class="operations-panel">
+      <div class="operations-panel-head">
+        <div>
+          <h2>Hàng chờ vận hành</h2>
+          <p>Truy cập nhanh đúng nhóm công việc cần xử lý.</p>
+        </div>
+      </div>
+      <div class="operations-actions" style="gap: 12px; flex-wrap: wrap">
+        <a class="primary button-link" routerLink="/payments/obligations"
+          >Xem nghĩa vụ thanh toán</a
+        >
+        <a class="secondary button-link" routerLink="/payments/transactions">Lịch sử giao dịch</a>
+        @if (canReconcile()) {
+          <a class="secondary button-link" routerLink="/payments/reconciliation"
+            >Hàng chờ đối soát</a
+          >
+        }
+      </div>
+    </section>
+  }
+</div>

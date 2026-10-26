@@ -1,0 +1,83 @@
+<div class="operations-page">
+  <form class="operations-toolbar" (ngSubmit)="apply()">
+    <label>Tìm kiếm<input name="q" [(ngModel)]="q" placeholder="Mã, tên hoặc lý do..." /></label
+    ><label
+      >Loại biến động<select name="type" [(ngModel)]="type">
+        <option value="">Tất cả</option>
+        @for (v of types; track v) {
+          <option [value]="v">{{ label(v) }}</option>
+        }
+      </select></label
+    ><label>Từ ngày<input name="from" type="date" [(ngModel)]="from" /></label
+    ><label>Đến ngày<input name="to" type="date" [(ngModel)]="to" /></label
+    ><button class="primary">Áp dụng</button>
+  </form>
+  @if (error()) {
+    <div class="operations-state" role="alert">{{ error() }}</div>
+  }
+  @if (loading()) {
+    <div class="operations-state">Đang tải lịch sử kho...</div>
+  } @else if (result(); as data) {
+    @if (data.content.length) {
+      <section class="operations-panel">
+        <div class="operations-panel-head">
+          <div>
+            <h2>Biến động tồn kho</h2>
+            <p>{{ data.totalElements }} bản ghi phù hợp.</p>
+          </div>
+        </div>
+        <div class="operations-table-wrap">
+          <table class="operations-table">
+            <thead>
+              <tr>
+                <th>Thời gian</th>
+                <th>Linh kiện</th>
+                <th>Loại</th>
+                <th>Số lượng</th>
+                <th>Tồn sau</th>
+                <th>Lý do / người thực hiện</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (item of data.content; track item.id) {
+                <tr>
+                  <td>{{ item.createdAt | date: 'dd/MM/yyyy HH:mm' }}</td>
+                  <td>
+                    <b>{{ item.partCode }}</b>
+                    @if (item.ticketId) {
+                      <small
+                        ><a [routerLink]="['/tickets', item.ticketId]">{{
+                          item.ticketCode
+                        }}</a></small
+                      >
+                    }
+                  </td>
+                  <td>
+                    <span [class]="'operations-badge ' + tone(item.type)">{{
+                      label(item.type)
+                    }}</span>
+                  </td>
+                  <td>{{ item.quantity | number: '1.0-3' }}</td>
+                  <td>{{ item.balanceAfter | number: '1.0-3' }}</td>
+                  <td>
+                    <b>{{ item.reason }}</b
+                    ><small>{{ item.actorName || 'Hệ thống' }}</small>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </section>
+      <app-pagination
+        [totalItems]="data.totalElements"
+        [page]="page"
+        [pageSize]="data.size"
+        itemLabel="biến động"
+        (pageChange)="apply($event)"
+      />
+    } @else {
+      <div class="operations-state">Không có biến động phù hợp.</div>
+    }
+  }
+</div>

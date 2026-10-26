@@ -1,0 +1,239 @@
+<div class="page payment-management-page">
+  <header class="page-head">
+    <div>
+      <p class="eyebrow">TÀI CHÍNH</p>
+      <h1>Quản lý thanh toán</h1>
+      <p class="muted">
+        Theo dõi nghĩa vụ thanh toán và lịch sử giao dịch VNPay trong phạm vi của bạn.
+      </p>
+    </div>
+  </header>
+
+  <section class="panel payment-filter-panel">
+    <form class="payment-filters" (ngSubmit)="applyFilters()">
+      <label class="payment-search">
+        <span>Tìm kiếm</span>
+        <input [(ngModel)]="q" name="q" placeholder="Mã phiếu, tiêu đề hoặc mã giao dịch..." />
+      </label>
+      <label>
+        <span>Trạng thái</span>
+        <select [(ngModel)]="status" name="status">
+          <option value="">Tất cả trạng thái</option>
+          @for (item of statuses; track item) {
+            <option [value]="item">{{ paymentStatusLabel(item) }}</option>
+          }
+        </select>
+      </label>
+      <label>
+        <span>Từ ngày</span>
+        <input [(ngModel)]="from" name="from" type="date" />
+      </label>
+      <label>
+        <span>Đến ngày</span>
+        <input [(ngModel)]="to" name="to" type="date" />
+      </label>
+      <div class="payment-filter-actions">
+        <button class="primary" type="submit">Áp dụng</button>
+        <button class="secondary" type="button" [disabled]="!hasFilters()" (click)="clearFilters()">
+          Xóa lọc
+        </button>
+      </div>
+    </form>
+    @if (filterError()) {
+      <p class="filter-error" role="alert">{{ filterError() }}</p>
+    }
+  </section>
+
+  @if (loading()) {
+    <section class="panel payment-state" aria-live="polite">
+      <span class="payment-loader" aria-hidden="true"></span>
+      <p>Đang tải danh sách thanh toán...</p>
+    </section>
+  } @else if (error()) {
+    <section class="panel payment-state payment-error" role="alert">
+      <span aria-hidden="true">!</span>
+      <h3>Không thể tải dữ liệu thanh toán</h3>
+      <p>{{ error() }}</p>
+      <button class="secondary" type="button" (click)="loadPayments()">Thử lại</button>
+    </section>
+  } @else if (result(); as paymentPage) {
+    @if (paymentPage.content.length) {
+      <section class="panel payment-list-panel">
+        <div class="payment-results-head">
+          <div>
+            <h2>Danh sách thanh toán</h2>
+            <p>{{ paymentPage.totalElements }} phiếu phù hợp</p>
+          </div>
+        </div>
+        <div class="payment-table-wrap">
+          <table class="payment-table">
+            <thead>
+              <tr>
+                <th>Phiếu bảo trì</th>
+                <th>Khách hàng / địa điểm</th>
+                <th>Số tiền</th>
+                <th>Trạng thái</th>
+                <th>Hoạt động gần nhất</th>
+                <th class="action-column">Thao tác</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (item of paymentPage.content; track item.ticketId) {
+                <tr class="payment-row" [class.expanded]="expandedTicketId() === item.ticketId">
+                  <td data-label="Phiếu bảo trì">
+                    <a class="ticket-code" [routerLink]="['/tickets', item.ticketId]">{{
+                      item.ticketCode
+                    }}</a>
+                    <small>{{ item.ticketTitle }}</small>
+                  </td>
+                  <td data-label="Khách hàng / địa điểm">
+                    <b>{{ item.customerName || '—' }}</b>
+                    <small>{{ item.siteName || '—' }}</small>
+                  </td>
+                  <td data-label="Số tiền">
+                    <b>{{ item.amountDue | number: '1.0-0' }} ₫</b>
+                    <small>{{ item.attemptCount }} lần giao dịch</small>
+                  </td>
+                  <td data-label="Trạng thái">
+                    <span [class]="'payment-badge status-' + item.paymentStatus.toLowerCase()">
+                      {{ paymentStatusLabel(item.paymentStatus) }}
+                    </span>
+                    @if (item.paidAt) {
+                      <small>Hoàn tất {{ item.paidAt | date: 'dd/MM/yyyy HH:mm' }}</small>
+                    }
+                  </td>
+                  <td data-label="Hoạt động gần nhất">
+                    <span>{{ item.activityAt | date: 'dd/MM/yyyy HH:mm' }}</span>
+                  </td>
+                  <td data-label="Thao tác" class="row-actions">
+                    @if (item.canPay) {
+                      <button
+                        class="primary compact"
+                        type="button"
+                        [disabled]="actionLoading()[item.ticketId]"
+                        (click)="startPayment(item)"
+                      >
+                        {{ item.paymentStatus === 'PENDING' ? 'Tiếp tục trả' : 'Thanh toán' }}
+                      </button>
+                    }
+                    <button
+                      class="secondary compact detail-toggle"
+                      type="button"
+                      [attr.aria-expanded]="expandedTicketId() === item.ticketId"
+                      (click)="toggleDetails(item)"
+                    >
+                      {{ expandedTicketId() === item.ticketId ? 'Thu gọn' : 'Lịch sử' }}
+                    </button>
+                  </td>
+                </tr>
+                @if (expandedTicketId() === item.ticketId) {
+                  <tr class="payment-detail-row">
+                    <td colspan="6">
+                      <div class="payment-detail" aria-live="polite">
+                        @if (detailLoading().has(item.ticketId)) {
+                          <p class="detail-message">Đang tải lịch sử giao dịch...</p>
+                        } @else if (rowErrors()[item.ticketId]) {
+                          <div class="detail-alert" role="alert">
+                            <span>{{ rowErrors()[item.ticketId] }}</span>
+                            <button
+                              type="button"
+                              class="secondary compact"
+                              (click)="loadDetails(item.ticketId, true)"
+                            >
+                              Thử lại
+                            </button>
+                          </div>
+                        } @else if (details()[item.ticketId]; as detail) {
+                          @if (detail.attempts.length) {
+                            <div class="attempt-list">
+                              @for (attempt of detail.attempts; track attempt.attemptId) {
+                                <article class="attempt-card">
+                                  <div>
+                                    <span
+                                      [class]="
+                                        'payment-badge attempt-' + attempt.status.toLowerCase()
+                                      "
+                                    >
+                                      {{ attemptStatusLabel(attempt.status) }}
+                                    </span>
+                                    <b>{{ attempt.amount | number: '1.0-0' }} ₫</b>
+                                  </div>
+                                  <dl>
+                                    <div>
+                                      <dt>Mã giao dịch</dt>
+                                      <dd>{{ attempt.txnRef }}</dd>
+                                    </div>
+                                    <div>
+                                      <dt>Khởi tạo</dt>
+                                      <dd>
+                                        {{ attempt.createdAt | date: 'dd/MM/yyyy HH:mm' }}
+                                      </dd>
+                                    </div>
+                                    @if (attempt.providerTransactionNo) {
+                                      <div>
+                                        <dt>Mã VNPay</dt>
+                                        <dd>{{ attempt.providerTransactionNo }}</dd>
+                                      </div>
+                                    }
+                                    @if (attempt.bankCode) {
+                                      <div>
+                                        <dt>Ngân hàng</dt>
+                                        <dd>{{ attempt.bankCode }}</dd>
+                                      </div>
+                                    }
+                                    @if (attempt.cardType) {
+                                      <div>
+                                        <dt>Loại thẻ</dt>
+                                        <dd>{{ attempt.cardType }}</dd>
+                                      </div>
+                                    }
+                                  </dl>
+                                  @if (canReconcile(attempt)) {
+                                    <button
+                                      class="secondary compact"
+                                      type="button"
+                                      [disabled]="actionLoading()[attempt.attemptId]"
+                                      (click)="reconcile(item, attempt)"
+                                    >
+                                      {{
+                                        actionLoading()[attempt.attemptId]
+                                          ? 'Đang đối soát...'
+                                          : 'Đối soát'
+                                      }}
+                                    </button>
+                                  }
+                                </article>
+                              }
+                            </div>
+                          } @else {
+                            <p class="detail-message">Phiếu chưa phát sinh lần giao dịch nào.</p>
+                          }
+                        }
+                      </div>
+                    </td>
+                  </tr>
+                }
+              }
+            </tbody>
+          </table>
+        </div>
+        <app-pagination
+          [totalItems]="paymentPage.totalElements"
+          [page]="currentPage"
+          [pageSize]="paymentPage.size"
+          itemLabel="phiếu"
+          (pageChange)="selectPage($event)"
+        />
+      </section>
+    } @else {
+      <section class="panel payment-state payment-empty">
+        <span aria-hidden="true">₫</span>
+        <h3>Chưa có thanh toán phù hợp</h3>
+        <p>Hãy thử thay đổi trạng thái, khoảng ngày hoặc từ khóa tìm kiếm.</p>
+        @if (hasFilters()) {
+          <button class="secondary" type="button" (click)="clearFilters()">Xóa bộ lọc</button>
+        }
+      </section>
+    }
+  }
+</div>

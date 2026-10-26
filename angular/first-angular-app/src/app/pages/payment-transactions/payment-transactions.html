@@ -1,0 +1,91 @@
+<div class="operations-page">
+  <form class="operations-toolbar" (ngSubmit)="apply()">
+    <label
+      >Tìm kiếm<input name="q" [(ngModel)]="q" placeholder="Mã giao dịch hoặc phiếu..." /></label
+    ><label
+      >Trạng thái<select name="status" [(ngModel)]="status">
+        <option value="">Tất cả</option>
+        @for (s of statuses; track s) {
+          <option [value]="s">{{ label(s) }}</option>
+        }
+      </select></label
+    ><label>Từ ngày<input name="from" type="date" [(ngModel)]="from" /></label
+    ><label>Đến ngày<input name="to" type="date" [(ngModel)]="to" /></label
+    ><button class="primary">Áp dụng</button>
+  </form>
+  @if (error()) {
+    <div class="operations-state" role="alert">{{ error() }}</div>
+  }
+  @if (loading()) {
+    <div class="operations-state">Đang tải giao dịch...</div>
+  } @else if (result(); as data) {
+    @if (data.content.length) {
+      <section class="operations-panel">
+        <div class="operations-panel-head">
+          <div>
+            <h2>{{ reconciliation ? 'Hàng chờ đối soát' : 'Lịch sử giao dịch' }}</h2>
+            <p>{{ data.totalElements }} giao dịch phù hợp trong kỳ.</p>
+          </div>
+        </div>
+        <div class="operations-table-wrap">
+          <table class="operations-table">
+            <thead>
+              <tr>
+                <th>Giao dịch</th>
+                <th>Phiếu</th>
+                <th>Số tiền</th>
+                <th>Trạng thái</th>
+                <th>Thời gian</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (item of data.content; track item.attemptId) {
+                <tr>
+                  <td>
+                    <b>{{ item.txnRef }}</b
+                    ><small
+                      >{{ item.bankCode || 'Chưa có ngân hàng' }} {{ item.cardType || '' }}</small
+                    >
+                  </td>
+                  <td>
+                    <a [routerLink]="['/tickets', item.ticketId]"
+                      ><b>{{ item.ticketCode }}</b></a
+                    ><small>{{ item.ticketTitle }}</small>
+                  </td>
+                  <td>{{ item.amount | number: '1.0-0' }} ₫</td>
+                  <td>
+                    <span [class]="'operations-badge ' + tone(item.status)">{{
+                      label(item.status)
+                    }}</span>
+                  </td>
+                  <td>{{ item.createdAt | date: 'dd/MM/yyyy HH:mm' }}</td>
+                  <td>
+                    @if (reconciliation) {
+                      <button
+                        class="secondary compact"
+                        [disabled]="actionLoading()[item.attemptId]"
+                        (click)="reconcile(item)"
+                      >
+                        Đối soát
+                      </button>
+                    }
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </section>
+      <app-pagination
+        [totalItems]="data.totalElements"
+        [page]="page"
+        [pageSize]="data.size"
+        itemLabel="giao dịch"
+        (pageChange)="apply($event)"
+      />
+    } @else {
+      <div class="operations-state">Không có giao dịch phù hợp.</div>
+    }
+  }
+</div>

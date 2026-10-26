@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 public class LoginRateLimiter {
 
     private static final long LIMIT = 5;
+    private static final long GOOGLE_LIMIT = 20;
     private static final Duration WINDOW = Duration.ofMinutes(15);
     private final StringRedisTemplate redis;
 
@@ -40,5 +41,33 @@ public class LoginRateLimiter {
         try {
             redis.delete(key(username, ip));
         } catch (RuntimeException ignored) {}
+    }
+
+    public boolean registerBlocked(String email, String ip) {
+        boolean ipBlocked = hit("identity:register:ip:" + ip, LIMIT);
+        boolean emailBlocked = hit("identity:register:email:" + normalize(email), LIMIT);
+        return ipBlocked || emailBlocked;
+    }
+
+    public boolean googleIpBlocked(String ip) {
+        return hit("identity:google:ip:" + ip, GOOGLE_LIMIT);
+    }
+
+    public boolean googleEmailBlocked(String email) {
+        return hit("identity:google:email:" + normalize(email), GOOGLE_LIMIT);
+    }
+
+    private boolean hit(String key, long limit) {
+        try {
+            Long count = redis.opsForValue().increment(key);
+            if (count != null && count == 1) redis.expire(key, WINDOW);
+            return count != null && count > limit;
+        } catch (RuntimeException ignored) {
+            return false;
+        }
+    }
+
+    private String normalize(String value) {
+        return value == null ? "unknown" : value.trim().toLowerCase();
     }
 }

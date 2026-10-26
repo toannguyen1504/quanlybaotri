@@ -1,0 +1,223 @@
+<div class="page notification-detail-page">
+  <a class="notification-detail-back" routerLink="/notifications">
+    <span aria-hidden="true">←</span> Quay lại danh sách thông báo
+  </a>
+
+  @if (loading()) {
+    <section class="notification-detail-loading" aria-label="Đang tải chi tiết thông báo">
+      <i></i><i></i><i></i><i></i>
+    </section>
+  } @else if (error()) {
+    <section class="notification-detail-error" role="alert">
+      <span aria-hidden="true">!</span>
+      <div>
+        <h1>Không thể mở thông báo</h1>
+        <p>{{ error() }}</p>
+        <button type="button" class="secondary" (click)="load()">Thử lại</button>
+      </div>
+    </section>
+  } @else if (notification(); as detail) {
+    <header [class]="'notification-detail-hero ' + notificationTone(detail.type)">
+      <div class="notification-detail-hero-main">
+        <span
+          [class]="'notification-detail-mark ' + notificationTone(detail.type)"
+          aria-hidden="true"
+        >
+          {{ notificationIcon(detail.type) }}
+        </span>
+        <div>
+          <div class="notification-detail-kicker">
+            <span [class]="'notification-type-label ' + notificationTone(detail.type)">
+              {{ notificationTypeLabel(detail.type) }}
+            </span>
+            <span class="notification-read-state">✓ Đã đọc</span>
+          </div>
+          <h1>{{ detail.title }}</h1>
+          <p>Gửi lúc {{ detail.createdAt | date: 'HH:mm:ss, dd/MM/yyyy' }}</p>
+        </div>
+      </div>
+      @if (detail.referenceId) {
+        <button type="button" class="primary" (click)="openReference(detail)">
+          {{ referenceActionLabel(detail) }} <span aria-hidden="true">→</span>
+        </button>
+      }
+    </header>
+
+    <div class="notification-detail-layout">
+      <main>
+        <section class="notification-detail-card notification-message-card">
+          <header>
+            <span aria-hidden="true">✦</span>
+            <div>
+              <p class="eyebrow">NỘI DUNG THÔNG BÁO</p>
+              <h2>Thông tin được gửi đến bạn</h2>
+            </div>
+          </header>
+          <p class="notification-full-message">{{ detail.message }}</p>
+        </section>
+
+        <section class="notification-detail-card notification-context-card">
+          <header>
+            <span aria-hidden="true">i</span>
+            <div>
+              <p class="eyebrow">THÔNG TIN BỔ SUNG</p>
+              <h2>{{ contextTitle(detail.type) }}</h2>
+            </div>
+          </header>
+          <p>{{ contextDescription(detail.type) }}</p>
+          <div class="notification-next-step">
+            <b>Việc nên làm tiếp theo</b>
+            <span>{{ recommendedAction(detail.type) }}</span>
+          </div>
+        </section>
+
+        @if (referenceLoading()) {
+          <section class="notification-reference-loading">
+            <span></span>
+            <p>Đang tải dữ liệu liên quan...</p>
+          </section>
+        }
+
+        @if (ticket(); as relatedTicket) {
+          <section class="notification-detail-card notification-reference-card">
+            <header class="notification-reference-head">
+              <div>
+                <p class="eyebrow">PHIẾU LIÊN QUAN</p>
+                <h2>{{ relatedTicket.code }} · {{ relatedTicket.title }}</h2>
+              </div>
+              <span class="notification-ticket-status">{{
+                ticketStatusLabel(relatedTicket.status)
+              }}</span>
+            </header>
+            <p class="notification-ticket-description">{{ relatedTicket.description }}</p>
+            <dl class="notification-reference-grid">
+              <div>
+                <dt>Thiết bị</dt>
+                <dd>{{ relatedTicket.equipmentCode }} · {{ relatedTicket.equipmentName }}</dd>
+              </div>
+              <div>
+                <dt>Mức ưu tiên</dt>
+                <dd>{{ priorityLabel(relatedTicket.priority) }}</dd>
+              </div>
+              <div>
+                <dt>Người yêu cầu</dt>
+                <dd>{{ relatedTicket.requesterName }}</dd>
+              </div>
+              <div>
+                <dt>Kỹ thuật viên</dt>
+                <dd>{{ relatedTicket.assigneeName || 'Chưa phân công' }}</dd>
+              </div>
+              <div>
+                <dt>Đơn vị / địa điểm</dt>
+                <dd>{{ relatedTicket.customerName }} · {{ relatedTicket.siteName }}</dd>
+              </div>
+              <div>
+                <dt>Hạn xử lý</dt>
+                <dd>{{ relatedTicket.resolutionDueAt | date: 'HH:mm · dd/MM/yyyy' }}</dd>
+              </div>
+            </dl>
+            @if (relatedTicket.resolutionSummary) {
+              <div class="notification-resolution">
+                <b>Kết quả xử lý</b>
+                <p>{{ relatedTicket.resolutionSummary }}</p>
+              </div>
+            }
+            <button type="button" class="primary" (click)="openReference(detail)">
+              Xem toàn bộ phiếu bảo trì <span aria-hidden="true">→</span>
+            </button>
+          </section>
+        }
+
+        @if (feedback(); as relatedFeedback) {
+          <section class="notification-detail-card notification-reference-card">
+            <header class="notification-reference-head">
+              <div>
+                <p class="eyebrow">PHẢN HỒI LIÊN QUAN</p>
+                <h2>{{ relatedFeedback.title }}</h2>
+              </div>
+              <span class="notification-ticket-status">{{
+                feedbackStatusLabel(relatedFeedback.status)
+              }}</span>
+            </header>
+            <dl class="notification-reference-grid compact">
+              <div>
+                <dt>Loại phản hồi</dt>
+                <dd>{{ feedbackCategoryLabel(relatedFeedback.category) }}</dd>
+              </div>
+              <div>
+                <dt>Người gửi</dt>
+                <dd>{{ relatedFeedback.requesterName || 'Người dùng' }}</dd>
+              </div>
+            </dl>
+            <div class="notification-feedback-copy">
+              <b>Nội dung gửi</b>
+              <p>{{ relatedFeedback.content }}</p>
+            </div>
+            @if (relatedFeedback.response) {
+              <div class="notification-resolution">
+                <b>Phản hồi từ bộ phận phụ trách</b>
+                <p>{{ relatedFeedback.response }}</p>
+                @if (relatedFeedback.reviewedByName) {
+                  <small
+                    >{{ relatedFeedback.reviewedByName }} ·
+                    {{ relatedFeedback.reviewedAt | date: 'HH:mm · dd/MM/yyyy' }}</small
+                  >
+                }
+              </div>
+            }
+            <button type="button" class="primary" (click)="openReference(detail)">
+              Mở phản hồi hệ thống <span aria-hidden="true">→</span>
+            </button>
+          </section>
+        }
+
+        @if (referenceError()) {
+          <p class="notification-reference-error" role="status">{{ referenceError() }}</p>
+        }
+      </main>
+
+      <aside>
+        <section class="notification-detail-card notification-meta-card">
+          <p class="eyebrow">THÔNG TIN GHI NHẬN</p>
+          <dl>
+            <div>
+              <dt>Trạng thái</dt>
+              <dd><span class="notification-read-dot"></span>Đã đọc</dd>
+            </div>
+            <div>
+              <dt>Thời điểm gửi</dt>
+              <dd>
+                {{ detail.createdAt | date: 'dd/MM/yyyy'
+                }}<small>{{ detail.createdAt | date: 'HH:mm:ss' }}</small>
+              </dd>
+            </div>
+            @if (detail.readAt) {
+              <div>
+                <dt>Thời điểm đọc</dt>
+                <dd>
+                  {{ detail.readAt | date: 'dd/MM/yyyy'
+                  }}<small>{{ detail.readAt | date: 'HH:mm:ss' }}</small>
+                </dd>
+              </div>
+            }
+            <div>
+              <dt>Loại sự kiện</dt>
+              <dd>{{ notificationTypeLabel(detail.type) }}</dd>
+            </div>
+          </dl>
+        </section>
+
+        @if (hasReference()) {
+          <section class="notification-side-action">
+            <span aria-hidden="true">↗</span>
+            <h2>Xem dữ liệu gốc</h2>
+            <p>Mở nội dung liên quan để xem lịch sử và thực hiện thao tác đầy đủ.</p>
+            <button type="button" class="secondary" (click)="openReference(detail)">
+              {{ referenceActionLabel(detail) }}
+            </button>
+          </section>
+        }
+      </aside>
+    </div>
+  }
+</div>

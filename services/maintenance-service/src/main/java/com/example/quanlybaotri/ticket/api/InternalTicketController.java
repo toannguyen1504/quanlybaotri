@@ -86,6 +86,64 @@ public class InternalTicketController {
         );
     }
 
+    @GetMapping("/{id}/chat-context")
+    @Transactional(readOnly = true)
+    public ChatContext chatContext(
+        @PathVariable UUID id,
+        @RequestHeader("X-User-Token") String userToken
+    ) {
+        return chatContext(
+            tickets.findById(id).orElseThrow(() -> ApiException.notFound("Không tìm thấy phiếu")),
+            userToken
+        );
+    }
+
+    @PostMapping("/chat-contexts")
+    @Transactional(readOnly = true)
+    public java.util.List<ChatContext> chatContexts(
+        @Valid @RequestBody ResolveRequest request,
+        @RequestHeader("X-User-Token") String userToken
+    ) {
+        return tickets.findAllById(request.ids()).stream()
+            .map(ticket -> {
+                try {
+                    return chatContext(ticket, userToken);
+                } catch (ApiException denied) {
+                    return null;
+                }
+            })
+            .filter(java.util.Objects::nonNull)
+            .toList();
+    }
+
+    private ChatContext chatContext(
+        com.example.quanlybaotri.ticket.domain.MaintenanceTicket ticket,
+        String userToken
+    ) {
+        var user = decoder.decode(userToken);
+        String claim = user.getClaimAsString("uid");
+        if (claim == null || !"user".equals(user.getClaimAsString("token_type"))) {
+            throw ApiException.forbidden("Yêu cầu user token được chuyển tiếp");
+        }
+        UUID actor = UUID.fromString(claim);
+        java.util.List<String> roles = user.getClaimAsStringList("roles");
+        boolean elevated = roles != null && roles.stream()
+            .anyMatch(Set.of("ROLE_ADMIN", "ROLE_MANAGER")::contains);
+        boolean allowed = elevated || actor.equals(ticket.getRequesterId()) || actor.equals(ticket.getAssigneeId());
+        if (!allowed) throw ApiException.forbidden("Không có quyền truy cập trao đổi của phiếu");
+        boolean writable = !Set.of(TicketStatus.CLOSED, TicketStatus.REJECTED, TicketStatus.CANCELLED)
+            .contains(ticket.getStatus());
+        return new ChatContext(
+            ticket.getId(),
+            ticket.getCode(),
+            ticket.getTitle(),
+            ticket.getStatus(),
+            ticket.getRequesterId(),
+            ticket.getAssigneeId(),
+            writable
+        );
+    }
+
     @PostMapping("/resolve")
     @Transactional(readOnly = true)
     public java.util.List<Authorization> resolve(@Valid @RequestBody ResolveRequest request) {
@@ -130,5 +188,15 @@ public class InternalTicketController {
         TicketStatus status,
         UUID assigneeId,
         boolean allowed
+    ) {}
+
+    public record ChatContext(
+        UUID ticketId,
+        String ticketCode,
+        String ticketTitle,
+        TicketStatus status,
+        UUID requesterId,
+        UUID assigneeId,
+        boolean writable
     ) {}
 }

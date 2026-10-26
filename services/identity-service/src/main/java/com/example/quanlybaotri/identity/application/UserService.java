@@ -28,13 +28,14 @@ public class UserService {
     }
 
     public Page<UserView> list(UserAccount actor, UUID customerId, UUID siteId,
-        AccountType accountType, Pageable pageable) {
+        AccountType accountType, RegistrationStatus registrationStatus, Pageable pageable) {
         boolean manager=!isAdmin(actor);
         org.springframework.data.jpa.domain.Specification<UserAccount> filters=(root,query,cb)->{
             List<jakarta.persistence.criteria.Predicate> p=new ArrayList<>();
             if(manager) p.add(cb.equal(root.get("accountType"),AccountType.CUSTOMER));
             else if(accountType!=null) p.add(cb.equal(root.get("accountType"),accountType));
             if(customerId!=null) p.add(cb.equal(root.get("customerId"),customerId));
+            if(registrationStatus!=null) p.add(cb.equal(root.get("registrationStatus"),registrationStatus));
             if(siteId!=null) {
                 var sites=root.joinSet("siteIds",jakarta.persistence.criteria.JoinType.LEFT);
                 p.add(cb.or(cb.equal(root.get("siteScope"),SiteScope.ALL_SITES),cb.equal(sites,siteId)));
@@ -63,6 +64,8 @@ public class UserService {
     public UserView update(UserAccount actor, UUID id, UserRequest request) {
         UserAccount target=users.findWithRolesById(id).orElseThrow(()->ApiException.notFound("Không tìm thấy người dùng"));
         if(!isAdmin(actor)&&target.getAccountType()!=AccountType.CUSTOMER) throw ApiException.forbidden("Quản lý chỉ được cập nhật tài khoản khách hàng");
+        if(target.getRegistrationStatus()!=RegistrationStatus.APPROVED)
+            throw bad("REGISTRATION_REVIEW_REQUIRED","Phải duyệt tài khoản bằng quy trình duyệt đăng ký");
         authorizeManagedAccount(actor,request.accountType());
         Access access=validateAccess(request);
         Set<RoleName> requested=requestedRoles(request);
@@ -87,8 +90,37 @@ public class UserService {
     @Transactional
     public void changePassword(UUID userId,String currentPassword,String newPassword) {
         UserAccount user=users.findById(userId).orElseThrow(()->ApiException.notFound("Không tìm thấy người dùng"));
-        if(!encoder.matches(currentPassword,user.getPassword())) throw bad("INVALID_PASSWORD","Mật khẩu hiện tại không đúng");
+        if(user.hasPassword()&&(currentPassword==null||!encoder.matches(currentPassword,user.getPassword())))
+            throw bad("INVALID_PASSWORD","Mật khẩu hiện tại không đúng");
         user.changePassword(encoder.encode(newPassword),false);
+    }
+
+    @Transactional
+    public UserView approveRegistration(UserAccount actor,UUID id,UUID customerId,
+        SiteScope siteScope,Set<UUID> siteIds) {
+        UserAccount target=users.findWithRolesById(id)
+            .orElseThrow(()->ApiException.notFound("Không tìm thấy người dùng"));
+        if(!isAdmin(actor)&&target.getAccountType()!=AccountType.CUSTOMER)
+            throw ApiException.forbidden("Quản lý chỉ được duyệt tài khoản khách hàng");
+        if(target.getRegistrationStatus()==RegistrationStatus.APPROVED)
+            throw ApiException.conflict("Tài khoản đã được duyệt");
+        Access access=validateCustomerAccess(customerId,siteScope,siteIds);
+        Role requester=roles.findByName(RoleName.REQUESTER)
+            .orElseThrow(()->bad("INVALID_ROLE","Không tìm thấy vai trò REQUESTER"));
+        target.approveRegistration(access.customerId(),access.scope(),access.siteIds(),requester,actor.getId());
+        return UserView.from(target);
+    }
+
+    @Transactional
+    public UserView rejectRegistration(UserAccount actor,UUID id,String reason) {
+        UserAccount target=users.findWithRolesById(id)
+            .orElseThrow(()->ApiException.notFound("Không tìm thấy người dùng"));
+        if(!isAdmin(actor)&&target.getAccountType()!=AccountType.CUSTOMER)
+            throw ApiException.forbidden("Quản lý chỉ được từ chối tài khoản khách hàng");
+        if(target.getRegistrationStatus()==RegistrationStatus.APPROVED)
+            throw ApiException.conflict("Không thể từ chối tài khoản đã được duyệt");
+        target.rejectRegistration(reason,actor.getId());
+        return UserView.from(target);
     }
 
     @Transactional
@@ -117,6 +149,25 @@ public class UserService {
             if(!request.customerId().equals(site.customerId())) throw bad("SITE_CUSTOMER_MISMATCH","Địa điểm không thuộc khách hàng đã chọn");
         }
         return new Access(type,request.customerId(),scope,siteIds);
+    }
+
+    private Access validateCustomerAccess(UUID customerId,SiteScope requestedScope,Set<UUID> requestedSiteIds) {
+        if(customerId==null) throw bad("CUSTOMER_REQUIRED","Tài khoản khách hàng phải thuộc một khách hàng");
+        SiteScope scope=requestedScope==null?SiteScope.SELECTED_SITES:requestedScope;
+        Set<UUID> siteIds=requestedSiteIds==null?Set.of():Set.copyOf(requestedSiteIds);
+        var customer=organizations.findCustomer(customerId);
+        if(!customer.active()) throw ApiException.conflict("Khách hàng đã ngừng hoạt động");
+        if(scope==SiteScope.SELECTED_SITES&&siteIds.isEmpty())
+            throw bad("SITE_REQUIRED","Phải chọn ít nhất một địa điểm");
+        if(scope==SiteScope.ALL_SITES) siteIds=Set.of();
+        for(UUID siteId:siteIds) {
+            var site=organizations.find(siteId);
+            if(!site.active()||!site.customerActive())
+                throw ApiException.conflict("Khách hàng hoặc địa điểm đã ngừng hoạt động");
+            if(!customerId.equals(site.customerId()))
+                throw bad("SITE_CUSTOMER_MISMATCH","Địa điểm không thuộc khách hàng đã chọn");
+        }
+        return new Access(AccountType.CUSTOMER,customerId,scope,siteIds);
     }
 
     private Set<RoleName> requestedRoles(UserRequest request) {

@@ -1,0 +1,360 @@
+<div class="page ticket-list-page">
+  <header class="page-head">
+    <div>
+      <p class="eyebrow">YÊU CẦU BẢO TRÌ</p>
+      <h1>Phiếu sửa chữa</h1>
+      <p class="muted">Theo dõi tiến độ, SLA và người phụ trách trong từng yêu cầu.</p>
+    </div>
+    <div class="ticket-page-actions">
+      <button
+        type="button"
+        class="secondary ticket-export-button"
+        [disabled]="exporting()"
+        title="Xuất toàn bộ kết quả đang lọc"
+        (click)="exportTickets()"
+      >
+        <span aria-hidden="true">⇩</span>
+        {{ exporting() ? 'Đang xuất...' : 'Xuất Excel' }}
+      </button>
+      @if (auth.hasAny(['REQUESTER', 'ADMIN', 'MANAGER'])) {
+        <a class="primary button" routerLink="/tickets/new">+ Tạo phiếu mới</a>
+      }
+    </div>
+  </header>
+
+  @if (exportError()) {
+    <div class="ticket-export-error" role="alert">
+      <span>{{ exportError() }}</span>
+      <button type="button" aria-label="Đóng thông báo" (click)="exportError.set('')">×</button>
+    </div>
+  }
+
+  <section class="ticket-overview" aria-label="Tổng quan phiếu bảo trì">
+    @for (card of overviewCards; track card.view) {
+      <button
+        type="button"
+        class="ticket-kpi"
+        [class.active]="view === card.view"
+        [class.danger-card]="card.view === 'OVERDUE'"
+        [attr.aria-pressed]="view === card.view"
+        (click)="selectView(card.view)"
+      >
+        <span class="ticket-kpi-icon" aria-hidden="true">{{ card.icon }}</span>
+        <span>
+          <small>{{ card.label }}</small>
+          @if (summaryLoading()) {
+            <i class="ticket-count-skeleton"></i>
+          } @else {
+            <strong>{{ summaryValue(card.key) }}</strong>
+          }
+          <em>{{ card.hint }}</em>
+        </span>
+      </button>
+    }
+  </section>
+
+  <section class="panel ticket-filter-panel">
+    <div class="ticket-filter-heading">
+      <span class="ticket-filter-heading-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <path d="M4 6h16M7 12h10m-7 6h4" />
+        </svg>
+      </span>
+      <div>
+        <h2>Bộ lọc phiếu</h2>
+        <p>Tìm nhanh theo thông tin thường dùng hoặc mở thêm điều kiện nâng cao.</p>
+      </div>
+    </div>
+    <form class="ticket-filters" (ngSubmit)="applyFilters()">
+      <div class="ticket-filter-primary">
+        <label class="ticket-search">
+          <span>Tìm kiếm</span>
+          <input [(ngModel)]="q" name="q" placeholder="Mã phiếu hoặc tiêu đề..." />
+        </label>
+        <label>
+          <span>Trạng thái</span>
+          <select [(ngModel)]="status" name="status">
+            <option value="">Tất cả trạng thái</option>
+            @for (item of statuses; track item) {
+              <option [value]="item">{{ statusLabel(item) }}</option>
+            }
+          </select>
+        </label>
+        <label>
+          <span>Ưu tiên</span>
+          <select [(ngModel)]="priority" name="priority">
+            <option value="">Tất cả mức độ</option>
+            @for (item of priorities; track item) {
+              <option [value]="item">{{ priorityLabel(item) }}</option>
+            }
+          </select>
+        </label>
+        <label>
+          <span>Tình trạng SLA</span>
+          <select [(ngModel)]="view" name="view">
+            @for (item of views; track item.value) {
+              <option [value]="item.value">{{ item.label }}</option>
+            }
+          </select>
+        </label>
+        <button class="primary ticket-filter-submit" type="submit">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            aria-hidden="true"
+          >
+            <circle cx="11" cy="11" r="7" />
+            <path d="m16 16 4 4" />
+          </svg>
+          Áp dụng
+        </button>
+      </div>
+
+      <div class="ticket-filter-toolbar">
+        <button
+          class="advanced-filter-toggle"
+          type="button"
+          [attr.aria-expanded]="advancedFiltersOpen()"
+          aria-controls="ticket-advanced-filters"
+          (click)="advancedFiltersOpen.set(!advancedFiltersOpen())"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.8"
+            aria-hidden="true"
+          >
+            <path d="M4 6h16M7 12h10m-7 6h4" />
+          </svg>
+          Bộ lọc nâng cao
+          @if (advancedFilterCount()) {
+            <b>{{ advancedFilterCount() }}</b>
+          }
+          <span aria-hidden="true" [class.open]="advancedFiltersOpen()">⌄</span>
+        </button>
+        @if (hasFilters()) {
+          <button class="ticket-clear-filters" type="button" (click)="clearFilters()">
+            Xóa tất cả bộ lọc
+          </button>
+        }
+      </div>
+
+      @if (advancedFiltersOpen()) {
+        <div id="ticket-advanced-filters" class="ticket-advanced-filters">
+          <div class="ticket-advanced-heading">
+            <div>
+              <strong>Điều kiện nâng cao</strong>
+              <span>Lọc sâu theo nghiệp vụ, đơn vị và thiết bị</span>
+            </div>
+            @if (hasAdvancedFilters()) {
+              <button type="button" (click)="clearAdvancedFilters()">Đặt lại nâng cao</button>
+            }
+          </div>
+          <div class="ticket-advanced-grid">
+            <label>
+              <span>Hàng chờ nghiệp vụ</span>
+              <select [(ngModel)]="queue" name="queue">
+                <option value="">Tất cả hàng chờ</option>
+                @for (item of queues; track item.value) {
+                  <option [value]="item.value">{{ item.label }}</option>
+                }
+              </select>
+            </label>
+            <label>
+              <span>Khách hàng</span>
+              <select
+                [(ngModel)]="customerId"
+                name="customerId"
+                (ngModelChange)="siteId = ''; equipmentId = ''"
+              >
+                <option value="">Tất cả khách hàng</option>
+                @for (customer of customers(); track customer.id) {
+                  <option [value]="customer.id">{{ customer.name }}</option>
+                }
+              </select>
+            </label>
+            <label>
+              <span>Địa điểm</span>
+              <select [(ngModel)]="siteId" name="siteId" (ngModelChange)="equipmentId = ''">
+                <option value="">Tất cả địa điểm</option>
+                @for (site of filteredSites(); track site.id) {
+                  <option [value]="site.id">{{ site.name }}</option>
+                }
+              </select>
+            </label>
+            <label>
+              <span>Thiết bị</span>
+              <select [(ngModel)]="equipmentId" name="equipmentId">
+                <option value="">Tất cả thiết bị</option>
+                @for (item of filteredEquipment(); track item.id) {
+                  <option [value]="item.id">{{ item.assetCode }} · {{ item.name }}</option>
+                }
+              </select>
+            </label>
+            <label>
+              <span>Loại thiết bị</span>
+              <select [(ngModel)]="equipmentCategoryId" name="equipmentCategoryId">
+                <option value="">Tất cả loại thiết bị</option>
+                @for (item of equipmentCategories(); track item.id) {
+                  <option [value]="item.id">{{ item.name }}</option>
+                }
+              </select>
+            </label>
+            <label>
+              <span>Kỹ thuật viên</span>
+              <select [(ngModel)]="technicianId" name="technicianId">
+                <option value="">Tất cả kỹ thuật viên</option>
+                @for (item of technicians(); track item.id) {
+                  <option [value]="item.id">{{ item.fullName }}</option>
+                }
+              </select>
+            </label>
+            <label>
+              <span>Bảo hành</span>
+              <select [(ngModel)]="warrantyStatus" name="warrantyStatus">
+                <option value="">Tất cả tình trạng</option>
+                <option value="IN_WARRANTY">Còn bảo hành</option>
+                <option value="OUT_OF_WARRANTY">Hết bảo hành</option>
+                <option value="UNKNOWN">Chưa rõ</option>
+              </select>
+            </label>
+          </div>
+        </div>
+      }
+    </form>
+  </section>
+
+  <section class="panel ticket-results-panel" aria-labelledby="ticket-results-title">
+    <div class="ticket-results-head">
+      <div>
+        <h2 id="ticket-results-title">Danh sách phiếu</h2>
+        @if (page(); as result) {
+          <p>{{ result.totalElements }} kết quả phù hợp · 10 phiếu mỗi trang</p>
+        } @else {
+          <p>Đang cập nhật dữ liệu...</p>
+        }
+      </div>
+      @if (hasFilters()) {
+        <span class="filter-active">Đang áp dụng bộ lọc</span>
+      }
+    </div>
+
+    @if (error()) {
+      <div class="ticket-error" role="alert">
+        <div>
+          <strong>Không thể tải danh sách phiếu</strong>
+          <p>{{ error() }}</p>
+        </div>
+        <button type="button" class="secondary" (click)="retry()">Thử lại</button>
+      </div>
+    } @else if (loading()) {
+      <div class="ticket-list-skeleton" aria-label="Đang tải danh sách">
+        @for (row of skeletonRows; track row) {
+          <div><i></i><i></i><i></i><i></i></div>
+        }
+      </div>
+    } @else if (page()?.content?.length) {
+      <div class="table-wrap ticket-desktop">
+        <table class="ticket-table">
+          <thead>
+            <tr>
+              <th>Mã phiếu</th>
+              <th>Thiết bị / Nội dung</th>
+              <th>Ưu tiên</th>
+              <th>Trạng thái</th>
+              <th>Phụ trách</th>
+              <th>SLA xử lý</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (ticket of page()!.content; track ticket.id) {
+              <tr [routerLink]="['/tickets', ticket.id]" tabindex="0">
+                <td>
+                  <b class="code">{{ ticket.code }}</b>
+                  <small>{{ ticket.submittedAt | date: 'dd/MM/yyyy HH:mm' }}</small>
+                </td>
+                <td>
+                  <b>{{ ticket.title }}</b>
+                  <small>{{ ticket.equipmentCode }} · {{ ticket.equipmentName }}</small>
+                </td>
+                <td>
+                  <span [class]="'priority ' + ticket.priority.toLowerCase()">
+                    {{ priorityLabel(ticket.priority) }}
+                  </span>
+                </td>
+                <td>
+                  <span [class]="'status ' + ticket.status.toLowerCase()">
+                    {{ statusLabel(ticket.status) }}
+                  </span>
+                </td>
+                <td>
+                  <span class="assignee-name">{{ ticket.assigneeName || 'Chưa phân công' }}</span>
+                </td>
+                <td>
+                  <div [class]="'sla-indicator ' + slaState(ticket).toLowerCase()">
+                    <b>{{ slaLabel(ticket) }}</b>
+                    <span>{{ slaTime(ticket) }}</span>
+                    <small>Hạn {{ ticket.resolutionDueAt | date: 'dd/MM/yyyy HH:mm' }}</small>
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <div class="ticket-mobile" aria-label="Danh sách phiếu bảo trì">
+        @for (ticket of page()!.content; track ticket.id) {
+          <a class="ticket-card" [routerLink]="['/tickets', ticket.id]">
+            <div class="ticket-card-head">
+              <div>
+                <b class="code">{{ ticket.code }}</b>
+                <small>{{ ticket.submittedAt | date: 'dd/MM/yyyy HH:mm' }}</small>
+              </div>
+              <span [class]="'priority ' + ticket.priority.toLowerCase()">
+                {{ priorityLabel(ticket.priority) }}
+              </span>
+            </div>
+            <h3>{{ ticket.title }}</h3>
+            <p>{{ ticket.equipmentCode }} · {{ ticket.equipmentName }}</p>
+            <div class="ticket-card-meta">
+              <span [class]="'status ' + ticket.status.toLowerCase()">
+                {{ statusLabel(ticket.status) }}
+              </span>
+              <span>{{ ticket.assigneeName || 'Chưa phân công' }}</span>
+            </div>
+            <div [class]="'ticket-card-sla ' + slaState(ticket).toLowerCase()">
+              <span>{{ slaLabel(ticket) }}</span>
+              <b>{{ slaTime(ticket) }}</b>
+            </div>
+          </a>
+        }
+      </div>
+
+      @if (page()!.totalPages > 1) {
+        <app-pagination
+          class="ticket-list-pagination"
+          [totalItems]="page()!.totalElements"
+          [page]="page()!.number"
+          [pageSize]="pageSize"
+          itemLabel="phiếu"
+          (pageChange)="goToPage($event)"
+        />
+      }
+    } @else {
+      <div class="ticket-empty">
+        <span aria-hidden="true">⌕</span>
+        <h3>Chưa có phiếu phù hợp</h3>
+        <p>Hãy thử thay đổi bộ lọc hoặc từ khóa tìm kiếm.</p>
+        @if (hasFilters()) {
+          <button type="button" class="secondary" (click)="clearFilters()">Xóa bộ lọc</button>
+        } @else if (auth.hasAny(['REQUESTER', 'ADMIN', 'MANAGER'])) {
+          <a class="primary button" routerLink="/tickets/new">Tạo phiếu đầu tiên</a>
+        }
+      </div>
+    }
+  </section>
+</div>

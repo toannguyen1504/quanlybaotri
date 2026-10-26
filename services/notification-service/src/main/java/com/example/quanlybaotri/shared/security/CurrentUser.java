@@ -2,6 +2,8 @@ package com.example.quanlybaotri.shared.security;
 
 import com.example.quanlybaotri.shared.api.ApiException;
 import java.util.UUID;
+import java.util.Set;
+import java.util.stream.Collectors;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.stereotype.Component;
@@ -18,8 +20,13 @@ public class CurrentUser {
         if (
             uid == null || !"user".equals(token.getToken().getClaimAsString("token_type"))
         ) throw ApiException.forbidden("Yêu cầu user token");
-        return new Actor(UUID.fromString(uid), token.getName());
+        return new Actor(
+            UUID.fromString(uid),
+            token.getName(),
+            token.getAuthorities().stream().map(a -> a.getAuthority()).collect(Collectors.toSet()),
+            token.getToken().getTokenValue()
+        );
     }
 
-    public record Actor(UUID id, String username) {}
+    public record Actor(UUID id, String username, Set<String> roles, String token) {}
 }

@@ -1,14 +1,39 @@
+import { isPlatformBrowser } from '@angular/common';
 import { HttpClient, HttpErrorResponse, HttpInterceptorFn } from '@angular/common/http';
-import { computed, inject, Injectable, signal } from '@angular/core';
+import { computed, inject, Injectable, PLATFORM_ID, signal } from '@angular/core';
 import { CanActivateFn, Router } from '@angular/router';
-import { catchError, switchMap, tap, throwError } from 'rxjs';
+import { catchError, map, switchMap, tap, throwError } from 'rxjs';
 import { Role, User } from './models';
 
-interface Tokens {
+export interface Tokens {
   accessToken: string;
   refreshToken: string;
   accessExpiresAt: string;
   refreshExpiresAt: string;
+}
+export interface AuthConfig {
+  googleEnabled: boolean;
+  googleClientId?: string;
+  registrationEnabled: boolean;
+}
+export interface RegistrationRequest {
+  fullName: string;
+  email: string;
+  phone?: string;
+  password: string;
+  organizationName: string;
+  note?: string;
+}
+export interface RegistrationResult {
+  status: 'PENDING';
+  email: string;
+  message: string;
+}
+export interface GoogleAuthResult {
+  status: 'AUTHENTICATED' | 'PENDING' | 'REJECTED';
+  tokens?: Tokens;
+  message?: string;
+  rejectionReason?: string;
 }
 @Injectable({ providedIn: 'root' })
 export class AuthService {
@@ -27,6 +52,27 @@ export class AuthService {
       tap((t) => this.store(t)),
       switchMap(() => this.loadMe()),
     );
+  }
+  config() {
+    return this.http.get<AuthConfig>(this.base + '/config');
+  }
+  register(request: RegistrationRequest) {
+    return this.http.post<RegistrationResult>(this.base + '/register', request);
+  }
+  google(
+    credential: string,
+    mode: 'LOGIN' | 'REGISTER',
+    context: { phone?: string; organizationName?: string; note?: string } = {},
+  ) {
+    return this.http
+      .post<GoogleAuthResult>(this.base + '/google', { credential, mode, ...context })
+      .pipe(
+        switchMap((result) => {
+          if (result.status !== 'AUTHENTICATED' || !result.tokens) return [result];
+          this.store(result.tokens);
+          return this.loadMe().pipe(map(() => result));
+        }),
+      );
   }
   loadMe() {
     return this.http.get<User>(this.base + '/me').pipe(tap((u) => this.updateCurrentUser(u)));
@@ -78,7 +124,13 @@ export class AuthService {
 }
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const auth = inject(AuthService);
-  const anonymous = req.url.endsWith('/auth/login') || req.url.endsWith('/auth/refresh');
+  const anonymous = [
+    '/auth/login',
+    '/auth/refresh',
+    '/auth/register',
+    '/auth/google',
+    '/auth/config',
+  ].some((path) => req.url.endsWith(path));
   const token = auth.token();
   const sent =
     !anonymous && token ? req.clone({ setHeaders: { Authorization: `Bearer ${token}` } }) : req;
@@ -102,6 +154,13 @@ export const authGuard: CanActivateFn = () => {
   const auth = inject(AuthService);
   const router = inject(Router);
   return auth.authenticated() || router.createUrlTree(['/login']);
+};
+export const guestGuard: CanActivateFn = () => {
+  const platformId = inject(PLATFORM_ID);
+  if (!isPlatformBrowser(platformId)) return true;
+  const auth = inject(AuthService);
+  const router = inject(Router);
+  return !auth.authenticated() || router.createUrlTree(['/tickets']);
 };
 export const roleGuard: CanActivateFn = (route) => {
   const auth = inject(AuthService);

@@ -1,0 +1,418 @@
+<div
+  class="app-shell"
+  [class.sidebar-collapsed]="collapsed()"
+  [class.mobile-menu-open]="mobileOpen()"
+  [attr.data-accent-theme]="accentTheme()"
+>
+  @if (mobileOpen()) {
+    <button
+      type="button"
+      class="sidebar-backdrop"
+      aria-label="Đóng menu điều hướng"
+      (click)="closeMobile()"
+    ></button>
+  }
+
+  <aside class="sidebar" [attr.aria-label]="collapsed() ? 'Menu thu gọn' : 'Menu chính'">
+    <div class="sidebar-brand">
+      <span class="brand-mark">BT</span>
+      <div class="brand-copy">
+        <b>Bảo trì</b>
+        <small>Thiết bị doanh nghiệp</small>
+      </div>
+      <button
+        type="button"
+        class="sidebar-mobile-close"
+        aria-label="Đóng menu"
+        (click)="closeMobile()"
+      >
+        ×
+      </button>
+    </div>
+
+    <button
+      type="button"
+      class="sidebar-toggle"
+      [attr.aria-label]="collapsed() ? 'Mở rộng thanh bên' : 'Thu gọn thanh bên'"
+      [attr.aria-expanded]="!collapsed()"
+      (click)="toggleCollapsed()"
+    >
+      <span aria-hidden="true">{{ collapsed() ? '›' : '‹' }}</span>
+    </button>
+
+    <div class="sidebar-section-label">Điều hướng</div>
+    <nav>
+      @if (auth.hasAny(['ADMIN', 'MANAGER'])) {
+        <a
+          routerLink="/dashboard"
+          routerLinkActive="active"
+          aria-label="Tổng quan"
+          data-label="Tổng quan"
+          (click)="closeMobile()"
+        >
+          <span class="nav-icon overview" aria-hidden="true">▦</span
+          ><span class="nav-label">Tổng quan</span>
+        </a>
+      }
+      <a
+        routerLink="/tickets"
+        routerLinkActive="active"
+        aria-label="Phiếu bảo trì"
+        data-label="Phiếu bảo trì"
+        (click)="closeMobile()"
+      >
+        <span class="nav-icon" aria-hidden="true">▤</span
+        ><span class="nav-label">Phiếu bảo trì</span>
+      </a>
+      <a
+        routerLink="/equipment"
+        routerLinkActive="active"
+        aria-label="Thiết bị"
+        data-label="Thiết bị"
+        (click)="closeMobile()"
+      >
+        <span class="nav-icon" aria-hidden="true">◇</span><span class="nav-label">Thiết bị</span>
+      </a>
+      @if (auth.hasAny(['ADMIN', 'MANAGER', 'TECHNICIAN'])) {
+        <a
+          routerLink="/parts"
+          routerLinkActive="active"
+          aria-label="Linh kiện"
+          data-label="Linh kiện"
+          (click)="closeMobile()"
+        >
+          <span class="nav-icon" aria-hidden="true">⬡</span><span class="nav-label">Linh kiện</span>
+        </a>
+      }
+      @if (auth.hasAny(['ADMIN', 'MANAGER'])) {
+        <a
+          routerLink="/users"
+          routerLinkActive="active"
+          aria-label="Người dùng"
+          data-label="Người dùng"
+          (click)="closeMobile()"
+        >
+          <span class="nav-icon" aria-hidden="true">♙</span
+          ><span class="nav-label">Người dùng</span>
+        </a>
+        <a
+          routerLink="/settings"
+          routerLinkActive="active"
+          aria-label="Cấu hình"
+          data-label="Cấu hình"
+          (click)="closeMobile()"
+        >
+          <span class="nav-icon" aria-hidden="true">⚙</span><span class="nav-label">Cấu hình</span>
+        </a>
+      }
+      @if (auth.hasAny(['ADMIN', 'MANAGER'])) {
+        <a
+          routerLink="/reports"
+          routerLinkActive="active"
+          aria-label="Báo cáo thống kê"
+          data-label="Báo cáo thống kê"
+          (click)="closeMobile()"
+        >
+          <span class="nav-icon" aria-hidden="true">▥</span
+          ><span class="nav-label">Báo cáo thống kê</span>
+        </a>
+      }
+      @if (auth.hasAny(['ADMIN', 'MANAGER', 'REQUESTER'])) {
+        <a
+          routerLink="/payments"
+          routerLinkActive="active"
+          aria-label="Quản lý thanh toán"
+          data-label="Quản lý thanh toán"
+          (click)="closeMobile()"
+        >
+          <span class="nav-icon" aria-hidden="true">₫</span
+          ><span class="nav-label">Quản lý thanh toán</span>
+        </a>
+      }
+      <a
+        routerLink="/notifications"
+        routerLinkActive="active"
+        aria-label="Thông báo"
+        data-label="Thông báo"
+        (click)="closeMobile()"
+      >
+        <span class="nav-icon" aria-hidden="true">◉</span><span class="nav-label">Thông báo</span>
+      </a>
+      <a
+        routerLink="/messages"
+        routerLinkActive="active"
+        aria-label="Tin nhắn"
+        data-label="Tin nhắn"
+        (click)="closeMobile()"
+      >
+        <span class="nav-icon" aria-hidden="true">✉</span><span class="nav-label">Tin nhắn</span>
+        @if (chat.unreadCount()) {
+          <span class="chat-nav-badge">{{ chat.unreadCount() }}</span>
+        }
+      </a>
+      @if (auth.hasAny(['REQUESTER'])) {
+        <a
+          routerLink="/feedback"
+          routerLinkActive="active"
+          aria-label="Phản hồi hệ thống"
+          data-label="Phản hồi hệ thống"
+          (click)="closeMobile()"
+        >
+          <span class="nav-icon" aria-hidden="true">✦</span
+          ><span class="nav-label">Phản hồi hệ thống</span>
+        </a>
+      }
+      @if (auth.hasAny(['ADMIN', 'MANAGER'])) {
+        <a
+          routerLink="/feedback-management"
+          routerLinkActive="active"
+          aria-label="Quản lý phản hồi"
+          data-label="Quản lý phản hồi"
+          (click)="closeMobile()"
+        >
+          <span class="nav-icon" aria-hidden="true">✦</span
+          ><span class="nav-label">Quản lý phản hồi</span>
+        </a>
+      }
+      <a
+        routerLink="/profile"
+        routerLinkActive="active"
+        aria-label="Tài khoản"
+        data-label="Tài khoản"
+        (click)="closeMobile()"
+      >
+        <span class="nav-icon" aria-hidden="true">○</span><span class="nav-label">Tài khoản</span>
+      </a>
+    </nav>
+
+    <div class="sidebar-profile">
+      <div class="sidebar-avatar">{{ initials() }}</div>
+      <div class="sidebar-profile-copy">
+        <b>{{ auth.user()?.fullName || 'Tài khoản' }}</b>
+        <small>{{ primaryRole() }}</small>
+      </div>
+      <button type="button" class="sidebar-logout" aria-label="Đăng xuất" (click)="logout()">
+        <span aria-hidden="true">↪</span>
+      </button>
+    </div>
+  </aside>
+
+  <main>
+    <header class="app-header">
+      <div class="header-context">
+        <button
+          type="button"
+          class="mobile-menu-button"
+          aria-label="Mở menu điều hướng"
+          [attr.aria-expanded]="mobileOpen()"
+          (click)="openMobile()"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M4 7h16M4 12h16M4 17h16" />
+          </svg>
+        </button>
+        <div class="header-title">
+          <span>Hệ thống bảo trì</span>
+          <h1>{{ pageTitle() }}</h1>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <button
+          type="button"
+          class="header-icon-button theme-toggle"
+          [attr.aria-label]="'Đổi màu chủ đạo. Màu hiện tại: ' + accentThemeLabel()"
+          [attr.title]="'Đổi màu chủ đạo · ' + accentThemeLabel()"
+          (click)="cycleAccentTheme()"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              d="M12 3a9 9 0 1 0 0 18h1.4a2 2 0 0 0 1.2-3.6l-.5-.4a1.7 1.7 0 0 1 1-3h2.2A3.7 3.7 0 0 0 21 10.3 9 9 0 0 0 12 3Z"
+            />
+            <circle cx="8" cy="9" r="1.35" fill="#c81e1e" stroke="none" />
+            <circle cx="12" cy="7" r="1.35" fill="#2563eb" stroke="none" />
+            <circle cx="16" cy="9" r="1.35" fill="#0f8a6a" stroke="none" />
+          </svg>
+        </button>
+        <a
+          class="header-icon-button"
+          routerLink="/messages"
+          aria-label="Mở tin nhắn"
+          title="Tin nhắn"
+          (click)="closeHeaderMenus()"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M8 19l-4 2v-5a8 8 0 1 1 4 3Z" />
+            <path d="M8 10h8M8 14h5" />
+          </svg>
+          @if (chat.unreadCount()) {
+            <span class="header-badge">{{
+              notificationCenter.badgeLabel(chat.unreadCount())
+            }}</span>
+          }
+        </a>
+
+        <div class="header-menu-root">
+          <button
+            type="button"
+            class="header-icon-button"
+            aria-label="Mở thông báo"
+            title="Thông báo"
+            [class.active]="activeHeaderMenu() === 'notifications'"
+            [attr.aria-expanded]="activeHeaderMenu() === 'notifications'"
+            aria-haspopup="dialog"
+            (click)="toggleHeaderMenu('notifications')"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9Z" />
+              <path d="M10 21h4" />
+            </svg>
+            @if (notificationCenter.unreadCount()) {
+              <span class="header-badge">
+                {{ notificationCenter.badgeLabel(notificationCenter.unreadCount()) }}
+              </span>
+            }
+          </button>
+
+          @if (activeHeaderMenu() === 'notifications') {
+            <section class="header-dropdown notification-dropdown" aria-label="Thông báo gần đây">
+              <div class="dropdown-heading">
+                <div>
+                  <strong>Thông báo</strong>
+                  <span>{{ notificationCenter.unreadCount() }} chưa đọc</span>
+                </div>
+                <button
+                  type="button"
+                  [disabled]="
+                    notificationCenter.unreadCount() === 0 || notificationCenter.markingAll()
+                  "
+                  (click)="notificationCenter.markAllRead()"
+                >
+                  {{ notificationCenter.markingAll() ? 'Đang cập nhật...' : 'Đánh dấu đã đọc' }}
+                </button>
+              </div>
+
+              <div class="notification-preview-list">
+                @if (notificationCenter.previewLoading()) {
+                  @for (row of [1, 2, 3]; track row) {
+                    <div class="notification-preview-skeleton"><i></i><span></span></div>
+                  }
+                } @else if (notificationCenter.previewError()) {
+                  <div class="dropdown-state error-state">
+                    <span>Không thể tải thông báo.</span>
+                    <button type="button" (click)="notificationCenter.loadPreview()">
+                      Thử lại
+                    </button>
+                  </div>
+                } @else if (notificationCenter.previewNotifications().length) {
+                  @for (
+                    notification of notificationCenter.previewNotifications();
+                    track notification.id
+                  ) {
+                    <button
+                      type="button"
+                      class="notification-preview-item"
+                      [class.unread]="!notification.readAt"
+                      (click)="openNotification(notification)"
+                    >
+                      <span class="preview-status" aria-hidden="true"></span>
+                      <span class="preview-copy">
+                        <strong>{{ notification.title }}</strong>
+                        <span>{{ notification.message }}</span>
+                        <time [attr.datetime]="notification.createdAt">
+                          {{ notification.createdAt | date: 'dd/MM · HH:mm' }}
+                        </time>
+                      </span>
+                    </button>
+                  }
+                } @else {
+                  <div class="dropdown-state">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="m7 12 3 3 7-7" />
+                      <circle cx="12" cy="12" r="9" />
+                    </svg>
+                    <strong>Bạn đã xem hết thông báo</strong>
+                    <span>Thông tin mới sẽ xuất hiện tại đây.</span>
+                  </div>
+                }
+              </div>
+
+              <a
+                class="dropdown-footer-link"
+                routerLink="/notifications"
+                (click)="closeHeaderMenus()"
+              >
+                Xem tất cả thông báo
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>
+              </a>
+            </section>
+          }
+        </div>
+
+        <div class="header-menu-root account-menu-root">
+          <button
+            type="button"
+            class="header-account-button"
+            [class.active]="activeHeaderMenu() === 'account'"
+            [attr.aria-expanded]="activeHeaderMenu() === 'account'"
+            aria-haspopup="menu"
+            (click)="toggleHeaderMenu('account')"
+          >
+            <span class="header-avatar">{{ initials() }}</span>
+            <span class="header-account-copy">
+              <b>{{ auth.user()?.fullName || 'Tài khoản' }}</b>
+              <small>{{ primaryRole() }}</small>
+            </span>
+            <svg class="account-chevron" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="m8 10 4 4 4-4" />
+            </svg>
+          </button>
+
+          @if (activeHeaderMenu() === 'account') {
+            <section class="header-dropdown account-dropdown" aria-label="Tài khoản">
+              <div class="account-summary">
+                <span class="header-avatar large">{{ initials() }}</span>
+                <div>
+                  <strong>{{ auth.user()?.fullName || 'Tài khoản' }}</strong>
+                  <span>{{ auth.user()?.email }}</span>
+                  <small>{{ primaryRole() }}</small>
+                </div>
+              </div>
+              <div class="account-menu-links">
+                <a routerLink="/profile" (click)="closeHeaderMenus()">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <circle cx="12" cy="8" r="4" />
+                    <path d="M4 21a8 8 0 0 1 16 0" />
+                  </svg>
+                  Hồ sơ cá nhân
+                </a>
+                <button type="button" (click)="logout()">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M10 17l5-5-5-5M15 12H3M14 4h5a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-5" />
+                  </svg>
+                  Đăng xuất
+                </button>
+              </div>
+            </section>
+          }
+        </div>
+      </div>
+    </header>
+    <div class="shell-content">
+      <router-outlet />
+    </div>
+    <footer class="app-footer">
+      <div class="app-footer-brand">
+        <span aria-hidden="true">BT</span>
+        <p><b>Hệ thống bảo trì</b><small>Thiết bị doanh nghiệp</small></p>
+      </div>
+      <p class="app-footer-copy">© {{ currentYear }} VNPT Cloud</p>
+    </footer>
+  </main>
+  @if (chat.toast(); as toast) {
+    <button type="button" class="chat-toast" (click)="chat.openToast()">
+      <b>{{ toast.ticket.code }} · {{ toast.message?.sender?.fullName }}</b>
+      <span>{{ toast.message?.content }}</span>
+    </button>
+  }
+</div>

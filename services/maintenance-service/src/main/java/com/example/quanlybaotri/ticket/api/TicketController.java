@@ -9,6 +9,8 @@ import com.example.quanlybaotri.ticket.domain.*;
 import com.example.quanlybaotri.cost.domain.CostStatus;
 import com.example.quanlybaotri.cost.domain.TicketCostSummary;
 import com.example.quanlybaotri.organization.client.OrganizationClient;
+import com.example.quanlybaotri.payment.client.PaymentClient.PaymentSnapshot;
+import com.example.quanlybaotri.payment.client.TicketPaymentStatus;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 import java.math.BigDecimal;
@@ -185,8 +187,16 @@ public class TicketController {
     }
 
     @PostMapping("/{id}/close")
-    public TicketView close(@PathVariable UUID id, @RequestBody(required = false) ReasonRequest r) {
-        return service.close(id, r == null ? null : r.reason(), current.require());
+    public TicketView close(
+        @PathVariable UUID id,
+        @Valid @RequestBody(required = false) CloseTicketRequest r
+    ) {
+        return service.close(
+            id,
+            r == null ? null : r.reason(),
+            r == null ? null : r.feedback(),
+            current.require()
+        );
     }
 
     @PostMapping("/{id}/priority")
@@ -222,6 +232,20 @@ public class TicketController {
 
     public record ReasonRequest(@NotBlank @Size(max = 5000) String reason) {}
 
+    public record CloseTicketRequest(
+        @Size(max = 5000) String reason,
+        @Valid FeedbackRequest feedback
+    ) {}
+
+    public record FeedbackRequest(
+        @Min(1) @Max(5) Integer rating,
+        @Size(max = 5000) String comment
+    ) {
+        public boolean provided() {
+            return rating != null || (comment != null && !comment.isBlank());
+        }
+    }
+
     public record AssignRequest(@NotNull UUID technicianId, @Size(max = 500) String reason, boolean outsideRegionConfirmed) {}
 
     public record PriorityRequest(@NotNull TicketPriority priority) {}
@@ -232,6 +256,17 @@ public class TicketController {
     ) {}
 
     public record TicketSummaryView(long total, long open, long dueSoon, long overdue) {}
+
+    public record TicketFeedbackView(Integer rating, String comment, Instant submittedAt) {
+        public static TicketFeedbackView from(MaintenanceTicket ticket) {
+            if (ticket.getFeedbackSubmittedAt() == null) return null;
+            return new TicketFeedbackView(
+                ticket.getFeedbackRating(),
+                ticket.getFeedbackComment(),
+                ticket.getFeedbackSubmittedAt()
+            );
+        }
+    }
 
     public record TicketView(
         UUID id,
@@ -263,16 +298,17 @@ public class TicketController {
         Instant resolvedAt,
         Instant closedAt,
         String resolutionSummary,
+        TicketFeedbackView feedback,
         WarrantyStatus warrantyStatusAtCreation,
         Instant warrantyEndAtCreation,
         boolean costVisible,
         CostStatus costStatus,
         BigDecimal partsTotal,
-        BigDecimal laborTotal,
-        BigDecimal outsourcedTotal,
-        BigDecimal travelTotal,
         BigDecimal otherTotal,
         BigDecimal grandTotal,
+        TicketPaymentStatus paymentStatus,
+        BigDecimal amountDue,
+        Instant paidAt,
         long version
     ) {
         public static TicketView from(
@@ -281,7 +317,8 @@ public class TicketController {
             Map<UUID, IdentityClient.UserRef> users,
             OrganizationClient.DepartmentRef department,
             TicketCostSummary costs,
-            boolean costVisible
+            boolean costVisible,
+            PaymentSnapshot payment
         ) {
             IdentityClient.UserRef requester = users.get(t.getRequesterId()),
                 createdBy = users.get(t.getCreatedById()),
@@ -316,16 +353,17 @@ public class TicketController {
                 t.getResolvedAt(),
                 t.getClosedAt(),
                 t.getResolutionSummary(),
+                TicketFeedbackView.from(t),
                 t.getWarrantyStatusAtCreation(),
                 t.getWarrantyEndAtCreation(),
                 costVisible,
                 costVisible ? (costs == null ? CostStatus.DRAFT : costs.getStatus()) : null,
                 costVisible ? (costs == null ? BigDecimal.ZERO : costs.getPartsTotal()) : null,
-                costVisible ? (costs == null ? BigDecimal.ZERO : costs.getLaborTotal()) : null,
-                costVisible ? (costs == null ? BigDecimal.ZERO : costs.getOutsourcedTotal()) : null,
-                costVisible ? (costs == null ? BigDecimal.ZERO : costs.getTravelTotal()) : null,
                 costVisible ? (costs == null ? BigDecimal.ZERO : costs.getOtherTotal()) : null,
                 costVisible ? (costs == null ? BigDecimal.ZERO : costs.getGrandTotal()) : null,
+                payment == null ? TicketPaymentStatus.NOT_AVAILABLE : payment.status(),
+                payment == null ? null : payment.amountDue(),
+                payment == null ? null : payment.paidAt(),
                 t.getVersion()
             );
         }

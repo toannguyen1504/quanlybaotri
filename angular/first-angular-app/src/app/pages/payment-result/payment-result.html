@@ -1,0 +1,48 @@
+<section class="page payment-result-page">
+  <article class="panel payment-result-card">
+    @if (loading()) {
+      <span class="payment-result-mark pending">…</span>
+      <h1>Đang xác nhận thanh toán</h1>
+      <p>Hệ thống đang đọc trạng thái đã được VNPay xác nhận.</p>
+    } @else if (error()) {
+      <span class="payment-result-mark failed">!</span>
+      <h1>Chưa thể xác nhận giao dịch</h1>
+      <p>{{ error() }}</p>
+    } @else if (payment(); as result) {
+      @if (result.status === 'SUCCEEDED') {
+        <span class="payment-result-mark succeeded">✓</span>
+        <h1>Thanh toán thành công</h1>
+        <p>Phiếu đã đủ điều kiện thanh toán để người yêu cầu xác nhận đóng.</p>
+      } @else if (result.status === 'PENDING') {
+        <span class="payment-result-mark pending">…</span>
+        @if (checking()) {
+          <h1>Đang chờ VNPay xác nhận</h1>
+          <p>Hệ thống đang tự động kiểm tra lại trạng thái giao dịch.</p>
+        } @else {
+          <h1>Chưa nhận được xác nhận từ VNPay</h1>
+          <p>Quá trình kiểm tra tự động đã dừng. Bạn có thể tải lại hoặc liên hệ quản lý để đối soát giao dịch.</p>
+        }
+      } @else {
+        <span class="payment-result-mark failed">!</span>
+        <h1>Thanh toán chưa thành công</h1>
+        <p>Bạn có thể quay lại phiếu và thực hiện một lần thanh toán mới.</p>
+      }
+      <dl class="payment-result-summary">
+        <dt>Số tiền</dt>
+        <dd>{{ result.amountDue ?? 0 | number: '1.0-0' }} ₫</dd>
+        @if (result.paidAt) {
+          <dt>Thời gian</dt>
+          <dd>{{ result.paidAt | date: 'dd/MM/yyyy HH:mm' }}</dd>
+        }
+      </dl>
+    }
+    <div class="actions">
+      @if (ticketId) {
+        <a class="primary button-link" [routerLink]="['/tickets', ticketId]">Về phiếu bảo trì</a>
+        <button class="secondary" type="button" (click)="load()">Tải lại trạng thái</button>
+      } @else {
+        <a class="primary button-link" routerLink="/tickets">Về danh sách phiếu</a>
+      }
+    </div>
+  </article>
+</section>

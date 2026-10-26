@@ -1,0 +1,737 @@
+<div class="page users-page">
+  <header class="page-head users-page-head">
+    <div>
+      <p class="eyebrow">QUẢN TRỊ TRUY CẬP</p>
+      <h1>Người dùng hệ thống</h1>
+      <p class="muted">Quản lý tài khoản, vai trò và phạm vi truy cập trong một nơi.</p>
+    </div>
+    <button type="button" class="primary users-create-button" (click)="toggleCreateForm()">
+      <span aria-hidden="true">+</span>
+      {{ showForm() ? 'Đóng biểu mẫu' : 'Tạo tài khoản' }}
+    </button>
+  </header>
+
+  <section class="users-overview" aria-label="Tổng quan người dùng">
+    <article class="user-stat featured">
+      <span class="user-stat-icon" aria-hidden="true">ND</span>
+      <div>
+        <small>Tổng người dùng</small>
+        <strong>{{ users().length }}</strong>
+        <p>Tài khoản trong hệ thống</p>
+      </div>
+    </article>
+    <article class="user-stat">
+      <span class="user-stat-icon success" aria-hidden="true">✓</span>
+      <div>
+        <small>Đang hoạt động</small>
+        <strong>{{ activeCount() }}</strong>
+        <p>Sẵn sàng đăng nhập</p>
+      </div>
+    </article>
+    <article class="user-stat">
+      <span class="user-stat-icon warning" aria-hidden="true">!</span>
+      <div>
+        <small>Cần đổi mật khẩu</small>
+        <strong>{{ passwordChangeCount() }}</strong>
+        <p>Cần hoàn tất bảo mật</p>
+      </div>
+    </article>
+    <article class="user-stat">
+      <span class="user-stat-icon neutral" aria-hidden="true">—</span>
+      <div>
+        <small>Đã khóa</small>
+        <strong>{{ lockedCount() }}</strong>
+        <p>Không thể truy cập</p>
+      </div>
+    </article>
+  </section>
+
+  @if (message()) {
+    <div class="users-success" role="status"><span aria-hidden="true">✓</span>{{ message() }}</div>
+  }
+
+  @if (showForm()) {
+    <form class="panel users-create-panel" (ngSubmit)="save()">
+      <div class="users-section-head">
+        <span aria-hidden="true">+</span>
+        <div>
+          <h2>Tạo tài khoản mới</h2>
+          <p>Nhập thông tin nhận diện và phân quyền ban đầu cho người dùng.</p>
+        </div>
+      </div>
+
+      <div class="users-form-grid">
+        <label>
+          <span>Tên đăng nhập <i>*</i></span>
+          <input
+            name="username"
+            maxlength="80"
+            [(ngModel)]="model.username"
+            placeholder="Ví dụ: nguyen.van.a"
+            autocomplete="off"
+            required
+          />
+        </label>
+        <label>
+          <span>Họ và tên <i>*</i></span>
+          <input
+            name="fullName"
+            maxlength="150"
+            [(ngModel)]="model.fullName"
+            placeholder="Nguyễn Văn A"
+            autocomplete="name"
+            required
+          />
+        </label>
+        <label>
+          <span>Email <i>*</i></span>
+          <input
+            name="email"
+            type="email"
+            [(ngModel)]="model.email"
+            placeholder="name@company.vn"
+            autocomplete="email"
+            required
+          />
+        </label>
+        <label>
+          <span>Số điện thoại</span>
+          <input
+            name="phone"
+            maxlength="30"
+            [(ngModel)]="model.phone"
+            placeholder="Số điện thoại liên hệ"
+            autocomplete="tel"
+          />
+        </label>
+        <label>
+          <span>Mật khẩu ban đầu <i>*</i></span>
+          <input
+            name="password"
+            type="password"
+            minlength="8"
+            maxlength="100"
+            [(ngModel)]="model.password"
+            placeholder="Tối thiểu 8 ký tự"
+            autocomplete="new-password"
+            required
+          />
+          <small>Người dùng sẽ được yêu cầu đổi mật khẩu sau lần đăng nhập đầu tiên.</small>
+        </label>
+        @if (isAdmin()) {
+          <label>
+            <span>Loại tài khoản <i>*</i></span>
+            <select
+              name="accountType"
+              [(ngModel)]="model.accountType"
+              (ngModelChange)="accountTypeChanged()"
+            >
+              <option value="CUSTOMER">Khách hàng</option>
+              <option value="INTERNAL">Nội bộ</option>
+            </select>
+          </label>
+        }
+        @if (model.accountType === 'CUSTOMER') {
+          <label>
+            <span>Khách hàng <i>*</i></span>
+            <select
+              name="customerId"
+              [(ngModel)]="model.customerId"
+              (ngModelChange)="customerChanged()"
+              required
+            >
+              <option value="">Chọn khách hàng</option>
+              @for (customer of customers(); track customer.id) {
+                <option [value]="customer.id">{{ customer.name }}</option>
+              }
+            </select>
+          </label>
+          <label>
+            <span>Phạm vi địa điểm <i>*</i></span>
+            <select name="siteScope" [(ngModel)]="model.siteScope">
+              <option value="ALL_SITES">Tất cả địa điểm</option>
+              <option value="SELECTED_SITES">Các địa điểm được chọn</option>
+            </select>
+          </label>
+          @if (model.siteScope === 'SELECTED_SITES') {
+            <label>
+              <span>Địa điểm được cấp quyền <i>*</i></span>
+              <select name="siteIds" [(ngModel)]="model.siteIds" multiple required>
+                @for (site of formSites(); track site.id) {
+                  <option [value]="site.id">{{ site.name }}</option>
+                }
+              </select>
+              <small>Giữ Ctrl/Cmd để chọn nhiều địa điểm.</small>
+            </label>
+          }
+        }
+      </div>
+
+      @if (model.accountType === 'INTERNAL') {
+        <fieldset class="users-role-picker">
+          <legend>Vai trò và quyền truy cập</legend>
+          <div>
+            @for (role of internalRoles; track role) {
+              <label [class.selected]="model.roles.includes(role)">
+                <input
+                  type="checkbox"
+                  [checked]="model.roles.includes(role)"
+                  (change)="toggleRole(role)"
+                />
+                <span class="user-role-icon" aria-hidden="true">{{ roleInitial(role) }}</span>
+                <span>
+                  <b>{{ roleLabel(role) }}</b>
+                  <small>{{ roleDescription(role) }}</small>
+                </span>
+              </label>
+            }
+          </div>
+        </fieldset>
+        @if (model.roles.includes('TECHNICIAN')) {
+          <fieldset class="users-region-picker">
+            <legend>Khu vực phụ trách của kỹ thuật viên</legend>
+            <div class="users-form-grid">
+              <label>
+                <span>Phạm vi khu vực <i>*</i></span>
+                <select
+                  name="regionScope"
+                  [(ngModel)]="model.regionScope"
+                  (ngModelChange)="regionScopeChanged()"
+                >
+                  <option value="ALL_REGIONS">Toàn bộ khu vực</option>
+                  <option value="SELECTED_REGIONS">Các khu vực được chọn</option>
+                </select>
+              </label>
+              @if (model.regionScope === 'SELECTED_REGIONS') {
+                <label>
+                  <span>Khu vực được phân công <i>*</i></span>
+                  <select name="regionIds" [(ngModel)]="model.regionIds" multiple required>
+                    @for (region of activeRegions(); track region.id) {
+                      <option [value]="region.id">{{ region.name }} ({{ region.code }})</option>
+                    }
+                  </select>
+                  <small>Giữ Ctrl/Cmd để chọn nhiều khu vực.</small>
+                </label>
+              }
+            </div>
+          </fieldset>
+        }
+      }
+
+      @if (formError()) {
+        <div class="alert">{{ formError() }}</div>
+      }
+
+      <div class="users-form-actions">
+        <button type="button" class="secondary" (click)="closeCreateForm()">Hủy</button>
+        <button class="primary" [disabled]="saving() || model.roles.length === 0">
+          {{ saving() ? 'Đang tạo tài khoản...' : 'Tạo tài khoản' }}
+        </button>
+      </div>
+    </form>
+  }
+
+  <section class="panel users-filter-panel">
+    <div class="users-filter-head">
+      <div>
+        <h2>Tìm kiếm và lọc</h2>
+        <p>Thu hẹp danh sách theo thông tin tài khoản hoặc quyền truy cập.</p>
+      </div>
+      @if (hasFilters()) {
+        <button type="button" class="users-clear-filter" (click)="clearFilters()">
+          Xóa bộ lọc
+        </button>
+      }
+    </div>
+    <div class="users-filters">
+      <label class="users-search">
+        <span>Tìm kiếm</span>
+        <div>
+          <i aria-hidden="true">⌕</i>
+          <input
+            name="userSearch"
+            [(ngModel)]="query"
+            (ngModelChange)="resetPage()"
+            placeholder="Tên, tài khoản hoặc email..."
+          />
+        </div>
+      </label>
+      <label>
+        <span>Vai trò</span>
+        <select name="roleFilter" [(ngModel)]="roleFilter" (ngModelChange)="resetPage()">
+          <option value="">Tất cả vai trò</option>
+          @for (role of allRoles; track role) {
+            <option [value]="role">{{ roleLabel(role) }}</option>
+          }
+        </select>
+      </label>
+      <label>
+        <span>Khách hàng</span>
+        <select
+          name="branchFilter"
+          [(ngModel)]="branchFilter"
+          (ngModelChange)="departmentFilter = ''; resetPage()"
+        >
+          <option value="">Tất cả khách hàng</option>
+          @for (branch of branches(); track branch.id) {
+            <option [value]="branch.id">{{ branch.name }}</option>
+          }
+        </select>
+      </label>
+      <label>
+        <span>Khu vực kỹ thuật viên</span>
+        <select name="regionFilter" [(ngModel)]="regionFilter" (ngModelChange)="resetPage()">
+          <option value="">Tất cả khu vực</option>
+          <option value="ALL_REGIONS">Toàn bộ khu vực</option>
+          <option value="UNASSIGNED">Chưa phân vùng</option>
+          @for (region of regions(); track region.id) {
+            <option [value]="region.id">{{ region.name }}</option>
+          }
+        </select>
+      </label>
+      <label>
+        <span>Địa điểm</span>
+        <select
+          name="departmentFilter"
+          [(ngModel)]="departmentFilter"
+          (ngModelChange)="resetPage()"
+        >
+          <option value="">Tất cả địa điểm</option>
+          @for (department of filteredDepartments(); track department.id) {
+            <option [value]="department.id">{{ department.name }}</option>
+          }
+        </select>
+      </label>
+      <label>
+        <span>Trạng thái</span>
+        <select name="statusFilter" [(ngModel)]="statusFilter" (ngModelChange)="resetPage()">
+          <option value="ALL">Tất cả trạng thái</option>
+          <option value="ACTIVE">Đang hoạt động</option>
+          <option value="LOCKED">Đã khóa</option>
+          <option value="PENDING">Chờ duyệt</option>
+          <option value="REJECTED">Đã từ chối</option>
+        </select>
+      </label>
+    </div>
+  </section>
+
+  <div class="users-results-head">
+    <div>
+      <h2>Danh sách người dùng</h2>
+      <p>
+        Hiển thị <b>{{ filteredUsers().length }}</b> trên {{ users().length }} tài khoản
+      </p>
+    </div>
+    <button type="button" class="secondary users-refresh" [disabled]="loading()" (click)="load()">
+      <span aria-hidden="true">↻</span> Làm mới
+    </button>
+  </div>
+
+  @if (loadError()) {
+    <section class="users-load-error" role="alert">
+      <span aria-hidden="true">!</span>
+      <div>
+        <strong>Không thể tải danh sách người dùng</strong>
+        <p>{{ loadError() }}</p>
+      </div>
+      <button type="button" class="secondary" (click)="load()">Thử lại</button>
+    </section>
+  } @else if (loading()) {
+    <section class="panel users-skeleton" aria-label="Đang tải danh sách người dùng">
+      @for (row of skeletonRows; track row) {
+        <div>
+          <i></i><span><i></i><i></i></span><i></i><i></i><i></i>
+        </div>
+      }
+    </section>
+  } @else if (filteredUsers().length) {
+    <section class="panel users-table-wrap users-desktop">
+      <table class="users-table">
+        <thead>
+          <tr>
+            <th>Người dùng</th>
+            <th>Liên hệ</th>
+            <th>Phạm vi truy cập</th>
+            <th>Vai trò</th>
+            <th>Bảo mật</th>
+            <th>Trạng thái</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (user of pagedUsers(); track user.id) {
+            <tr>
+              <td>
+                <div class="user-identity">
+                  <span>{{ initials(user.fullName) }}</span>
+                  <div>
+                    <b>{{ user.fullName }}</b>
+                    <small>@{{ user.username }}</small>
+                  </div>
+                </div>
+              </td>
+              <td>
+                <div class="user-contact">
+                  <a [href]="'mailto:' + user.email">{{ user.email }}</a>
+                  <span>{{ user.phone || 'Chưa có số điện thoại' }}</span>
+                  @if (
+                    user.registrationStatus === 'PENDING' || user.registrationStatus === 'REJECTED'
+                  ) {
+                    <span
+                      ><b>Đơn vị:</b> {{ user.requestedOrganizationName || 'Chưa cung cấp' }}</span
+                    >
+                    @if (user.registrationNote) {
+                      <span><b>Ghi chú:</b> {{ user.registrationNote }}</span>
+                    }
+                    @if (user.rejectionReason) {
+                      <span><b>Lý do từ chối:</b> {{ user.rejectionReason }}</span>
+                    }
+                  }
+                </div>
+              </td>
+              <td>
+                <span class="user-department">{{ accessLabel(user) }}</span>
+                @if (user.roles.includes('TECHNICIAN')) {
+                  <small class="user-region-scope">{{ technicianRegionLabel(user) }}</small>
+                }
+              </td>
+              <td>
+                <div class="user-role-list">
+                  @for (role of sortedRoles(user.roles); track role) {
+                    <span [class]="'user-role ' + role.toLowerCase()">{{ roleLabel(role) }}</span>
+                  }
+                </div>
+              </td>
+              <td>
+                @if (user.mustChangePassword) {
+                  <span class="user-security pending"><i></i>Cần đổi mật khẩu</span>
+                } @else {
+                  <span class="user-security secure"><i></i>Đã thiết lập</span>
+                }
+              </td>
+              <td>
+                <span [class]="'user-state ' + (user.enabled ? 'active' : 'locked')">
+                  <i></i>{{ registrationStatusLabel(user) }}
+                </span>
+              </td>
+              <td>
+                <div class="user-row-actions">
+                  @if (
+                    user.registrationStatus === 'PENDING' || user.registrationStatus === 'REJECTED'
+                  ) {
+                    <button type="button" (click)="openApproval(user)">Duyệt</button>
+                  }
+                  @if (user.registrationStatus === 'PENDING') {
+                    <button type="button" class="danger" (click)="openRejection(user)">
+                      Từ chối
+                    </button>
+                  }
+                  @if (user.registrationStatus === 'APPROVED' || !user.registrationStatus) {
+                    @if (user.roles.includes('TECHNICIAN') && isAdmin()) {
+                      <button type="button" (click)="openRegionEditor(user)">Khu vực</button>
+                    }
+                    <button type="button" (click)="openReset(user)">Đặt mật khẩu</button>
+                    <button
+                      type="button"
+                      [class.danger]="user.enabled"
+                      [disabled]="updatingUserId() === user.id"
+                      (click)="toggle(user)"
+                    >
+                      {{
+                        updatingUserId() === user.id
+                          ? 'Đang lưu...'
+                          : user.enabled
+                            ? 'Khóa'
+                            : 'Mở khóa'
+                      }}
+                    </button>
+                  }
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </section>
+
+    <section class="users-mobile" aria-label="Danh sách người dùng">
+      @for (user of pagedUsers(); track user.id) {
+        <article class="panel user-card">
+          <div class="user-card-head">
+            <div class="user-identity">
+              <span>{{ initials(user.fullName) }}</span>
+              <div>
+                <b>{{ user.fullName }}</b>
+                <small>@{{ user.username }}</small>
+              </div>
+            </div>
+            <span [class]="'user-state ' + (user.enabled ? 'active' : 'locked')">
+              <i></i>{{ registrationStatusLabel(user) }}
+            </span>
+          </div>
+          <div class="user-card-contact">
+            <span>{{ user.email }}</span>
+            <span>{{ accessLabel(user) }}</span>
+            @if (user.registrationStatus === 'PENDING' || user.registrationStatus === 'REJECTED') {
+              <span>Đơn vị: {{ user.requestedOrganizationName || 'Chưa cung cấp' }}</span>
+              @if (user.registrationNote) {
+                <span>Ghi chú: {{ user.registrationNote }}</span>
+              }
+              @if (user.rejectionReason) {
+                <span>Lý do từ chối: {{ user.rejectionReason }}</span>
+              }
+            }
+            @if (user.roles.includes('TECHNICIAN')) {
+              <span>{{ technicianRegionLabel(user) }}</span>
+            }
+          </div>
+          <div class="user-role-list">
+            @for (role of sortedRoles(user.roles); track role) {
+              <span [class]="'user-role ' + role.toLowerCase()">{{ roleLabel(role) }}</span>
+            }
+          </div>
+          @if (user.mustChangePassword) {
+            <span class="user-security pending"><i></i>Cần đổi mật khẩu lần đầu</span>
+          }
+          <div class="user-card-actions">
+            @if (user.registrationStatus === 'PENDING' || user.registrationStatus === 'REJECTED') {
+              <button type="button" class="primary" (click)="openApproval(user)">Duyệt</button>
+            }
+            @if (user.registrationStatus === 'PENDING') {
+              <button type="button" class="danger-button" (click)="openRejection(user)">
+                Từ chối
+              </button>
+            }
+            @if (user.registrationStatus === 'APPROVED' || !user.registrationStatus) {
+              @if (user.roles.includes('TECHNICIAN') && isAdmin()) {
+                <button type="button" class="secondary" (click)="openRegionEditor(user)">
+                  Khu vực
+                </button>
+              }
+              <button type="button" class="secondary" (click)="openReset(user)">
+                Đặt mật khẩu
+              </button>
+              <button
+                type="button"
+                [class]="user.enabled ? 'danger-button' : 'secondary'"
+                [disabled]="updatingUserId() === user.id"
+                (click)="toggle(user)"
+              >
+                {{ user.enabled ? 'Khóa tài khoản' : 'Mở khóa' }}
+              </button>
+            }
+          </div>
+        </article>
+      }
+    </section>
+    <app-pagination
+      [totalItems]="filteredUsers().length"
+      [page]="currentPage"
+      [pageSize]="pageSize"
+      itemLabel="tài khoản"
+      (pageChange)="currentPage = $event"
+    />
+  } @else {
+    <section class="panel users-empty">
+      <span aria-hidden="true">⌕</span>
+      <h2>Không tìm thấy người dùng</h2>
+      <p>Hãy thử thay đổi từ khóa hoặc điều kiện lọc.</p>
+      <button type="button" class="secondary" (click)="clearFilters()">Xóa bộ lọc</button>
+    </section>
+  }
+
+  @if (approvalTarget(); as user) {
+    <div class="users-modal-backdrop" (click)="closeApproval()">
+      <form
+        class="users-modal"
+        role="dialog"
+        aria-modal="true"
+        (click)="$event.stopPropagation()"
+        (ngSubmit)="approveRegistration()"
+      >
+        <div class="users-section-head">
+          <span aria-hidden="true">✓</span>
+          <div>
+            <h2>Duyệt tài khoản</h2>
+            <p>{{ user.fullName }} · {{ user.email }}</p>
+          </div>
+        </div>
+        <p><b>Đơn vị đăng ký:</b> {{ user.requestedOrganizationName || 'Chưa cung cấp' }}</p>
+        @if (user.registrationNote) {
+          <p><b>Ghi chú:</b> {{ user.registrationNote }}</p>
+        }
+        <label
+          >Khách hàng
+          <select
+            name="approvalCustomer"
+            [(ngModel)]="approval.customerId"
+            (ngModelChange)="approval.siteIds = []"
+            required
+          >
+            <option value="">Chọn khách hàng</option>
+            @for (customer of customers(); track customer.id) {
+              <option [value]="customer.id">{{ customer.name }}</option>
+            }
+          </select>
+        </label>
+        <label
+          >Phạm vi địa điểm
+          <select name="approvalScope" [(ngModel)]="approval.siteScope">
+            <option value="ALL_SITES">Tất cả địa điểm</option>
+            <option value="SELECTED_SITES">Các địa điểm được chọn</option>
+          </select>
+        </label>
+        @if (approval.siteScope === 'SELECTED_SITES') {
+          <label
+            >Địa điểm
+            <select name="approvalSites" [(ngModel)]="approval.siteIds" multiple required>
+              @for (site of approvalSites(); track site.id) {
+                <option [value]="site.id">{{ site.name }}</option>
+              }
+            </select>
+          </label>
+        }
+        @if (reviewError()) {
+          <div class="alert">{{ reviewError() }}</div>
+        }
+        <div class="users-form-actions">
+          <button type="button" class="secondary" (click)="closeApproval()">Hủy</button>
+          <button class="primary" [disabled]="reviewing()">
+            {{ reviewing() ? 'Đang duyệt...' : 'Duyệt tài khoản' }}
+          </button>
+        </div>
+      </form>
+    </div>
+  }
+
+  @if (rejectionTarget(); as user) {
+    <div class="users-modal-backdrop" (click)="closeRejection()">
+      <form
+        class="users-modal"
+        role="dialog"
+        aria-modal="true"
+        (click)="$event.stopPropagation()"
+        (ngSubmit)="rejectRegistration()"
+      >
+        <div class="users-section-head">
+          <span aria-hidden="true">!</span>
+          <div>
+            <h2>Từ chối đăng ký</h2>
+            <p>{{ user.fullName }} · {{ user.email }}</p>
+          </div>
+        </div>
+        <label
+          >Lý do từ chối
+          <textarea
+            name="rejectionReason"
+            [(ngModel)]="rejectionReason"
+            maxlength="1000"
+            required
+          ></textarea>
+        </label>
+        @if (reviewError()) {
+          <div class="alert">{{ reviewError() }}</div>
+        }
+        <div class="users-form-actions">
+          <button type="button" class="secondary" (click)="closeRejection()">Hủy</button>
+          <button class="danger-button" [disabled]="reviewing()">
+            {{ reviewing() ? 'Đang xử lý...' : 'Xác nhận từ chối' }}
+          </button>
+        </div>
+      </form>
+    </div>
+  }
+
+  @if (regionTarget(); as user) {
+    <div class="users-modal-backdrop" (click)="closeRegionEditor()">
+      <form
+        class="users-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="technician-region-title"
+        (click)="$event.stopPropagation()"
+        (ngSubmit)="saveTechnicianRegions()"
+      >
+        <div class="users-modal-icon" aria-hidden="true">KV</div>
+        <h2 id="technician-region-title">Khu vực phụ trách</h2>
+        <p>
+          Cấu hình phạm vi điều phối cho <b>{{ user.fullName }}</b
+          >.
+        </p>
+        <label>
+          <span>Phạm vi khu vực</span>
+          <select
+            name="editRegionScope"
+            [(ngModel)]="editRegionScope"
+            (ngModelChange)="editRegionScopeChanged()"
+          >
+            <option value="ALL_REGIONS">Toàn bộ khu vực</option>
+            <option value="SELECTED_REGIONS">Các khu vực được chọn</option>
+          </select>
+        </label>
+        @if (editRegionScope === 'SELECTED_REGIONS') {
+          <label>
+            <span>Khu vực được phân công</span>
+            <select name="editRegionIds" [(ngModel)]="editRegionIds" multiple required>
+              @for (region of regionsForUser(user); track region.id) {
+                <option [value]="region.id">{{ region.name }} ({{ region.code }})</option>
+              }
+            </select>
+            <small>Khu vực đã ngừng hoạt động chỉ được giữ lại, không thể chọn mới.</small>
+          </label>
+        }
+        @if (regionError()) {
+          <div class="alert">{{ regionError() }}</div>
+        }
+        <div>
+          <button type="button" class="secondary" (click)="closeRegionEditor()">Hủy</button>
+          <button class="primary" [disabled]="savingRegions()">
+            {{ savingRegions() ? 'Đang lưu...' : 'Lưu khu vực' }}
+          </button>
+        </div>
+      </form>
+    </div>
+  }
+
+  @if (resetTarget(); as user) {
+    <div class="users-modal-backdrop" (click)="closeReset()">
+      <form
+        class="users-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="reset-password-title"
+        (click)="$event.stopPropagation()"
+        (ngSubmit)="resetPassword()"
+      >
+        <div class="users-modal-icon" aria-hidden="true">⌁</div>
+        <h2 id="reset-password-title">Đặt lại mật khẩu</h2>
+        <p>
+          Tạo mật khẩu tạm thời mới cho <b>{{ user.fullName }}</b
+          >. Người dùng sẽ phải đổi mật khẩu sau khi đăng nhập.
+        </p>
+        <label>
+          <span>Mật khẩu mới</span>
+          <input
+            name="resetPassword"
+            type="password"
+            minlength="8"
+            maxlength="100"
+            [(ngModel)]="newPassword"
+            placeholder="Tối thiểu 8 ký tự"
+            autocomplete="new-password"
+            required
+          />
+        </label>
+        @if (resetError()) {
+          <div class="alert">{{ resetError() }}</div>
+        }
+        <div>
+          <button type="button" class="secondary" (click)="closeReset()">Hủy</button>
+          <button class="primary" [disabled]="resetting()">
+            {{ resetting() ? 'Đang cập nhật...' : 'Đặt mật khẩu mới' }}
+          </button>
+        </div>
+      </form>
+    </div>
+  }
+</div>

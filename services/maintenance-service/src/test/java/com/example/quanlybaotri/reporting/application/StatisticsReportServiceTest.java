@@ -42,7 +42,7 @@ class StatisticsReportServiceTest {
             ticket(TicketStatus.ACCEPTED, NOW, NOW.plusSeconds(3600), null), NOW))
             .contains(TicketWorkQueue.AWAITING_ASSIGNMENT);
         assertThat(StatisticsReportService.matchingQueues(
-            ticket(TicketStatus.RESOLVED, NOW, NOW.plusSeconds(3600), CostStatus.APPROVED), NOW))
+            ticket(TicketStatus.RESOLVED, NOW, NOW.plusSeconds(3600), CostStatus.ACCEPTED), NOW))
             .containsExactly(TicketWorkQueue.AWAITING_CLOSURE);
     }
 
@@ -52,8 +52,8 @@ class StatisticsReportServiceTest {
             ticket(TicketStatus.RESOLVED, NOW, NOW.plusSeconds(3600), null), NOW))
             .contains(TicketWorkQueue.AWAITING_CLOSURE, TicketWorkQueue.COST_DRAFT);
         assertThat(StatisticsReportService.matchingQueues(
-            ticket(TicketStatus.RESOLVED, NOW, NOW.plusSeconds(3600), CostStatus.READY), NOW))
-            .contains(TicketWorkQueue.AWAITING_CLOSURE, TicketWorkQueue.COST_READY)
+            ticket(TicketStatus.RESOLVED, NOW, NOW.plusSeconds(3600), CostStatus.QUOTED), NOW))
+            .contains(TicketWorkQueue.AWAITING_CLOSURE, TicketWorkQueue.COST_QUOTED)
             .doesNotContain(TicketWorkQueue.COST_DRAFT);
     }
 

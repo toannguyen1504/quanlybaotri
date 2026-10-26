@@ -7,8 +7,10 @@ import com.example.quanlybaotri.inventory.persistence.*;
 import com.example.quanlybaotri.shared.api.ApiException;
 import com.example.quanlybaotri.shared.security.CurrentUser.Actor;
 import java.math.*;
+import java.time.Instant;
 import java.util.*;
 import org.springframework.data.domain.*;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -43,8 +45,38 @@ public class InventoryService {
     }
 
     @Transactional(readOnly = true)
-    public Page<PartView> list(Pageable p) {
-        return parts.findAll(p).map(PartView::from);
+    public Page<PartView> list(String query, String stockStatus, Boolean active, Pageable pageable) {
+        String q = query == null ? "" : query.trim().toLowerCase(Locale.ROOT);
+        Specification<Part> filters = (root, ignored, cb) -> {
+            List<jakarta.persistence.criteria.Predicate> predicates = new ArrayList<>();
+            if (!q.isBlank()) {
+                String pattern = "%" + q + "%";
+                predicates.add(cb.or(
+                    cb.like(cb.lower(root.get("code")), pattern),
+                    cb.like(cb.lower(root.get("name")), pattern),
+                    cb.like(cb.lower(root.get("unit")), pattern)
+                ));
+            }
+            if (active != null) predicates.add(cb.equal(root.get("active"), active));
+            if ("OUT".equals(stockStatus)) predicates.add(cb.equal(root.get("currentStock"), BigDecimal.ZERO));
+            if ("LOW".equals(stockStatus)) predicates.add(cb.and(
+                cb.greaterThan(root.get("currentStock"), BigDecimal.ZERO),
+                cb.lessThanOrEqualTo(root.get("currentStock"), root.get("minimumStock"))
+            ));
+            if ("AVAILABLE".equals(stockStatus)) predicates.add(cb.greaterThan(root.get("currentStock"), root.get("minimumStock")));
+            return cb.and(predicates.toArray(jakarta.persistence.criteria.Predicate[]::new));
+        };
+        return parts.findAll(filters, pageable).map(PartView::from);
+    }
+
+    @Transactional(readOnly = true)
+    public PartSummary summary(Instant from, Instant to) {
+        return new PartSummary(
+            parts.count(), parts.countByActiveTrue(), parts.countLowStock(), parts.countOutOfStock(), parts.inventoryValue(),
+            movements.quantityBetween(StockMovementType.IN, from, to),
+            movements.quantityBetween(StockMovementType.OUT, from, to),
+            movements.quantityBetween(StockMovementType.ADJUSTMENT, from, to)
+        );
     }
 
     @Transactional
@@ -126,6 +158,26 @@ public class InventoryService {
             "USE_PART",
             actor.token()
         );
+        return useAuthorized(ticketId, r, actor, ticket, false);
+    }
+
+    public TicketPartView useTelegram(UUID ticketId, UsePartRequest r, UUID technicianId) {
+        IdentityClient.UserRef user = identities.get(technicianId);
+        if (user == null || !user.enabled() || user.roles() == null ||
+            !user.roles().contains(com.example.quanlybaotri.identity.domain.RoleName.TECHNICIAN))
+            throw ApiException.forbidden("Tài khoản không còn đủ quyền kỹ thuật viên");
+        MaintenanceClient.TicketRef ticket = maintenance.authorizeTelegram(ticketId, technicianId);
+        Actor actor = new Actor(user.id(), user.username(), user.fullName(), user.roles(), null);
+        return useAuthorized(ticketId, r, actor, ticket, true);
+    }
+
+    private TicketPartView useAuthorized(
+        UUID ticketId,
+        UsePartRequest r,
+        Actor actor,
+        MaintenanceClient.TicketRef ticket,
+        boolean telegram
+    ) {
         TicketPart usage = transactions.execute(tx -> {
             positive(r.quantity());
             Part p = locked(r.partId());
@@ -159,6 +211,7 @@ public class InventoryService {
             used.put("quantity", r.quantity());
             used.put("unitCost", cost);
             used.put("usedById", actor.id());
+            if (telegram) used.put("source", "TELEGRAM");
             events.publish("inventory.part.used", saved.getId(), used);
             if (p.getCurrentStock().compareTo(p.getMinimumStock()) <= 0) events.publish(
                 "inventory.part.low-stock",
@@ -204,8 +257,49 @@ public class InventoryService {
             .toList();
     }
 
-    public Page<MovementView> movements(Pageable pageable) {
-        Page<StockMovement> page = movements.findAll(pageable);
+    public Page<PartView> searchTelegram(String query, Pageable pageable) {
+        return parts.searchActive(query == null ? "" : query.trim(), pageable).map(PartView::from);
+    }
+
+    public List<TicketPartView> ticketPartsTelegram(UUID ticketId, UUID technicianId) {
+        maintenance.authorizeTelegram(ticketId, technicianId);
+        List<TicketPart> result = usages.findByTicketIdOrderByUsedAtDesc(ticketId);
+        Map<UUID, IdentityClient.UserRef> users = identities.resolve(
+            result.stream().map(TicketPart::getUsedById).toList()
+        );
+        return result.stream()
+            .map(part -> TicketPartView.from(part, users.get(part.getUsedById())))
+            .toList();
+    }
+
+    public Page<MovementView> movements(
+        String query,
+        UUID partId,
+        StockMovementType type,
+        UUID ticketId,
+        Instant from,
+        Instant to,
+        Pageable pageable
+    ) {
+        String q = query == null ? "" : query.trim().toLowerCase(Locale.ROOT);
+        Specification<StockMovement> filters = (root, ignored, cb) -> {
+            List<jakarta.persistence.criteria.Predicate> predicates = new ArrayList<>();
+            if (!q.isBlank()) {
+                String pattern = "%" + q + "%";
+                predicates.add(cb.or(
+                    cb.like(cb.lower(root.get("part").get("code")), pattern),
+                    cb.like(cb.lower(root.get("part").get("name")), pattern),
+                    cb.like(cb.lower(root.get("reason")), pattern)
+                ));
+            }
+            if (partId != null) predicates.add(cb.equal(root.get("part").get("id"), partId));
+            if (type != null) predicates.add(cb.equal(root.get("type"), type));
+            if (ticketId != null) predicates.add(cb.equal(root.get("ticketId"), ticketId));
+            if (from != null) predicates.add(cb.greaterThanOrEqualTo(root.get("createdAt"), from));
+            if (to != null) predicates.add(cb.lessThan(root.get("createdAt"), to));
+            return cb.and(predicates.toArray(jakarta.persistence.criteria.Predicate[]::new));
+        };
+        Page<StockMovement> page = movements.findAll(filters, pageable);
         Map<UUID, IdentityClient.UserRef> users = identities.resolve(
             page.getContent().stream().map(StockMovement::getActorId).toList()
         );

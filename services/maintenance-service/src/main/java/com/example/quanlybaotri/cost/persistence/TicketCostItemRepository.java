@@ -5,6 +5,4 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface TicketCostItemRepository extends JpaRepository<TicketCostItem,UUID> {
     List<TicketCostItem> findByTicketIdOrderByIncurredAtAscCreatedAtAsc(UUID ticketId);
     Optional<TicketCostItem> findBySourceTypeAndSourceId(CostSourceType sourceType,UUID sourceId);
-    boolean existsByTicketIdAndCalculationStatus(UUID ticketId,CalculationStatus status);
-    List<TicketCostItem> findByCalculationStatus(CalculationStatus status);
 }

@@ -1,0 +1,72 @@
+<div class="module-shell">
+  <header class="module-shell-head">
+    <div>
+      <p class="eyebrow">{{ eyebrow }}</p>
+      <h1>{{ title }}</h1>
+      <p>{{ description }}</p>
+    </div>
+    @if (moduleKind === 'equipment') {
+      <div class="module-head-actions">
+        <button
+          type="button"
+          class="secondary"
+          [disabled]="activeContentLoading()"
+          (click)="refreshActiveContent()"
+        >
+          <span aria-hidden="true">↻</span>
+          {{ activeContentLoading() ? 'Đang tải' : 'Làm mới' }}
+        </button>
+        @if (canManageEquipment()) {
+          <a class="primary" routerLink="/equipment/new">
+            <span aria-hidden="true">＋</span> Thêm thiết bị
+          </a>
+        }
+      </div>
+    }
+  </header>
+
+  <section class="module-summary" aria-label="Tổng quan nhanh" aria-live="polite">
+    <div class="module-summary-heading">
+      <span>Tổng quan nhanh</span>
+      <button type="button" [disabled]="summaryLoading()" (click)="loadSummary()">
+        {{ summaryLoading() ? 'Đang cập nhật' : 'Làm mới' }}
+      </button>
+    </div>
+    <div class="module-summary-grid">
+      @if (summaryLoading() && !summary()) {
+        @for (item of [1, 2, 3, 4]; track item) {
+          <div class="module-summary-skeleton"><i></i><span></span></div>
+        }
+      } @else if (summaryError() && !summary()) {
+        <div class="module-summary-error" role="alert">
+          <span>{{ summaryError() }}</span>
+          <button type="button" (click)="loadSummary()">Thử lại</button>
+        </div>
+      } @else {
+        @for (card of summaryCards(); track card.label) {
+          <article [class]="'module-summary-card ' + card.tone">
+            <span aria-hidden="true">{{ card.icon }}</span>
+            <div>
+              <small>{{ card.label }}</small>
+              <b>{{ card.value | number: '1.0-0' }}{{ card.currency ? ' ₫' : '' }}</b>
+              <em>{{ card.detail }}</em>
+            </div>
+          </article>
+        }
+      }
+    </div>
+  </section>
+
+  <nav class="module-tabs" aria-label="Điều hướng chức năng">
+    @for (tab of tabs(); track tab.path) {
+      <a [routerLink]="tabTarget(tab)" routerLinkActive="active">
+        <b>{{ tab.label }}</b>
+        <small>{{ tab.hint }}</small>
+      </a>
+    }
+  </nav>
+
+  <div class="module-content" [class.tab-content-entering]="tabContentEntering()">
+    <router-outlet (activate)="animateTabContent()" (attach)="animateTabContent()" />
+  </div>
+</div>

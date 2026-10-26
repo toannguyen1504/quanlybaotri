@@ -15,6 +15,7 @@ import jakarta.persistence.Table;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
+import java.time.Instant;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -29,8 +30,11 @@ public class UserAccount extends BaseEntity implements UserDetails {
     @Column(nullable = false, unique = true, length = 190)
     private String email;
 
-    @Column(name = "password_hash", nullable = false)
+    @Column(name = "password_hash")
     private String passwordHash;
+
+    @Column(name = "google_subject", unique = true, length = 255)
+    private String googleSubject;
 
     @Column(name = "full_name", nullable = false, length = 150)
     private String fullName;
@@ -72,6 +76,32 @@ public class UserAccount extends BaseEntity implements UserDetails {
     @Column(name = "must_change_password", nullable = false)
     private boolean mustChangePassword = true;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "registration_status", nullable = false, length = 20)
+    private RegistrationStatus registrationStatus = RegistrationStatus.APPROVED;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "registration_source", nullable = false, length = 20)
+    private RegistrationSource registrationSource = RegistrationSource.ADMIN;
+
+    @Column(name = "requested_organization_name", length = 190)
+    private String requestedOrganizationName;
+
+    @Column(name = "registration_note", length = 1000)
+    private String registrationNote;
+
+    @Column(name = "rejection_reason", length = 1000)
+    private String rejectionReason;
+
+    @Column(name = "registered_at")
+    private Instant registeredAt;
+
+    @Column(name = "reviewed_at")
+    private Instant reviewedAt;
+
+    @Column(name = "reviewed_by_id")
+    private UUID reviewedById;
+
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
         name = "user_roles",
@@ -87,6 +117,7 @@ public class UserAccount extends BaseEntity implements UserDetails {
         this.email = email.toLowerCase();
         this.passwordHash = passwordHash;
         this.fullName = fullName;
+        this.registeredAt = Instant.now();
     }
 
     public void updateProfile(
@@ -128,6 +159,74 @@ public class UserAccount extends BaseEntity implements UserDetails {
     public void changePassword(String hash, boolean mustChange) {
         this.passwordHash = hash;
         this.mustChangePassword = mustChange;
+    }
+
+    public void prepareSelfRegistration(
+        RegistrationSource source,
+        String organizationName,
+        String note
+    ) {
+        registrationStatus = RegistrationStatus.PENDING;
+        registrationSource = source;
+        requestedOrganizationName = clean(organizationName);
+        registrationNote = clean(note);
+        rejectionReason = null;
+        registeredAt = Instant.now();
+        reviewedAt = null;
+        reviewedById = null;
+        accountType = AccountType.CUSTOMER;
+        customerId = null;
+        siteScope = SiteScope.SELECTED_SITES;
+        siteIds.clear();
+        regionScope = RegionScope.UNASSIGNED;
+        regionIds.clear();
+        roles.clear();
+        enabled = false;
+        mustChangePassword = false;
+    }
+
+    public void updateRegistrationRequest(String phone, String organizationName, String note) {
+        this.phone = clean(phone);
+        requestedOrganizationName = clean(organizationName);
+        registrationNote = clean(note);
+    }
+
+    public void linkGoogle(String subject) {
+        if (googleSubject != null && !googleSubject.equals(subject)) {
+            throw new IllegalStateException("Tài khoản đã liên kết với Google khác");
+        }
+        googleSubject = subject;
+    }
+
+    public void approveRegistration(
+        UUID customerId,
+        SiteScope siteScope,
+        Set<UUID> siteIds,
+        Role requesterRole,
+        UUID reviewerId
+    ) {
+        configureAccess(AccountType.CUSTOMER, customerId, siteScope, siteIds);
+        configureRegions(RegionScope.UNASSIGNED, Set.of());
+        setRoles(Set.of(requesterRole));
+        registrationStatus = RegistrationStatus.APPROVED;
+        rejectionReason = null;
+        reviewedAt = Instant.now();
+        reviewedById = reviewerId;
+        enabled = true;
+        mustChangePassword = false;
+    }
+
+    public void rejectRegistration(String reason, UUID reviewerId) {
+        registrationStatus = RegistrationStatus.REJECTED;
+        rejectionReason = clean(reason);
+        reviewedAt = Instant.now();
+        reviewedById = reviewerId;
+        enabled = false;
+        roles.clear();
+    }
+
+    private String clean(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 
     @Override
@@ -179,4 +278,16 @@ public class UserAccount extends BaseEntity implements UserDetails {
     public boolean isMustChangePassword() {
         return mustChangePassword;
     }
+
+    public boolean hasPassword() { return passwordHash != null && !passwordHash.isBlank(); }
+    public boolean isGoogleLinked() { return googleSubject != null; }
+    public String getGoogleSubject() { return googleSubject; }
+    public RegistrationStatus getRegistrationStatus() { return registrationStatus; }
+    public RegistrationSource getRegistrationSource() { return registrationSource; }
+    public String getRequestedOrganizationName() { return requestedOrganizationName; }
+    public String getRegistrationNote() { return registrationNote; }
+    public String getRejectionReason() { return rejectionReason; }
+    public Instant getRegisteredAt() { return registeredAt; }
+    public Instant getReviewedAt() { return reviewedAt; }
+    public UUID getReviewedById() { return reviewedById; }
 }

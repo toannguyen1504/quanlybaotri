@@ -11,6 +11,7 @@ spring:
   data.redis:
     host: ${REDIS_HOST:redis}
     port: ${REDIS_PORT:6379}
+  data.web.pageable.max-page-size: 100
   rabbitmq:
     host: ${RABBITMQ_HOST:rabbitmq}
     port: ${RABBITMQ_PORT:5672}

@@ -26,7 +26,16 @@ class SecurityConfig {
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(a ->
                 a
-                    .requestMatchers("/api/v1/auth/login", "/api/v1/auth/refresh", "/actuator/**")
+                    .requestMatchers(
+                        "/api/v1/auth/login",
+                        "/api/v1/auth/register",
+                        "/api/v1/auth/google",
+                        "/api/v1/auth/config",
+                        "/api/v1/auth/refresh",
+                        "/actuator/**"
+                    )
+                    .permitAll()
+                    .requestMatchers(HttpMethod.GET, "/api/v1/payments/vnpay/ipn", "/api/v1/payments/vnpay/return")
                     .permitAll()
                     .requestMatchers(HttpMethod.OPTIONS, "/**")
                     .permitAll()

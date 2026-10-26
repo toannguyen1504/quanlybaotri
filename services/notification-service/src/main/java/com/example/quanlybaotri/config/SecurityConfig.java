@@ -36,6 +36,8 @@ public class SecurityConfig {
                 a
                     .requestMatchers("/actuator/**")
                     .permitAll()
+                    .requestMatchers("/ws/chat", "/ws/chat/**")
+                    .permitAll()
                     .requestMatchers(HttpMethod.OPTIONS, "/**")
                     .permitAll()
                     .requestMatchers("/internal/**")

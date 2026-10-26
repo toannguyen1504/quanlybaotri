@@ -1,0 +1,485 @@
+<div class="management-page inventory-page">
+  <div class="management-page-head">
+    <div></div>
+    <div class="management-head-actions">
+      <button type="button" class="secondary" [disabled]="loading()" (click)="load()">
+        <span aria-hidden="true">↻</span>
+        {{ loading() ? 'Đang tải' : 'Làm mới' }}
+      </button>
+      @if (manager()) {
+        <button type="button" class="primary" (click)="openCreate()">
+          <span aria-hidden="true">＋</span> Thêm linh kiện
+        </button>
+      }
+    </div>
+  </div>
+
+  @if (success()) {
+    <div class="management-message success-message" role="status">
+      <span aria-hidden="true">✓</span>
+      {{ success() }}
+      <button type="button" aria-label="Đóng thông báo" (click)="success.set('')">×</button>
+    </div>
+  }
+
+  @if (showForm()) {
+    <section class="panel management-form-panel">
+      <div class="management-form-head">
+        <div>
+          <span class="management-form-icon part" aria-hidden="true">◇</span>
+          <div>
+            <h2>{{ editingId ? 'Cập nhật linh kiện' : 'Thêm linh kiện mới' }}</h2>
+            <p>Thiết lập thông tin cơ bản, định mức cảnh báo và đơn giá tham chiếu.</p>
+          </div>
+        </div>
+        @if (editingId) {
+          <span class="management-mode-badge">Đang chỉnh sửa</span>
+        }
+      </div>
+
+      <form class="management-form" (ngSubmit)="save()">
+        <div class="management-form-section">
+          <div class="management-section-title">
+            <span>01</span>
+            <div>
+              <b>Thông tin linh kiện</b><small>Dùng để nhận diện trong kho và phiếu bảo trì</small>
+            </div>
+          </div>
+          <div class="form-grid">
+            <label>
+              <span>Mã linh kiện <i>*</i></span>
+              <input
+                name="code"
+                [(ngModel)]="model.code"
+                required
+                maxlength="80"
+                placeholder="Ví dụ: LK-RAM-001"
+              />
+            </label>
+            <label>
+              <span>Tên linh kiện <i>*</i></span>
+              <input
+                name="name"
+                [(ngModel)]="model.name"
+                required
+                maxlength="200"
+                placeholder="Ví dụ: RAM DDR4 16GB"
+              />
+            </label>
+            <label>
+              <span>Đơn vị tính <i>*</i></span>
+              <input
+                name="unit"
+                [(ngModel)]="model.unit"
+                required
+                maxlength="50"
+                placeholder="Cái, bộ, mét..."
+              />
+            </label>
+            <label>
+              <span>Đơn giá mặc định</span>
+              <div class="management-money-input">
+                <input
+                  name="defaultUnitCost"
+                  type="number"
+                  min="0"
+                  step="1000"
+                  [(ngModel)]="model.defaultUnitCost"
+                />
+                <span>VNĐ</span>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <div class="management-form-section compact">
+          <div class="management-section-title">
+            <span>02</span>
+            <div><b>Kiểm soát tồn kho</b><small>Cảnh báo khi số lượng chạm ngưỡng này</small></div>
+          </div>
+          <div class="management-stock-setting">
+            <label>
+              <span>Tồn kho tối thiểu <i>*</i></span>
+              <input
+                name="minimumStock"
+                type="number"
+                min="0"
+                step="0.001"
+                required
+                [(ngModel)]="model.minimumStock"
+              />
+            </label>
+            <label class="management-checkbox">
+              <input name="active" type="checkbox" [(ngModel)]="model.active" />
+              <span
+                ><b>Đang sử dụng</b
+                ><small>Cho phép chọn linh kiện trong các nghiệp vụ kho</small></span
+              >
+            </label>
+          </div>
+        </div>
+
+        @if (formError()) {
+          <div class="alert" role="alert">{{ formError() }}</div>
+        }
+        <div class="management-form-actions">
+          <small><i>*</i> Thông tin bắt buộc</small>
+          <div class="actions">
+            <button type="button" class="secondary" [disabled]="saving()" (click)="cancelForm()">
+              Hủy
+            </button>
+            <button class="primary" [disabled]="saving()">
+              {{ saving() ? 'Đang lưu...' : editingId ? 'Lưu thay đổi' : 'Tạo linh kiện' }}
+            </button>
+          </div>
+        </div>
+      </form>
+    </section>
+  }
+
+  <section class="panel management-filter-panel">
+    <div class="management-filter-head">
+      <div>
+        <h2>Danh sách linh kiện</h2>
+        <p>Theo dõi số lượng và phát hiện sớm các mã hàng cần bổ sung.</p>
+      </div>
+      @if (hasFilters()) {
+        <button type="button" class="management-clear-filter" (click)="clearFilters()">
+          Xóa bộ lọc
+        </button>
+      }
+    </div>
+    <div class="management-filters parts-filters">
+      <label class="management-search-field">
+        <span>Tìm kiếm</span>
+        <div>
+          <span aria-hidden="true">⌕</span
+          ><input
+            name="partQuery"
+            [(ngModel)]="query"
+            (keyup.enter)="applyFilters()"
+            placeholder="Mã, tên hoặc đơn vị tính..."
+          />
+        </div>
+      </label>
+      <label>
+        <span>Tình trạng tồn</span>
+        <select name="stockFilter" [(ngModel)]="stockFilter" (change)="applyFilters()">
+          <option value="">Tất cả mức tồn</option>
+          <option value="AVAILABLE">Còn hàng ổn định</option>
+          <option value="LOW">Sắp hết hàng</option>
+          <option value="OUT">Đã hết hàng</option>
+        </select>
+      </label>
+      <label>
+        <span>Trạng thái</span>
+        <select name="partStatusFilter" [(ngModel)]="statusFilter" (change)="applyFilters()">
+          <option value="">Tất cả trạng thái</option>
+          <option value="ACTIVE">Đang sử dụng</option>
+          <option value="INACTIVE">Ngừng sử dụng</option>
+        </select>
+      </label>
+    </div>
+    <div class="management-result-line">
+      <span
+        >Hiển thị <b>{{ filteredParts().length }}</b> trên {{ result()?.totalElements ?? 0 }} mã
+        linh kiện</span
+      >
+      @if (hasFilters()) {
+        <span class="filter-active">Đang áp dụng bộ lọc</span>
+      }
+    </div>
+  </section>
+
+  @if (listError()) {
+    <section class="panel management-state-card error-state" role="alert">
+      <span class="management-state-icon" aria-hidden="true">!</span>
+      <div>
+        <h3>Không thể tải danh sách linh kiện</h3>
+        <p>{{ listError() }}</p>
+      </div>
+      <button type="button" class="secondary" (click)="load()">Thử lại</button>
+    </section>
+  } @else if (loading()) {
+    <section class="panel management-state-card">
+      <span class="management-spinner" aria-hidden="true"></span>
+      <div>
+        <h3>Đang tải dữ liệu kho</h3>
+        <p>Vui lòng chờ trong giây lát...</p>
+      </div>
+    </section>
+  } @else if (filteredParts().length) {
+    <section class="panel table-wrap management-table-wrap parts-table">
+      <table>
+        <thead>
+          <tr>
+            <th>Linh kiện</th>
+            <th>Tồn kho</th>
+            <th>Mức tối thiểu</th>
+            <th>Đơn giá</th>
+            <th>Trạng thái</th>
+            @if (manager()) {
+              <th class="management-action-column">Thao tác</th>
+            }
+          </tr>
+        </thead>
+        <tbody>
+          @for (part of pagedParts(); track part.id) {
+            <tr [class.low-stock]="isLow(part)">
+              <td>
+                <div class="management-name-cell">
+                  <span class="management-item-avatar part" aria-hidden="true">LK</span>
+                  <div>
+                    <b>{{ part.name }}</b
+                    ><small class="code">{{ part.code }}</small>
+                  </div>
+                </div>
+              </td>
+              <td>
+                <div class="stock-amount" [class.warning]="isLow(part)">
+                  <b>{{ part.currentStock | number: '1.0-3' }}</b
+                  ><span>{{ part.unit }}</span>
+                </div>
+              </td>
+              <td>{{ part.minimumStock | number: '1.0-3' }} {{ part.unit }}</td>
+              <td>
+                <b class="management-cell-title">{{ part.defaultUnitCost | number: '1.0-0' }} ₫</b>
+              </td>
+              <td>
+                <span [class]="'stock-status ' + stockTone(part)">{{ stockLabel(part) }}</span>
+                @if (!part.active) {
+                  <small class="management-inactive-note">Ngừng sử dụng</small>
+                }
+              </td>
+              @if (manager()) {
+                <td class="management-action-cell parts-actions">
+                  <button
+                    type="button"
+                    class="management-icon-button receive"
+                    title="Nhập kho"
+                    (click)="openMovement(part, 'RECEIVE')"
+                  >
+                    <span aria-hidden="true">↓</span><span>Nhập</span>
+                  </button>
+                  <button
+                    type="button"
+                    class="management-icon-button"
+                    title="Kiểm kê kho"
+                    (click)="openMovement(part, 'ADJUST')"
+                  >
+                    <span aria-hidden="true">≋</span><span>Kiểm kê</span>
+                  </button>
+                  <button
+                    type="button"
+                    class="management-icon-button"
+                    title="Sửa linh kiện"
+                    (click)="edit(part)"
+                  >
+                    <span aria-hidden="true">✎</span><span>Sửa</span>
+                  </button>
+                </td>
+              }
+            </tr>
+          }
+        </tbody>
+      </table>
+    </section>
+
+    <section class="management-mobile-list" aria-label="Danh sách linh kiện trên thiết bị di động">
+      @for (part of pagedParts(); track part.id) {
+        <article class="panel management-mobile-card" [class.low-stock-card]="isLow(part)">
+          <div class="management-mobile-card-head">
+            <div class="management-name-cell">
+              <span class="management-item-avatar part" aria-hidden="true">LK</span>
+              <div>
+                <b>{{ part.name }}</b
+                ><small class="code">{{ part.code }}</small>
+              </div>
+            </div>
+            <span [class]="'stock-status ' + stockTone(part)">{{ stockLabel(part) }}</span>
+          </div>
+          <dl>
+            <div>
+              <dt>Tồn kho</dt>
+              <dd>
+                <b>{{ part.currentStock | number: '1.0-3' }}</b> {{ part.unit }}
+              </dd>
+            </div>
+            <div>
+              <dt>Mức tối thiểu</dt>
+              <dd>{{ part.minimumStock | number: '1.0-3' }} {{ part.unit }}</dd>
+            </div>
+            <div>
+              <dt>Đơn giá</dt>
+              <dd>{{ part.defaultUnitCost | number: '1.0-0' }} ₫</dd>
+            </div>
+            <div>
+              <dt>Sử dụng</dt>
+              <dd>{{ part.active ? 'Đang sử dụng' : 'Đã ngừng' }}</dd>
+            </div>
+          </dl>
+          @if (manager()) {
+            <div class="management-card-actions">
+              <button type="button" class="primary" (click)="openMovement(part, 'RECEIVE')">
+                Nhập kho
+              </button>
+              <button type="button" class="secondary" (click)="openMovement(part, 'ADJUST')">
+                Kiểm kê
+              </button>
+              <button type="button" class="secondary" (click)="edit(part)">Sửa</button>
+            </div>
+          }
+        </article>
+      }
+    </section>
+    <app-pagination
+      [totalItems]="result()?.totalElements ?? 0"
+      [page]="currentPage"
+      [pageSize]="pageSize"
+      itemLabel="linh kiện"
+      (pageChange)="goToPage($event)"
+    />
+  } @else {
+    <section class="panel management-empty-state">
+      <span class="management-empty-icon" aria-hidden="true">◇</span>
+      <h3>{{ hasFilters() ? 'Không tìm thấy linh kiện phù hợp' : 'Kho chưa có linh kiện' }}</h3>
+      <p>
+        {{
+          hasFilters()
+            ? 'Hãy thử thay đổi từ khóa hoặc điều kiện lọc.'
+            : 'Thêm mã linh kiện đầu tiên để bắt đầu quản lý tồn kho.'
+        }}
+      </p>
+      @if (hasFilters()) {
+        <button type="button" class="secondary" (click)="clearFilters()">Xóa bộ lọc</button>
+      } @else if (manager()) {
+        <button type="button" class="primary" (click)="openCreate()">Thêm linh kiện</button>
+      }
+    </section>
+  }
+
+  @if (movementPart(); as part) {
+    <div class="management-modal-backdrop" (click)="closeMovement()">
+      <section
+        class="management-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="movement-title"
+        (click)="$event.stopPropagation()"
+      >
+        <div class="management-modal-head">
+          <span
+            [class]="
+              'management-modal-icon ' + (movementMode() === 'RECEIVE' ? 'receive' : 'adjust')
+            "
+            aria-hidden="true"
+            >{{ movementMode() === 'RECEIVE' ? '↓' : '≋' }}</span
+          >
+          <div>
+            <p>{{ part.code }}</p>
+            <h2 id="movement-title">
+              {{ movementMode() === 'RECEIVE' ? 'Nhập kho linh kiện' : 'Cập nhật tồn kho thực tế' }}
+            </h2>
+            <span>{{ part.name }}</span>
+          </div>
+          <button
+            type="button"
+            class="management-modal-close"
+            aria-label="Đóng"
+            [disabled]="movementSaving()"
+            (click)="closeMovement()"
+          >
+            ×
+          </button>
+        </div>
+
+        <div class="management-current-stock">
+          <span>Tồn kho hiện tại</span
+          ><b>{{ part.currentStock | number: '1.0-3' }} {{ part.unit }}</b>
+        </div>
+
+        <form class="management-modal-form" (ngSubmit)="submitMovement()">
+          @if (movementMode() === 'RECEIVE') {
+            <div class="form-grid">
+              <label>
+                <span>Số lượng nhập <i>*</i></span>
+                <input
+                  name="quantity"
+                  type="number"
+                  min="0.001"
+                  step="0.001"
+                  required
+                  [(ngModel)]="movement.quantity"
+                />
+              </label>
+              <label>
+                <span>Đơn giá nhập</span>
+                <div class="management-money-input">
+                  <input
+                    name="unitCost"
+                    type="number"
+                    min="0"
+                    step="1000"
+                    [(ngModel)]="movement.unitCost"
+                  />
+                  <span>VNĐ</span>
+                </div>
+              </label>
+            </div>
+          } @else {
+            <label>
+              <span>Tồn kho thực tế <i>*</i></span>
+              <input
+                name="newBalance"
+                type="number"
+                min="0"
+                step="0.001"
+                required
+                [(ngModel)]="movement.newBalance"
+              />
+              <small class="field-hint">Nhập số lượng đếm được sau khi kiểm kê.</small>
+            </label>
+          }
+          <label>
+            <span>Lý do <i>*</i></span>
+            <textarea
+              name="reason"
+              rows="3"
+              maxlength="500"
+              required
+              [(ngModel)]="movement.reason"
+              [placeholder]="
+                movementMode() === 'RECEIVE'
+                  ? 'Ví dụ: Nhập bổ sung theo đơn mua hàng...'
+                  : 'Ví dụ: Điều chỉnh sau kiểm kê định kỳ...'
+              "
+            ></textarea>
+            <small class="management-character-count">{{ movement.reason.length }}/500</small>
+          </label>
+          @if (movementError()) {
+            <div class="alert" role="alert">{{ movementError() }}</div>
+          }
+          <div class="management-modal-actions">
+            <button
+              type="button"
+              class="secondary"
+              [disabled]="movementSaving()"
+              (click)="closeMovement()"
+            >
+              Hủy
+            </button>
+            <button class="primary" [disabled]="movementSaving()">
+              {{
+                movementSaving()
+                  ? 'Đang xử lý...'
+                  : movementMode() === 'RECEIVE'
+                    ? 'Xác nhận nhập kho'
+                    : 'Cập nhật tồn kho'
+              }}
+            </button>
+          </div>
+        </form>
+      </section>
+    </div>
+  }
+</div>
