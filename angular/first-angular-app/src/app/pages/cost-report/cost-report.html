@@ -1,0 +1,271 @@
+<div class="page cost-report-page">
+  <header class="report-page-head">
+    <div class="report-title-block">
+      <div class="report-breadcrumb"><span>Báo cáo</span><i>/</i> Chi phí bảo trì</div>
+      <h1>Chi phí bảo trì</h1>
+      <p>Tra cứu, đối chiếu và xuất danh sách chi phí phát sinh từ các phiếu bảo trì.</p>
+    </div>
+    <div class="report-head-actions">
+      <div class="report-period">
+        <small>Kỳ báo cáo</small>
+        <b>{{ filters.from | date: 'dd/MM/yyyy' }} – {{ filters.to | date: 'dd/MM/yyyy' }}</b>
+      </div>
+      <button
+        class="primary export-button"
+        type="button"
+        [disabled]="exporting() || loading()"
+        (click)="exportCosts()"
+      >
+        <span aria-hidden="true">⇩</span>
+        {{ exporting() ? 'Đang xuất báo cáo' : 'Xuất Excel' }}
+      </button>
+    </div>
+  </header>
+
+  <section class="panel cost-filter-panel" aria-labelledby="cost-filter-title">
+    <div class="cost-filter-head">
+      <div>
+        <span>Bộ lọc báo cáo</span>
+        <h2 id="cost-filter-title">Phạm vi dữ liệu</h2>
+      </div>
+      <button type="button" class="reset-button" [disabled]="loading()" (click)="resetFilters()">
+        Đặt lại bộ lọc
+      </button>
+    </div>
+    <div class="cost-report-filters">
+      <label>
+        <span>Từ ngày</span>
+        <input type="date" [(ngModel)]="filters.from" />
+      </label>
+      <label>
+        <span>Đến ngày</span>
+        <input type="date" [(ngModel)]="filters.to" />
+      </label>
+      <label>
+        <span>Khách hàng</span>
+        <select [(ngModel)]="filters.customerId" (ngModelChange)="customerChanged()">
+          <option value="">Tất cả khách hàng</option>
+          @for (customer of customers(); track customer.id) {
+            <option [value]="customer.id">{{ customer.name }}</option>
+          }
+        </select>
+      </label>
+      <label>
+        <span>Địa điểm</span>
+        <select [(ngModel)]="filters.siteId">
+          <option value="">Tất cả địa điểm</option>
+          @for (site of filteredSites(); track site.id) {
+            <option [value]="site.id">{{ site.name }}</option>
+          }
+        </select>
+      </label>
+      <label>
+        <span>Thiết bị</span>
+        <select [(ngModel)]="filters.equipmentId">
+          <option value="">Tất cả thiết bị</option>
+          @for (item of equipment(); track item.id) {
+            <option [value]="item.id">{{ item.assetCode }} · {{ item.name }}</option>
+          }
+        </select>
+      </label>
+      <label>
+        <span>Loại thiết bị</span>
+        <select [(ngModel)]="filters.equipmentCategoryId">
+          <option value="">Tất cả loại thiết bị</option>
+          @for (category of equipmentCategories(); track category.id) {
+            <option [value]="category.id">{{ category.name }}</option>
+          }
+        </select>
+      </label>
+      <label>
+        <span>Nhóm chi phí</span>
+        <select [(ngModel)]="filters.category">
+          <option value="">Tất cả nhóm chi phí</option>
+          @for (category of categories; track category.key) {
+            <option [value]="category.key">{{ category.label }}</option>
+          }
+        </select>
+      </label>
+      <label>
+        <span>Trạng thái duyệt</span>
+        <select [(ngModel)]="filters.status">
+          <option value="">Tất cả trạng thái</option>
+          <option value="DRAFT">Bản nháp</option>
+          <option value="QUOTED">Chờ khách hàng xác nhận</option>
+          <option value="ACCEPTED">Khách hàng đã chấp nhận</option>
+        </select>
+      </label>
+      <button class="primary apply-button" type="button" [disabled]="loading()" (click)="load()">
+        <span aria-hidden="true">⌕</span>
+        {{ loading() ? 'Đang tải dữ liệu' : 'Áp dụng bộ lọc' }}
+      </button>
+    </div>
+  </section>
+
+  @if (error()) {
+    <div class="cost-report-alert" role="alert">
+      <span aria-hidden="true">!</span>
+      <div>
+        <b>Không thể cập nhật báo cáo</b>
+        <small>{{ error() }}</small>
+      </div>
+      <button type="button" (click)="load()">Thử lại</button>
+    </div>
+  }
+
+  @if (report(); as costReport) {
+    <section class="panel report-summary-strip" aria-label="Tóm tắt kết quả báo cáo">
+      <div class="summary-context">
+        <span>Kết quả lọc</span>
+        <b>{{ costReport.rows.length }} khoản chi phí</b>
+      </div>
+      <dl>
+        <div class="summary-total">
+          <dt>Tổng chi phí</dt>
+          <dd>{{ costReport.grandTotal | number: '1.0-0' }} ₫</dd>
+        </div>
+        <div>
+          <dt>Phiếu phát sinh</dt>
+          <dd>{{ ticketCount(costReport) }}</dd>
+        </div>
+        <div>
+          <dt>Khách hàng đã chấp nhận</dt>
+          <dd>{{ acceptedTotal(costReport) | number: '1.0-0' }} ₫</dd>
+        </div>
+        <div>
+          <dt>Tỷ lệ chấp nhận</dt>
+          <dd>{{ acceptedShare(costReport) }}%</dd>
+        </div>
+      </dl>
+    </section>
+
+    <section class="panel cost-table-panel" aria-live="polite">
+      <div class="report-section-head table-head">
+        <div>
+          <span>Chi tiết phát sinh</span>
+          <h2>Danh sách khoản chi phí</h2>
+          <p>{{ costReport.rows.length }} khoản phù hợp với bộ lọc hiện tại.</p>
+        </div>
+        <small>Cập nhật theo bộ lọc đang áp dụng</small>
+      </div>
+      @if (costReport.rows.length) {
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Phiếu</th>
+                <th>Khách hàng / địa điểm</th>
+                <th>Thiết bị</th>
+                <th>Nhóm chi phí</th>
+                <th>Nội dung</th>
+                <th>Trạng thái</th>
+                <th>Ngày phát sinh</th>
+                <th class="amount-column">Thành tiền</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of costReport.rows; track row.id) {
+                <tr>
+                  <td>
+                    <b>{{ row.ticketCode }}</b>
+                  </td>
+                  <td>
+                    <span>{{ row.customerName || 'Chưa xác định' }}</span>
+                    <small>{{ row.siteName || 'Chưa xác định địa điểm' }}</small>
+                  </td>
+                  <td>
+                    <span>{{ row.equipmentName || 'Chưa xác định' }}</span>
+                    <small>{{ row.equipmentCode || 'Không có mã thiết bị' }}</small>
+                  </td>
+                  <td>
+                    <span class="category-badge">{{ categoryLabel(row.category) }}</span>
+                  </td>
+                  <td class="description-column">{{ row.description }}</td>
+                  <td>
+                    <span [class]="'approval-badge ' + row.status.toLowerCase()">
+                      {{ statusLabel(row.status) }}
+                    </span>
+                  </td>
+                  <td>{{ row.incurredAt | date: 'dd/MM/yyyy' }}</td>
+                  <td class="amount-column">{{ row.amount ?? 0 | number: '1.0-0' }} ₫</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      } @else {
+        <div class="cost-report-empty">
+          <span aria-hidden="true">◇</span>
+          <h3>Chưa có chi phí phù hợp</h3>
+          <p>Hãy thay đổi khoảng thời gian hoặc bộ lọc để xem dữ liệu khác.</p>
+          <button type="button" class="secondary" (click)="resetFilters()">Đặt lại bộ lọc</button>
+        </div>
+      }
+    </section>
+
+    <section class="panel report-breakdown-panel" aria-label="Phân tích chi phí">
+      <div class="report-section-head">
+        <div>
+          <span>Đối chiếu nhanh</span>
+          <h2>Cơ cấu chi phí và trạng thái duyệt</h2>
+          <p>Kiểm tra tỷ trọng từng nhóm trước khi xuất báo cáo.</p>
+        </div>
+        <small>{{ activeCategoryCount(costReport) }} nhóm có phát sinh</small>
+      </div>
+      <div class="breakdown-content">
+        <div class="category-list">
+          @for (category of categoryRows(costReport); track category.key) {
+            <div class="category-row">
+              <div class="category-label">
+                <i [style.background]="category.color"></i>
+                <span>{{ category.label }}</span>
+                <small>{{ category.percent }}%</small>
+                <b>{{ category.amount | number: '1.0-0' }} ₫</b>
+              </div>
+              <div class="category-track" aria-hidden="true">
+                <i [style.width.%]="category.percent" [style.background]="category.color"></i>
+              </div>
+            </div>
+          } @empty {
+            <div class="cost-report-empty compact">
+              <span aria-hidden="true">◇</span>
+              <p>Chưa có chi phí để phân bổ.</p>
+            </div>
+          }
+        </div>
+        <aside class="approval-summary">
+          <div class="approval-summary-head">
+            <span>Tiến độ xác nhận báo giá</span>
+            <strong>{{ acceptedShare(costReport) }}%</strong>
+          </div>
+          <div
+            class="approval-progress"
+            role="progressbar"
+            aria-label="Tỷ lệ báo giá đã được khách hàng chấp nhận"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            [attr.aria-valuenow]="acceptedShare(costReport)"
+          >
+            <i [style.width.%]="acceptedShare(costReport)"></i>
+          </div>
+          <dl>
+            <div>
+              <dt><i class="approved-dot"></i>Đã chấp nhận</dt>
+              <dd>{{ acceptedTotal(costReport) | number: '1.0-0' }} ₫</dd>
+            </div>
+            <div>
+              <dt><i class="pending-dot"></i>Chưa chấp nhận</dt>
+              <dd>{{ pendingTotal(costReport) | number: '1.0-0' }} ₫</dd>
+            </div>
+          </dl>
+        </aside>
+      </div>
+    </section>
+  } @else if (loading()) {
+    <section class="panel cost-report-loading" aria-live="polite" aria-busy="true">
+      <span aria-hidden="true"></span>
+      <b>Đang tổng hợp báo cáo chi phí</b>
+      <p>Dữ liệu đang được đối chiếu từ các phiếu bảo trì.</p>
+    </section>
+  }
+</div>

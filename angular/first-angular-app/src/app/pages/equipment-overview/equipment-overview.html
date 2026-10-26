@@ -1,0 +1,98 @@
+<div class="operations-page">
+  @if (loading()) {
+    <div class="operations-state">Đang tổng hợp thiết bị...</div>
+  } @else if (error()) {
+    <div class="operations-state" role="alert">{{ error() }}</div>
+  } @else if (summary(); as data) {
+    <section class="operations-stats">
+      <article class="operations-stat">
+        <span>◇</span>
+        <div>
+          <small>Tổng thiết bị</small><b>{{ data.total }}</b
+          ><em>{{ data.active }} đang hoạt động</em>
+        </div>
+      </article>
+      <article class="operations-stat warning">
+        <span>⚒</span>
+        <div>
+          <small>Đang bảo trì</small><b>{{ data.underMaintenance }}</b
+          ><em>Cần theo dõi tiến độ</em>
+        </div>
+      </article>
+      <article class="operations-stat warning">
+        <span>◷</span>
+        <div>
+          <small>Sắp hết bảo hành</small><b>{{ data.warrantyExpiring }}</b
+          ><em>Trong 30 ngày tới</em>
+        </div>
+      </article>
+      <article class="operations-stat danger">
+        <span>!</span>
+        <div>
+          <small>Hết bảo hành</small><b>{{ data.outOfWarranty }}</b
+          ><em>{{ data.unknownWarranty }} thiết bị chưa rõ</em>
+        </div>
+      </article>
+    </section>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 18px">
+      <section class="operations-panel">
+        <div class="operations-panel-head">
+          <div>
+            <h2>Thiết bị đang bảo trì</h2>
+            <p>Danh sách cần theo dõi ngay.</p>
+          </div>
+          <a routerLink="/equipment/maintenance">Xem tất cả</a>
+        </div>
+        <div class="operations-table-wrap">
+          <table class="operations-table">
+            <tbody>
+              @for (item of maintenance(); track item.id) {
+                <tr>
+                  <td>
+                    <a [routerLink]="['/equipment', item.id]"
+                      ><b>{{ item.assetCode }}</b></a
+                    ><small>{{ item.name }}</small>
+                  </td>
+                  <td>{{ item.siteName }}</td>
+                </tr>
+              } @empty {
+                <tr>
+                  <td>Không có thiết bị đang bảo trì.</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </section>
+      <section class="operations-panel">
+        <div class="operations-panel-head">
+          <div>
+            <h2>Bảo hành sắp hết</h2>
+            <p>Trong 30 ngày tiếp theo.</p>
+          </div>
+          <a routerLink="/equipment/warranty">Quản lý bảo hành</a>
+        </div>
+        <div class="operations-table-wrap">
+          <table class="operations-table">
+            <tbody>
+              @for (item of expiring(); track item.id) {
+                <tr>
+                  <td>
+                    <a [routerLink]="['/equipment', item.id]"
+                      ><b>{{ item.assetCode }}</b></a
+                    ><small>{{ item.name }}</small>
+                  </td>
+                  <td>{{ item.warrantyEndAt | date: 'dd/MM/yyyy' }}</td>
+                </tr>
+              } @empty {
+                <tr>
+                  <td>Không có bảo hành sắp hết.</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  }
+</div>

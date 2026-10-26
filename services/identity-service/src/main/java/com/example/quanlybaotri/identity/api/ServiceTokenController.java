@@ -25,6 +25,7 @@ public class ServiceTokenController {
         @Value("${app.service-clients.identity-secret}") String identity,
         @Value("${app.service-clients.asset-secret}") String asset,
         @Value("${app.service-clients.maintenance-secret}") String maintenance,
+        @Value("${app.service-clients.payment-secret}") String payment,
         @Value("${app.service-clients.inventory-secret}") String inventory,
         @Value("${app.service-clients.notification-secret}") String notification
     ) {
@@ -36,6 +37,8 @@ public class ServiceTokenController {
             asset,
             "maintenance-service",
             maintenance,
+            "payment-service",
+            payment,
             "inventory-service",
             inventory,
             "notification-service",
@@ -47,11 +50,13 @@ public class ServiceTokenController {
             "asset-service",
             Set.of("organization-service"),
             "maintenance-service",
-            Set.of("identity-service", "asset-service", "inventory-service", "organization-service"),
+            Set.of("identity-service", "asset-service", "inventory-service", "organization-service", "payment-service"),
+            "payment-service",
+            Set.of("maintenance-service", "organization-service"),
             "inventory-service",
             Set.of("identity-service", "maintenance-service"),
             "notification-service",
-            Set.of("identity-service", "maintenance-service")
+            Set.of("identity-service", "maintenance-service", "inventory-service")
         );
     }
 

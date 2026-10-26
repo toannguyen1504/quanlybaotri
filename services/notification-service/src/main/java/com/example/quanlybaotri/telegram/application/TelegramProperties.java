@@ -11,6 +11,7 @@ public class TelegramProperties {
     private String botUsername = "technician001_bot";
     private String appPublicUrl = "http://localhost:4200";
     private Duration linkTtl = Duration.ofMinutes(10);
+    private Duration conversationTtl = Duration.ofHours(2);
     private int pollTimeoutSeconds = 25;
 
     public boolean isEnabled() {
@@ -57,6 +58,12 @@ public class TelegramProperties {
 
     public int getPollTimeoutSeconds() {
         return pollTimeoutSeconds;
+    }
+
+    public Duration getConversationTtl() { return conversationTtl; }
+
+    public void setConversationTtl(Duration conversationTtl) {
+        this.conversationTtl = conversationTtl == null ? Duration.ofHours(2) : conversationTtl;
     }
 
     public void setPollTimeoutSeconds(int pollTimeoutSeconds) {

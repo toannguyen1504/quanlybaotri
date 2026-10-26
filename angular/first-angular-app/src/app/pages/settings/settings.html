@@ -1,0 +1,856 @@
+<div class="page">
+  <header class="page-head">
+    <div>
+      <p class="eyebrow">CẤU HÌNH</p>
+      <h1>Cấu hình hệ thống</h1>
+      <p class="muted">Quản lý dữ liệu nền dùng chung cho hệ thống.</p>
+    </div>
+  </header>
+
+  <div class="settings-tabs" role="tablist" aria-label="Nhóm cấu hình">
+    <button
+      type="button"
+      role="tab"
+      [class.active]="activeTab() === 'branches'"
+      [attr.aria-selected]="activeTab() === 'branches'"
+      aria-controls="branches-panel"
+      (click)="activeTab.set('branches')"
+    >
+      Khách hàng
+    </button>
+    <button
+      type="button"
+      role="tab"
+      [class.active]="activeTab() === 'departments'"
+      [attr.aria-selected]="activeTab() === 'departments'"
+      aria-controls="departments-panel"
+      (click)="activeTab.set('departments')"
+    >
+      Địa điểm
+    </button>
+    <button
+      type="button"
+      role="tab"
+      [class.active]="activeTab() === 'regions'"
+      (click)="activeTab.set('regions')"
+    >
+      Khu vực
+    </button>
+    <button
+      type="button"
+      role="tab"
+      [class.active]="activeTab() === 'categories'"
+      [attr.aria-selected]="activeTab() === 'categories'"
+      aria-controls="categories-panel"
+      (click)="activeTab.set('categories')"
+    >
+      Loại thiết bị
+    </button>
+    <button
+      type="button"
+      role="tab"
+      [class.active]="activeTab() === 'sla'"
+      [attr.aria-selected]="activeTab() === 'sla'"
+      aria-controls="sla-panel"
+      (click)="activeTab.set('sla')"
+    >
+      SLA
+    </button>
+  </div>
+
+  @if (activeTab() === 'regions') {
+    <article class="panel settings-manager">
+      <div class="settings-manager-head">
+        <div class="settings-manager-identity">
+          <span class="settings-manager-icon" aria-hidden="true">KV</span>
+          <div>
+            <h3>Danh mục khu vực</h3>
+            <p>Phân vùng địa điểm khách hàng và kỹ thuật viên phụ trách.</p>
+          </div>
+        </div>
+        <button type="button" class="primary" (click)="openRegionCreate()">+ Thêm khu vực</button>
+      </div>
+      @if (regionMessage()) {
+        <div class="success-message settings-message">{{ regionMessage() }}</div>
+      }
+      @if (showRegionForm()) {
+        <form class="form settings-editor" (ngSubmit)="saveRegion()">
+          <div class="form-grid">
+            <label
+              >Mã khu vực<input name="regionCode" maxlength="50" [(ngModel)]="region.code" required
+            /></label>
+            <label
+              >Tên khu vực<input
+                name="regionName"
+                maxlength="150"
+                [(ngModel)]="region.name"
+                required
+            /></label>
+            <label
+              >Mô tả<input
+                name="regionDescription"
+                maxlength="500"
+                [(ngModel)]="region.description"
+            /></label>
+          </div>
+          @if (editingRegionId()) {
+            <label
+              ><input type="checkbox" name="regionActive" [(ngModel)]="region.active" /> Đang hoạt
+              động</label
+            >
+          }
+          @if (regionError()) {
+            <div class="alert">{{ regionError() }}</div>
+          }
+          <div class="actions">
+            <button type="button" class="secondary" (click)="cancelRegionEdit()">Hủy</button
+            ><button class="primary">
+              {{ editingRegionId() ? 'Lưu thay đổi' : 'Thêm khu vực' }}
+            </button>
+          </div>
+        </form>
+      }
+      <div class="settings-table-wrap">
+        <table class="settings-data-table">
+          <thead>
+            <tr>
+              <th>Khu vực</th>
+              <th>Mô tả</th>
+              <th>Địa điểm</th>
+              <th>Trạng thái</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (item of regions(); track item.id) {
+              <tr>
+                <td>
+                  <b>{{ item.name }}</b
+                  ><br /><small>{{ item.code }}</small>
+                </td>
+                <td>{{ item.description || '—' }}</td>
+                <td>{{ siteCountForRegion(item.id) }}</td>
+                <td>
+                  <span [class]="'settings-state ' + (item.active ? 'active' : 'inactive')"
+                    ><i></i>{{ item.active ? 'Đang hoạt động' : 'Đã tắt' }}</span
+                  >
+                </td>
+                <td class="settings-row-action">
+                  <button type="button" (click)="editRegion(item)">Chỉnh sửa</button>
+                </td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="5" class="empty">Chưa có khu vực.</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </article>
+  }
+
+  @if (activeTab() === 'branches') {
+    <article class="panel settings-manager branch-manager">
+      <div id="branches-panel" role="tabpanel">
+        <div class="settings-manager-head">
+          <div class="settings-manager-identity">
+            <span class="settings-manager-icon branch-icon" aria-hidden="true">CN</span>
+            <div>
+              <h3>Danh mục khách hàng</h3>
+              <p>Quản lý công ty khách hàng và đầu mối liên hệ.</p>
+            </div>
+          </div>
+          <div class="settings-manager-actions">
+            <div class="settings-manager-stats">
+              <span
+                ><b>{{ branches().length }}</b> tổng cộng</span
+              >
+              <span class="active-stat"><i></i>{{ activeBranchCount() }} đang hoạt động</span>
+            </div>
+            <button type="button" class="primary" (click)="openBranchCreate()">
+              + Thêm khách hàng
+            </button>
+          </div>
+        </div>
+
+        @if (branchMessage()) {
+          <div class="success-message settings-message">{{ branchMessage() }}</div>
+        }
+
+        @if (showBranchForm()) {
+          <form class="form branch-form settings-editor" (ngSubmit)="saveBranch()">
+            <div class="settings-form-title">
+              <strong>{{
+                editingBranchId() ? 'Chỉnh sửa khách hàng' : 'Thêm khách hàng mới'
+              }}</strong>
+              <span>Hoàn thiện thông tin nhận diện, địa chỉ và đầu mối liên hệ.</span>
+            </div>
+            <div class="form-grid">
+              <label
+                >Mã khách hàng<input
+                  name="branchCode"
+                  maxlength="50"
+                  [(ngModel)]="branch.code"
+                  placeholder="Ví dụ: HN01"
+                  required
+              /></label>
+              <label
+                >Tên khách hàng<input
+                  name="branchName"
+                  maxlength="150"
+                  [(ngModel)]="branch.name"
+                  placeholder="Ví dụ: Công ty ABC"
+                  required
+              /></label>
+              <label
+                >Email liên hệ<input
+                  name="branchEmail"
+                  type="email"
+                  maxlength="190"
+                  [(ngModel)]="branch.contactEmail"
+                  placeholder="chinhanh@example.com"
+              /></label>
+              <label
+                >Số điện thoại<input
+                  name="branchPhone"
+                  maxlength="30"
+                  [(ngModel)]="branch.contactPhone"
+                  placeholder="Số tổng đài hoặc đầu mối"
+              /></label>
+              <label class="branch-address"
+                >Địa chỉ<input
+                  name="branchAddress"
+                  maxlength="500"
+                  [(ngModel)]="branch.address"
+                  placeholder="Số nhà, đường, phường/xã, tỉnh/thành phố"
+              /></label>
+            </div>
+            @if (editingBranchId()) {
+              <label class="branch-active"
+                ><input name="branchActive" type="checkbox" [(ngModel)]="branch.active" /> Chi nhánh
+                đang hoạt động</label
+              >
+            }
+            @if (branchError()) {
+              <div class="alert">{{ branchError() }}</div>
+            }
+            <div class="actions">
+              <button type="button" class="secondary" (click)="cancelBranchEdit()">Hủy</button>
+              <button class="primary" [disabled]="savingBranch()">
+                {{
+                  savingBranch()
+                    ? 'Đang lưu…'
+                    : editingBranchId()
+                      ? 'Lưu thay đổi'
+                      : 'Thêm khách hàng'
+                }}
+              </button>
+            </div>
+          </form>
+        }
+
+        <div class="settings-list-heading">
+          <div>
+            <h4>Danh sách khách hàng</h4>
+            <p>Theo dõi trạng thái, địa chỉ và thông tin liên hệ của các đơn vị vận hành.</p>
+          </div>
+        </div>
+
+        <label
+          >Khu vực khách hàng<select
+            [(ngModel)]="branchRegionFilter"
+            name="branchRegionFilter"
+            (ngModelChange)="branchPage = 0"
+          >
+            <option value="">Tất cả khu vực</option>
+            <option value="UNASSIGNED">Chưa phân vùng</option>
+            @for (item of regions(); track item.id) {
+              <option [value]="item.id">{{ item.name }}</option>
+            }
+          </select></label
+        >
+        <div class="settings-table-wrap settings-desktop-records" data-list="branches">
+          <table class="settings-data-table branch-data-table">
+            <thead>
+              <tr>
+                <th>Khách hàng</th>
+                <th>Thông tin liên hệ</th>
+                <th>Địa chỉ</th>
+                <th>Địa điểm</th>
+                <th>Trạng thái</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (item of pagedBranches(); track item.id) {
+                <tr>
+                  <td>
+                    <div class="settings-name-cell">
+                      <span class="branch-avatar">{{ item.code.slice(0, 2).toUpperCase() }}</span>
+                      <div>
+                        <b>{{ item.name }}</b>
+                        <small>Mã khách hàng · {{ item.code }}</small>
+                      </div>
+                    </div>
+                  </td>
+                  <td>
+                    <div class="settings-contact-cell">
+                      @if (item.contactEmail) {
+                        <a [href]="'mailto:' + item.contactEmail">{{ item.contactEmail }}</a>
+                      } @else {
+                        <span>Chưa có email</span>
+                      }
+                      @if (item.contactPhone) {
+                        <a [href]="'tel:' + item.contactPhone">{{ item.contactPhone }}</a>
+                      } @else {
+                        <span>Chưa có số điện thoại</span>
+                      }
+                    </div>
+                  </td>
+                  <td>
+                    <span class="settings-location branch-location">{{
+                      item.address || 'Chưa cập nhật'
+                    }}</span>
+                    <small>{{ regionNamesForBranch(item.id) }}</small>
+                  </td>
+                  <td>
+                    <span class="branch-unit-count"
+                      ><b>{{ departmentCountForBranch(item.id) }}</b> địa điểm</span
+                    >
+                  </td>
+                  <td>
+                    <span [class]="'settings-state ' + (item.active ? 'active' : 'inactive')">
+                      <i></i>{{ item.active ? 'Đang hoạt động' : 'Đã tắt' }}
+                    </span>
+                  </td>
+                  <td class="settings-row-action">
+                    <button
+                      type="button"
+                      (click)="editBranch(item)"
+                      aria-label="Chỉnh sửa khách hàng"
+                    >
+                      Chỉnh sửa
+                    </button>
+                  </td>
+                </tr>
+              } @empty {
+                <tr>
+                  <td colspan="6" class="empty">Chưa có khách hàng.</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+
+        <div class="settings-mobile-records" data-mobile-list="branches">
+          @for (item of pagedBranches(); track item.id) {
+            <article class="settings-record-card branch-record-card">
+              <div class="settings-record-head">
+                <div class="settings-name-cell">
+                  <span class="branch-avatar">{{ item.code.slice(0, 2).toUpperCase() }}</span>
+                  <div>
+                    <b>{{ item.name }}</b
+                    ><small>{{ item.code }}</small>
+                  </div>
+                </div>
+                <span [class]="'settings-state ' + (item.active ? 'active' : 'inactive')">
+                  <i></i>{{ item.active ? 'Đang hoạt động' : 'Đã tắt' }}
+                </span>
+              </div>
+              <p>{{ item.address || 'Chưa cập nhật địa chỉ.' }}</p>
+              <dl>
+                <div>
+                  <dt>Địa điểm</dt>
+                  <dd>{{ departmentCountForBranch(item.id) }}</dd>
+                </div>
+                <div>
+                  <dt>Email</dt>
+                  <dd>{{ item.contactEmail || '—' }}</dd>
+                </div>
+                <div>
+                  <dt>Điện thoại</dt>
+                  <dd>{{ item.contactPhone || '—' }}</dd>
+                </div>
+              </dl>
+              <button type="button" class="settings-card-edit" (click)="editBranch(item)">
+                Chỉnh sửa thông tin
+              </button>
+            </article>
+          } @empty {
+            <div class="empty">Chưa có khách hàng.</div>
+          }
+        </div>
+
+        <app-pagination
+          [totalItems]="filteredBranches().length"
+          [page]="branchPage"
+          [pageSize]="pageSize"
+          itemLabel="khách hàng"
+          (pageChange)="branchPage = $event"
+        />
+      </div>
+    </article>
+  }
+
+  @if (activeTab() === 'departments') {
+    <article class="panel settings-manager">
+      <div id="departments-panel" role="tabpanel">
+        <div class="settings-manager-head">
+          <div class="settings-manager-identity">
+            <span class="settings-manager-icon" aria-hidden="true">PB</span>
+            <div>
+              <h3>Danh mục địa điểm</h3>
+              <p>Quản lý đơn vị, vị trí và đầu mối liên hệ trong tổ chức.</p>
+            </div>
+          </div>
+          <div class="settings-manager-actions">
+            <div class="settings-manager-stats">
+              <span
+                ><b>{{ departments().length }}</b> tổng cộng</span
+              >
+              <span class="active-stat"><i></i>{{ activeDepartmentCount() }} đang dùng</span>
+            </div>
+            <button type="button" class="primary" (click)="openDepartmentCreate()">
+              + Thêm địa điểm
+            </button>
+          </div>
+        </div>
+        @if (departmentMessage()) {
+          <div class="success-message settings-message">{{ departmentMessage() }}</div>
+        }
+        @if (showDepartmentForm()) {
+          <form class="form department-form settings-editor" (ngSubmit)="saveDepartment()">
+            <div class="settings-form-title">
+              <strong>{{
+                editingDepartmentId() ? 'Chỉnh sửa địa điểm' : 'Thêm địa điểm mới'
+              }}</strong>
+              <span>Nhập thông tin chi tiết rồi lưu thay đổi.</span>
+            </div>
+            <div class="form-grid">
+              <label
+                >Khách hàng<select
+                  name="departmentBranch"
+                  [(ngModel)]="department.customerId"
+                  required
+                >
+                  <option value="">Chọn khách hàng</option>
+                  @for (b of activeBranches(); track b.id) {
+                    <option [value]="b.id">{{ b.name }}</option>
+                  }
+                </select></label
+              >
+              <label
+                >Khu vực<select name="departmentRegion" [(ngModel)]="department.regionId" required>
+                  <option value="">Chọn khu vực</option>
+                  @for (item of activeRegions(department.regionId); track item.id) {
+                    <option [value]="item.id">{{ item.name }}</option>
+                  }
+                </select></label
+              >
+              <label
+                >Mã địa điểm<input
+                  name="departmentCode"
+                  maxlength="50"
+                  [(ngModel)]="department.code"
+                  placeholder="Ví dụ: IT"
+                  required
+              /></label>
+              <label
+                >Tên địa điểm<input
+                  name="departmentName"
+                  maxlength="150"
+                  [(ngModel)]="department.name"
+                  placeholder="Ví dụ: Công nghệ thông tin"
+                  required
+              /></label>
+              <label
+                >Email liên hệ<input
+                  name="departmentEmail"
+                  type="email"
+                  maxlength="190"
+                  [(ngModel)]="department.contactEmail"
+                  placeholder="phongban@example.com"
+              /></label>
+              <label
+                >Số điện thoại<input
+                  name="departmentPhone"
+                  maxlength="30"
+                  [(ngModel)]="department.contactPhone"
+                  placeholder="Số máy lẻ hoặc số liên hệ"
+              /></label>
+              <label class="department-location"
+                >Vị trí<input
+                  name="departmentLocation"
+                  maxlength="255"
+                  [(ngModel)]="department.location"
+                  placeholder="Tòa nhà, tầng, khu vực"
+              /></label>
+            </div>
+            <label
+              >Mô tả<textarea
+                name="departmentDescription"
+                rows="3"
+                maxlength="500"
+                [(ngModel)]="department.description"
+                placeholder="Mô tả địa điểm lắp đặt"
+              ></textarea>
+            </label>
+            @if (editingDepartmentId()) {
+              <label class="department-active"
+                ><input type="checkbox" name="departmentActive" [(ngModel)]="department.active" />
+                Đang sử dụng</label
+              >
+            }
+            @if (departmentError()) {
+              <div class="alert">{{ departmentError() }}</div>
+            }
+            <div class="actions">
+              <button type="button" class="secondary" (click)="cancelDepartmentEdit()">Hủy</button>
+              <button class="primary" [disabled]="savingDepartment()">
+                {{
+                  savingDepartment()
+                    ? 'Đang lưu…'
+                    : editingDepartmentId()
+                      ? 'Lưu thay đổi'
+                      : 'Thêm địa điểm'
+                }}
+              </button>
+            </div>
+          </form>
+        }
+        <div class="settings-list-heading">
+          <div>
+            <h4>Danh sách địa điểm</h4>
+            <p>Thông tin được sắp xếp theo từng đơn vị trong hệ thống.</p>
+          </div>
+        </div>
+        <div class="settings-table-wrap settings-desktop-records" data-list="departments">
+          <table class="settings-data-table">
+            <thead>
+              <tr>
+                <th>Địa điểm</th>
+                <th>Khách hàng</th>
+                <th>Thông tin liên hệ</th>
+                <th>Vị trí</th>
+                <th>Trạng thái</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (d of pagedDepartments(); track d.id) {
+                <tr>
+                  <td>
+                    <div class="settings-name-cell">
+                      <span>{{ d.code.slice(0, 2).toUpperCase() }}</span>
+                      <div>
+                        <b>{{ d.name }}</b>
+                        <small>{{ d.code }} · {{ d.description || 'Chưa có mô tả' }}</small>
+                      </div>
+                    </div>
+                  </td>
+                  <td>
+                    {{ d.customerName }}<br /><small>{{ d.regionName || 'Chưa phân vùng' }}</small>
+                  </td>
+                  <td>
+                    <div class="settings-contact-cell">
+                      @if (d.contactEmail) {
+                        <a [href]="'mailto:' + d.contactEmail">{{ d.contactEmail }}</a>
+                      } @else {
+                        <span>Chưa có email</span>
+                      }
+                      @if (d.contactPhone) {
+                        <a [href]="'tel:' + d.contactPhone">{{ d.contactPhone }}</a>
+                      } @else {
+                        <span>Chưa có số điện thoại</span>
+                      }
+                    </div>
+                  </td>
+                  <td>
+                    <span class="settings-location">{{ d.location || 'Chưa cập nhật' }}</span>
+                  </td>
+                  <td>
+                    <span [class]="'settings-state ' + (d.active ? 'active' : 'inactive')">
+                      <i></i>{{ d.active ? 'Đang sử dụng' : 'Đã tắt' }}
+                    </span>
+                  </td>
+                  <td class="settings-row-action">
+                    <button
+                      type="button"
+                      (click)="editDepartment(d)"
+                      aria-label="Chỉnh sửa địa điểm"
+                    >
+                      Chỉnh sửa
+                    </button>
+                  </td>
+                </tr>
+              } @empty {
+                <tr>
+                  <td colspan="6" class="empty">Chưa có địa điểm.</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        <div class="settings-mobile-records" data-mobile-list="departments">
+          @for (d of pagedDepartments(); track d.id) {
+            <article class="settings-record-card">
+              <div class="settings-record-head">
+                <div class="settings-name-cell">
+                  <span>{{ d.code.slice(0, 2).toUpperCase() }}</span>
+                  <div>
+                    <b>{{ d.name }}</b
+                    ><small>{{ d.code }}</small>
+                  </div>
+                </div>
+                <span [class]="'settings-state ' + (d.active ? 'active' : 'inactive')">
+                  <i></i>{{ d.active ? 'Đang dùng' : 'Đã tắt' }}
+                </span>
+              </div>
+              <p>{{ d.description || 'Chưa có mô tả.' }}</p>
+              <dl>
+                <div>
+                  <dt>Khách hàng</dt>
+                  <dd>{{ d.customerName }}</dd>
+                </div>
+                <div>
+                  <dt>Vị trí</dt>
+                  <dd>{{ d.location || '—' }}</dd>
+                </div>
+                <div>
+                  <dt>Email</dt>
+                  <dd>{{ d.contactEmail || '—' }}</dd>
+                </div>
+                <div>
+                  <dt>Điện thoại</dt>
+                  <dd>{{ d.contactPhone || '—' }}</dd>
+                </div>
+              </dl>
+              <button type="button" class="settings-card-edit" (click)="editDepartment(d)">
+                Chỉnh sửa thông tin
+              </button>
+            </article>
+          } @empty {
+            <div class="empty">Chưa có địa điểm.</div>
+          }
+        </div>
+        <app-pagination
+          [totalItems]="departments().length"
+          [page]="departmentPage"
+          [pageSize]="pageSize"
+          itemLabel="địa điểm"
+          (pageChange)="departmentPage = $event"
+        />
+      </div>
+    </article>
+  }
+
+  @if (activeTab() === 'categories') {
+    <article class="panel settings-manager">
+      <div id="categories-panel" role="tabpanel">
+        <div class="settings-manager-head">
+          <div class="settings-manager-identity">
+            <span class="settings-manager-icon category-icon" aria-hidden="true">TB</span>
+            <div>
+              <h3>Danh mục loại thiết bị</h3>
+              <p>Chuẩn hóa nhóm thiết bị để quản lý và báo cáo nhất quán.</p>
+            </div>
+          </div>
+          <div class="settings-manager-actions">
+            <div class="settings-manager-stats">
+              <span
+                ><b>{{ categories().length }}</b> tổng cộng</span
+              >
+              <span class="active-stat"><i></i>{{ activeCategoryCount() }} đang dùng</span>
+            </div>
+            <button type="button" class="primary" (click)="openCategoryCreate()">
+              + Thêm loại thiết bị
+            </button>
+          </div>
+        </div>
+        @if (showCategoryForm()) {
+          <form class="form category-form settings-editor" (ngSubmit)="saveCategory()">
+            <div class="settings-form-title">
+              <strong>{{
+                editingCategoryId() ? 'Chỉnh sửa loại thiết bị' : 'Thêm loại thiết bị mới'
+              }}</strong>
+              <span>Nhập thông tin phân loại rồi lưu thay đổi.</span>
+            </div>
+            <div class="form-grid">
+              <label
+                >Mã loại<input
+                  name="categoryCode"
+                  maxlength="50"
+                  [(ngModel)]="category.code"
+                  placeholder="Ví dụ: PRINTER"
+                  required
+              /></label>
+              <label
+                >Tên loại thiết bị<input
+                  name="categoryName"
+                  maxlength="150"
+                  [(ngModel)]="category.name"
+                  placeholder="Ví dụ: Máy in"
+                  required
+              /></label>
+            </div>
+            <label
+              >Mô tả<textarea
+                name="categoryDescription"
+                rows="3"
+                maxlength="500"
+                [(ngModel)]="category.description"
+                placeholder="Đặc điểm hoặc phạm vi thiết bị thuộc loại này"
+              ></textarea>
+            </label>
+            @if (editingCategoryId()) {
+              <label class="department-active"
+                ><input type="checkbox" name="categoryActive" [(ngModel)]="category.active" /> Đang
+                sử dụng</label
+              >
+            }
+            @if (categoryError()) {
+              <div class="alert">{{ categoryError() }}</div>
+            }
+            <div class="actions">
+              <button type="button" class="secondary" (click)="cancelCategoryEdit()">Hủy</button>
+              <button class="primary">
+                {{ editingCategoryId() ? 'Lưu thay đổi' : 'Thêm loại thiết bị' }}
+              </button>
+            </div>
+          </form>
+        }
+        <div class="settings-list-heading">
+          <div>
+            <h4>Danh sách loại thiết bị</h4>
+            <p>Theo dõi danh mục và số lượng thiết bị đang được phân loại.</p>
+          </div>
+        </div>
+        <div class="settings-table-wrap settings-desktop-records" data-list="categories">
+          <table class="settings-data-table category-data-table">
+            <thead>
+              <tr>
+                <th>Loại thiết bị</th>
+                <th>Mô tả</th>
+                <th>Số thiết bị</th>
+                <th>Trạng thái</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (c of pagedCategories(); track c.id) {
+                <tr>
+                  <td>
+                    <div class="settings-name-cell">
+                      <span class="category-avatar">{{ c.code.slice(0, 2).toUpperCase() }}</span>
+                      <div>
+                        <b>{{ c.name }}</b
+                        ><small>{{ c.code }}</small>
+                      </div>
+                    </div>
+                  </td>
+                  <td>
+                    <p class="settings-table-description">
+                      {{ c.description || 'Chưa có mô tả' }}
+                    </p>
+                  </td>
+                  <td>
+                    <strong class="equipment-total">{{ c.equipmentCount }}</strong>
+                  </td>
+                  <td>
+                    <span [class]="'settings-state ' + (c.active ? 'active' : 'inactive')">
+                      <i></i>{{ c.active ? 'Đang sử dụng' : 'Đã tắt' }}
+                    </span>
+                  </td>
+                  <td class="settings-row-action">
+                    <button
+                      type="button"
+                      (click)="editCategory(c)"
+                      aria-label="Chỉnh sửa loại thiết bị"
+                    >
+                      Chỉnh sửa
+                    </button>
+                  </td>
+                </tr>
+              } @empty {
+                <tr>
+                  <td colspan="5" class="empty">Chưa có loại thiết bị.</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        <div class="settings-mobile-records" data-mobile-list="categories">
+          @for (c of pagedCategories(); track c.id) {
+            <article class="settings-record-card">
+              <div class="settings-record-head">
+                <div class="settings-name-cell">
+                  <span class="category-avatar">{{ c.code.slice(0, 2).toUpperCase() }}</span>
+                  <div>
+                    <b>{{ c.name }}</b
+                    ><small>{{ c.code }}</small>
+                  </div>
+                </div>
+                <span [class]="'settings-state ' + (c.active ? 'active' : 'inactive')">
+                  <i></i>{{ c.active ? 'Đang dùng' : 'Đã tắt' }}
+                </span>
+              </div>
+              <p>{{ c.description || 'Chưa có mô tả cho loại thiết bị này.' }}</p>
+              <div class="settings-card-count">
+                <span>Thiết bị thuộc loại này</span><b>{{ c.equipmentCount }}</b>
+              </div>
+              <button type="button" class="settings-card-edit" (click)="editCategory(c)">
+                Chỉnh sửa thông tin
+              </button>
+            </article>
+          } @empty {
+            <div class="empty">Chưa có loại thiết bị.</div>
+          }
+        </div>
+        <app-pagination
+          [totalItems]="categories().length"
+          [page]="categoryPage"
+          [pageSize]="pageSize"
+          itemLabel="loại thiết bị"
+          (pageChange)="categoryPage = $event"
+        />
+      </div>
+    </article>
+  }
+
+  @if (activeTab() === 'sla') {
+    <article class="panel">
+      <div id="sla-panel" role="tabpanel">
+        <h3>Chính sách SLA</h3>
+        <p class="muted settings-description">
+          Thiết lập thời gian phản hồi và hoàn thành theo từng mức ưu tiên.
+        </p>
+        @for (s of pagedSla(); track s.id) {
+          <form class="sla-row" (ngSubmit)="saveSla(s)">
+            <b [class]="'priority ' + s.priority.toLowerCase()">{{ s.priority }}</b
+            ><label
+              >Phản hồi (phút)<input
+                name="response-{{ s.id }}"
+                type="number"
+                min="1"
+                [(ngModel)]="s.responseMinutes" /></label
+            ><label
+              >Hoàn thành (phút)<input
+                name="resolution-{{ s.id }}"
+                type="number"
+                min="1"
+                [(ngModel)]="s.resolutionMinutes" /></label
+            ><button class="secondary">Lưu</button>
+          </form>
+        }
+        <app-pagination
+          [totalItems]="sla().length"
+          [page]="slaPage"
+          [pageSize]="pageSize"
+          itemLabel="chính sách SLA"
+          (pageChange)="slaPage = $event"
+        />
+      </div>
+    </article>
+  }
+</div>

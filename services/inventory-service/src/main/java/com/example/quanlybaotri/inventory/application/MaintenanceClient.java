@@ -49,6 +49,28 @@ public class MaintenanceClient {
         }
     }
 
+    public TicketRef authorizeTelegram(UUID ticketId, UUID technicianId) {
+        try {
+            return client
+                .get()
+                .uri(u -> u
+                    .path("/internal/v1/telegram/tickets/{id}/inventory-access")
+                    .queryParam("technicianId", technicianId)
+                    .build(ticketId))
+                .headers(this::serviceHeaders)
+                .retrieve()
+                .body(TicketRef.class);
+        } catch (HttpClientErrorException.Forbidden e) {
+            throw ApiException.forbidden("Phiếu không còn được phân công cho kỹ thuật viên");
+        } catch (HttpClientErrorException.NotFound e) {
+            throw ApiException.notFound("Không tìm thấy phiếu");
+        } catch (HttpClientErrorException.Conflict e) {
+            throw ApiException.conflict("Không thể dùng linh kiện ở trạng thái hiện tại");
+        } catch (RestClientException e) {
+            throw unavailable();
+        }
+    }
+
     public Map<UUID, TicketRef> resolve(Collection<UUID> ids) {
         Set<UUID> u = new LinkedHashSet<>(ids);
         u.remove(null);

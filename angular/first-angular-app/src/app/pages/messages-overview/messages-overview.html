@@ -1,0 +1,55 @@
+<div class="operations-page">
+  <section class="operations-toolbar" aria-label="Khoảng thời gian tin nhắn">
+    <label><span>Từ ngày</span><input type="date" [(ngModel)]="from" /></label>
+    <label><span>Đến ngày</span><input type="date" [(ngModel)]="to" /></label>
+    <button type="button" class="primary" (click)="applyPeriod()">Áp dụng</button>
+  </section>
+  @if (loading()) {
+    <div class="operations-state">Đang tổng hợp hộp thư...</div>
+  } @else if (error()) {
+    <div class="operations-state" role="alert">{{ error() }}</div>
+  } @else if (summary(); as data) {
+    <section class="operations-stats">
+      <article class="operations-stat danger">
+        <span>●</span>
+        <div>
+          <small>Tin chưa đọc</small><b>{{ data.unreadMessages }}</b
+          ><em>{{ data.unreadConversations }} hội thoại cần xem</em>
+        </div>
+      </article>
+      <article class="operations-stat">
+        <span>✉</span>
+        <div>
+          <small>Đang hoạt động</small><b>{{ data.active }}</b
+          ><em>Hội thoại theo phiếu mở</em>
+        </div>
+      </article>
+      <article class="operations-stat success">
+        <span>✓</span>
+        <div>
+          <small>Đã kết thúc</small><b>{{ data.closed }}</b
+          ><em>Hội thoại thuộc phiếu hoàn tất</em>
+        </div>
+      </article>
+      <article class="operations-stat">
+        <span>↗</span>
+        <div>
+          <small>Tin trong kỳ</small><b>{{ data.messagesInPeriod }}</b
+          ><em>{{ data.total }} hội thoại có dữ liệu</em>
+        </div>
+      </article>
+    </section>
+    <section class="operations-panel">
+      <div class="operations-panel-head">
+        <div>
+          <h2>Đi tới hộp thư</h2>
+          <p>Ưu tiên hội thoại chưa đọc hoặc đang xử lý.</p>
+        </div>
+      </div>
+      <div class="operations-actions" style="gap: 12px">
+        <a class="primary button-link" routerLink="/messages/unread">Xem chưa đọc</a
+        ><a class="secondary button-link" routerLink="/messages/active">Hội thoại đang hoạt động</a>
+      </div>
+    </section>
+  }
+</div>

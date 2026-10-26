@@ -30,6 +30,18 @@ public class NotificationController {
         return repo.findByUserId(id, p).map(View::from);
     }
 
+    @GetMapping("/{id}")
+    @Transactional(readOnly = true)
+    public View get(@PathVariable UUID id) {
+        Notification notification = repo
+            .findById(id)
+            .orElseThrow(() -> ApiException.notFound("Không tìm thấy thông báo"));
+        if (!notification.getUserId().equals(current.require().id())) throw ApiException.forbidden(
+            "Không có quyền xem thông báo"
+        );
+        return View.from(notification);
+    }
+
     @GetMapping("/unread-count")
     public Count unread() {
         return new Count(repo.countByUserIdAndReadAtIsNull(current.require().id()));

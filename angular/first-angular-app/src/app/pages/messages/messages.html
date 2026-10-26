@@ -1,0 +1,65 @@
+<div class="messages-page">
+  <header class="messages-heading">
+    <form (ngSubmit)="search()">
+      <input name="messageQuery" [(ngModel)]="query" placeholder="Tìm mã hoặc tiêu đề phiếu..." />
+      <button class="secondary">Tìm kiếm</button>
+    </form>
+    <span class="unread-summary">{{ chat.unreadCount() }} chưa đọc</span>
+  </header>
+
+  <div class="messages-layout">
+    <aside class="conversation-list" aria-label="Danh sách hội thoại">
+      @if (chat.inboxLoading() && !chat.conversations().length) {
+        <p class="conversation-state">Đang tải danh sách tin nhắn…</p>
+      } @else if (chat.inboxError() && !chat.conversations().length) {
+        <div class="conversation-state conversation-error" role="alert">
+          <b>Không thể tải tin nhắn</b>
+          <p>{{ chat.inboxError() }}</p>
+          <button type="button" (click)="chat.refreshInbox()">Thử lại</button>
+        </div>
+      } @else if (!chat.conversations().length) {
+        <p>Chưa có cuộc trao đổi nào.</p>
+      }
+      @for (conversation of chat.conversations(); track conversation.id) {
+        <button
+          type="button"
+          [class.active]="selectedTicketId() === conversation.ticket.id"
+          (click)="select(conversation.ticket.id)"
+        >
+          <div class="conversation-title">
+            <b>{{ conversation.ticket.code }}</b>
+            @if (conversation.unreadCount) {
+              <span>{{ conversation.unreadCount }}</span>
+            }
+          </div>
+          <strong>{{ conversation.ticket.title }}</strong>
+          <p>
+            {{ conversation.lastMessage?.sender?.fullName }}:
+            {{ conversation.lastMessage?.content }}
+          </p>
+          @if (conversation.lastMessage) {
+            <time>{{ conversation.lastMessage.createdAt | date: 'HH:mm dd/MM' }}</time>
+          }
+        </button>
+      }
+      @if (chat.nextCursor()) {
+        <button
+          type="button"
+          class="load-more-conversations"
+          [disabled]="chat.inboxLoading()"
+          (click)="chat.loadMoreInbox()"
+        >
+          {{ chat.inboxLoading() ? 'Đang tải...' : 'Tải thêm hội thoại' }}
+        </button>
+      }
+    </aside>
+
+    <main class="conversation-thread">
+      @if (selectedTicketId()) {
+        <app-ticket-chat [ticketId]="selectedTicketId()" />
+      } @else {
+        <div class="select-prompt">Chọn một cuộc trao đổi để xem nội dung.</div>
+      }
+    </main>
+  </div>
+</div>

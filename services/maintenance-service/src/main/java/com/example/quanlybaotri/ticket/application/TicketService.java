@@ -5,6 +5,7 @@ import com.example.quanlybaotri.equipment.domain.EquipmentStatus;
 import com.example.quanlybaotri.identity.client.IdentityClient;
 import com.example.quanlybaotri.identity.domain.RoleName;
 import com.example.quanlybaotri.shared.api.ApiException;
+import com.example.quanlybaotri.shared.integration.CommandSource;
 import com.example.quanlybaotri.shared.security.CurrentUser.Actor;
 import com.example.quanlybaotri.ticket.api.TicketController.*;
 import com.example.quanlybaotri.ticket.domain.*;
@@ -14,6 +15,7 @@ import com.example.quanlybaotri.cost.domain.CostStatus;
 import com.example.quanlybaotri.cost.domain.TicketCostSummary;
 import com.example.quanlybaotri.cost.persistence.TicketCostSummaryRepository;
 import com.example.quanlybaotri.organization.client.OrganizationClient;
+import com.example.quanlybaotri.payment.client.PaymentClient.PaymentSnapshot;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.criteria.Root;
 import jakarta.persistence.criteria.Subquery;
@@ -134,7 +136,8 @@ public class TicketService {
         Map<UUID, IdentityClient.UserRef> users = identities.resolve(userIds(page.getContent()));
         Map<UUID, OrganizationClient.DepartmentRef> departments = departmentMap(page.getContent());
         Map<UUID, TicketCostSummary> costMap = costMap(page.getContent());
-        return page.map(t -> TicketView.from(t, equipment.get(t.getEquipmentId()), users, departments.get(t.getSiteId()), costMap.get(t.getId()), canSeeCosts(t,actor)));
+        Map<UUID, PaymentSnapshot> paymentMap = costs.paymentSnapshots(page.getContent().stream().map(MaintenanceTicket::getId).toList());
+        return page.map(t -> TicketView.from(t, equipment.get(t.getEquipmentId()), users, departments.get(t.getSiteId()), costMap.get(t.getId()), canSeeCosts(t,actor,costMap.get(t.getId())),paymentMap.get(t.getId())));
     }
 
     public List<TicketView> export(
@@ -171,9 +174,10 @@ public class TicketService {
         Map<UUID, IdentityClient.UserRef> users = identities.resolve(userIds(result));
         Map<UUID, OrganizationClient.DepartmentRef> departments = departmentMap(result);
         Map<UUID, TicketCostSummary> costMap = costMap(result);
+        Map<UUID, PaymentSnapshot> paymentMap = costs.paymentSnapshots(result.stream().map(MaintenanceTicket::getId).toList());
         return result
             .stream()
-            .map(t -> TicketView.from(t, equipment.get(t.getEquipmentId()), users, departments.get(t.getSiteId()), costMap.get(t.getId()), canSeeCosts(t,actor)))
+            .map(t -> TicketView.from(t, equipment.get(t.getEquipmentId()), users, departments.get(t.getSiteId()), costMap.get(t.getId()), canSeeCosts(t,actor,costMap.get(t.getId())),paymentMap.get(t.getId())))
             .toList();
     }
 
@@ -466,6 +470,7 @@ public class TicketService {
                 !t.getRequesterId().equals(actor.id()) && !elevated(actor)
             ) throw ApiException.forbidden("Không có quyền mở lại phiếu");
             require(t, TicketStatus.RESOLVED);
+            costs.ensureReopenAllowed(t.getId());
             TicketStatus old = t.getStatus();
             t.reopen();
             costs.reopen(t.getId());
@@ -480,17 +485,23 @@ public class TicketService {
         });
     }
 
-    public TicketView close(UUID id, String reason, Actor actor) {
+    public TicketView close(UUID id, String reason, FeedbackRequest feedback, Actor actor) {
         return mutate(id, actor, t -> {
             if (
                 !t.getRequesterId().equals(actor.id()) && !elevated(actor)
             ) throw ApiException.forbidden("Không có quyền đóng phiếu");
             require(t, TicketStatus.RESOLVED);
-            // Customer confirmation closes the maintenance workflow independently from
-            // the provider's internal operating-cost approval process.
-            if (!actor.customer()) costs.ensureApproved(t.getId());
-            if (elevated(actor) && !t.getRequesterId().equals(actor.id())) requiredReason(reason);
+            costs.ensureSettled(t.getId());
+            boolean requester = t.getRequesterId().equals(actor.id());
+            boolean feedbackProvided = feedback != null && feedback.provided();
+            if (!requester) {
+                requiredReason(reason);
+                if (feedbackProvided) throw ApiException.forbidden(
+                    "Chỉ người yêu cầu của phiếu được gửi phản hồi"
+                );
+            }
             TicketStatus old = t.getStatus();
+            if (feedbackProvided) t.submitFeedback(feedback.rating(), feedback.comment());
             t.close();
             boolean under =
                 tickets.countByEquipmentIdAndIdNotAndStatusNotIn(
@@ -498,13 +509,20 @@ public class TicketService {
                     t.getId(),
                     TERMINAL
                 ) > 0;
+            Map<String, Object> metadata = new LinkedHashMap<>();
+            metadata.put("equipmentUnderMaintenance", under);
+            metadata.put("feedbackProvided", feedbackProvided);
+            if (feedbackProvided && feedback.rating() != null) metadata.put(
+                "feedbackRating",
+                feedback.rating()
+            );
             record(
                 t,
                 actor,
                 "CLOSED",
                 old,
                 reason == null || reason.isBlank() ? "Người yêu cầu xác nhận hoàn thành" : reason,
-                Map.of("equipmentUnderMaintenance", under)
+                metadata
             );
         });
     }
@@ -546,7 +564,6 @@ public class TicketService {
             ) throw invalid(t);
             WorkLog saved = workLogs.save(new WorkLog(t, actor.id(), content.trim(), minutes));
             workLogs.flush();
-            costs.addWorkLog(saved);
             record(
                 t,
                 actor,
@@ -617,7 +634,9 @@ public class TicketService {
         Actor actor
     ) {
         var department = organizations.resolve(List.of(t.getSiteId())).get(t.getSiteId());
-        return TicketView.from(t, e, users, department, costSummaries.findById(t.getId()).orElse(null),canSeeCosts(t,actor));
+        TicketCostSummary cost = costSummaries.findById(t.getId()).orElse(null);
+        PaymentSnapshot payment = costs.paymentSnapshots(List.of(t.getId())).get(t.getId());
+        return TicketView.from(t, e, users, department, cost, canSeeCosts(t,actor,cost), payment);
     }
 
     private Map<UUID, TicketCostSummary> costMap(Collection<MaintenanceTicket> source) {
@@ -649,7 +668,7 @@ public class TicketService {
         String text,
         Map<String, Object> metadata
     ) {
-        eventService.record(t, actor.id(), action, from, t.getStatus(), text, metadata);
+        eventService.record(t, actor.id(), action, from, t.getStatus(), text, CommandSource.metadata(metadata));
     }
 
     private Specification<MaintenanceTicket> filters(
@@ -725,9 +744,9 @@ public class TicketService {
                 cb.equal(root.get("status"), TicketStatus.RESOLVED),
                 costStatus(root, query, cb, CostStatus.DRAFT, true)
             );
-            case COST_READY -> cb.and(
+            case COST_QUOTED -> cb.and(
                 cb.equal(root.get("status"), TicketStatus.RESOLVED),
-                costStatus(root, query, cb, CostStatus.READY, false)
+                costStatus(root, query, cb, CostStatus.QUOTED, false)
             );
         };
     }
@@ -805,8 +824,9 @@ public class TicketService {
         ) throw ApiException.forbidden("Không có quyền xem phiếu");
     }
 
-    private boolean canSeeCosts(MaintenanceTicket ticket,Actor actor){
-        return !actor.customer()&&(elevated(actor)||actor.id().equals(ticket.getAssigneeId()));
+    private boolean canSeeCosts(MaintenanceTicket ticket,Actor actor,TicketCostSummary cost){
+        if(actor.customer()) return actor.id().equals(ticket.getRequesterId())&&actor.canAccess(ticket.getCustomerId(),ticket.getSiteId())&&cost!=null&&(cost.getStatus()==CostStatus.QUOTED||cost.getStatus()==CostStatus.ACCEPTED);
+        return elevated(actor)||actor.id().equals(ticket.getAssigneeId());
     }
 
     private boolean elevated(Actor actor) {

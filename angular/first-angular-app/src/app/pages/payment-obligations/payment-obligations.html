@@ -1,0 +1,92 @@
+<div class="operations-page">
+  <form class="operations-toolbar" (ngSubmit)="apply()">
+    <label>Tìm kiếm<input name="q" [(ngModel)]="q" placeholder="Mã phiếu hoặc tiêu đề..." /></label>
+    <label
+      >Trạng thái<select name="status" [(ngModel)]="status">
+        <option value="">Tất cả</option>
+        @for (s of statuses; track s) {
+          <option [value]="s">{{ label(s) }}</option>
+        }
+      </select></label
+    >
+    <label>Từ ngày<input name="from" type="date" [(ngModel)]="from" /></label
+    ><label>Đến ngày<input name="to" type="date" [(ngModel)]="to" /></label>
+    <button class="primary">Áp dụng</button
+    ><button type="button" class="secondary" (click)="clear()">Xóa lọc</button>
+  </form>
+  @if (error()) {
+    <div class="operations-state" role="alert">{{ error() }}</div>
+  }
+  @if (loading()) {
+    <div class="operations-state">Đang tải nghĩa vụ thanh toán...</div>
+  } @else if (items().length) {
+    <section class="operations-panel">
+      <div class="operations-panel-head">
+        <div>
+          <h2>Nghĩa vụ thanh toán</h2>
+          <p>Dữ liệu được tải theo từng đợt, không tải toàn bộ hệ thống.</p>
+        </div>
+        <b>{{ items().length }} mục đã tải</b>
+      </div>
+      <div class="operations-table-wrap">
+        <table class="operations-table">
+          <thead>
+            <tr>
+              <th>Phiếu</th>
+              <th>Khách hàng</th>
+              <th>Số tiền</th>
+              <th>Trạng thái</th>
+              <th>Hoạt động</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (item of items(); track item.ticketId) {
+              <tr>
+                <td>
+                  <a [routerLink]="['/tickets', item.ticketId]"
+                    ><b>{{ item.ticketCode }}</b></a
+                  ><small>{{ item.ticketTitle }}</small>
+                </td>
+                <td>
+                  <b>{{ item.customerName || '—' }}</b
+                  ><small>{{ item.siteName || '—' }}</small>
+                </td>
+                <td>
+                  <b>{{ item.amountDue | number: '1.0-0' }} ₫</b
+                  ><small>{{ item.attemptCount }} lần giao dịch</small>
+                </td>
+                <td>
+                  <span [class]="'operations-badge ' + tone(item.paymentStatus)">{{
+                    label(item.paymentStatus)
+                  }}</span>
+                </td>
+                <td>{{ item.activityAt | date: 'dd/MM/yyyy HH:mm' }}</td>
+                <td>
+                  @if (item.canPay) {
+                    <button
+                      class="primary compact"
+                      [disabled]="actionLoading()[item.ticketId]"
+                      (click)="startPayment(item)"
+                    >
+                      Thanh toán
+                    </button>
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </section>
+    @if (hasMore()) {
+      <div class="operations-actions">
+        <button class="secondary" [disabled]="loadingMore()" (click)="load(false)">
+          {{ loadingMore() ? 'Đang tải...' : 'Tải thêm' }}
+        </button>
+      </div>
+    }
+  } @else if (!error()) {
+    <div class="operations-state">Không có nghĩa vụ thanh toán phù hợp.</div>
+  }
+</div>

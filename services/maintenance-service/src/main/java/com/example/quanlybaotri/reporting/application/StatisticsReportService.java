@@ -28,22 +28,36 @@ public class StatisticsReportService {
     private final IdentityClient identities;
     private final AssetClient assets;
     private final OrganizationClient organizations;
+    private final StatisticsReportCache cache;
 
     public StatisticsReportService(
         NamedParameterJdbcTemplate jdbc,
         IdentityClient identities,
         AssetClient assets,
-        OrganizationClient organizations
+        OrganizationClient organizations,
+        StatisticsReportCache cache
     ) {
         this.jdbc = jdbc;
         this.identities = identities;
         this.assets = assets;
         this.organizations = organizations;
+        this.cache = cache;
     }
 
     public StatisticsReport get(Filter filter) {
-        Snapshot snapshot = snapshot(filter);
-        return new StatisticsReport(snapshot.generatedAt(), snapshot.tickets().size(), snapshot.queues());
+        return cache.getOrLoad(filter, () -> calculateReport(filter));
+    }
+
+    private StatisticsReport calculateReport(Filter filter) {
+        Instant generatedAt = Instant.now();
+        List<RawTicket> tickets = loadTickets(filter);
+        if (filter.equipmentCategoryId() != null) {
+            Map<UUID, AssetClient.EquipmentRef> equipment = resolveBatched(
+                tickets.stream().map(RawTicket::equipmentId).distinct().toList(), assets::resolve
+            );
+            tickets = filterByEquipmentCategory(tickets, filter.equipmentCategoryId(), equipment);
+        }
+        return new StatisticsReport(generatedAt, tickets.size(), countQueues(tickets, generatedAt));
     }
 
     public Snapshot snapshot(Filter filter) {
@@ -53,12 +67,7 @@ public class StatisticsReportService {
             tickets.stream().map(RawTicket::equipmentId).distinct().toList(), assets::resolve
         );
         if (filter.equipmentCategoryId() != null) {
-            tickets = tickets.stream()
-                .filter(ticket -> {
-                    AssetClient.EquipmentRef item = equipment.get(ticket.equipmentId());
-                    return item != null && filter.equipmentCategoryId().equals(item.categoryId());
-                })
-                .toList();
+            tickets = filterByEquipmentCategory(tickets, filter.equipmentCategoryId(), equipment);
         }
 
         Map<UUID, IdentityClient.UserRef> users = resolveBatched(
@@ -69,13 +78,11 @@ public class StatisticsReportService {
             tickets.stream().map(RawTicket::siteId).distinct().toList(), organizations::resolve
         );
 
-        EnumMap<TicketWorkQueue, Long> queues = new EnumMap<>(TicketWorkQueue.class);
-        for (TicketWorkQueue queue : TicketWorkQueue.values()) queues.put(queue, 0L);
+        Map<TicketWorkQueue, Long> queues = countQueues(tickets, generatedAt);
 
         List<OperationalTicket> details = new ArrayList<>();
         for (RawTicket ticket : tickets) {
             EnumSet<TicketWorkQueue> matches = matchingQueues(ticket, generatedAt);
-            matches.forEach(queue -> queues.compute(queue, (ignored, count) -> count == null ? 1 : count + 1));
             AssetClient.EquipmentRef item = equipment.get(ticket.equipmentId());
             IdentityClient.UserRef assignee = ticket.assigneeId() == null ? null : users.get(ticket.assigneeId());
             OrganizationClient.DepartmentRef site = sites.get(ticket.siteId());
@@ -93,6 +100,30 @@ public class StatisticsReportService {
             ));
         }
         return new Snapshot(generatedAt, Collections.unmodifiableMap(queues), List.copyOf(details));
+    }
+
+    private List<RawTicket> filterByEquipmentCategory(
+        List<RawTicket> tickets,
+        UUID equipmentCategoryId,
+        Map<UUID, AssetClient.EquipmentRef> equipment
+    ) {
+        return tickets.stream()
+            .filter(ticket -> {
+                AssetClient.EquipmentRef item = equipment.get(ticket.equipmentId());
+                return item != null && equipmentCategoryId.equals(item.categoryId());
+            })
+            .toList();
+    }
+
+    private Map<TicketWorkQueue, Long> countQueues(List<RawTicket> tickets, Instant generatedAt) {
+        EnumMap<TicketWorkQueue, Long> queues = new EnumMap<>(TicketWorkQueue.class);
+        for (TicketWorkQueue queue : TicketWorkQueue.values()) queues.put(queue, 0L);
+        for (RawTicket ticket : tickets) {
+            matchingQueues(ticket, generatedAt).forEach(queue ->
+                queues.compute(queue, (ignored, count) -> count == null ? 1 : count + 1)
+            );
+        }
+        return Collections.unmodifiableMap(queues);
     }
 
     private List<RawTicket> loadTickets(Filter filter) {
@@ -169,7 +200,7 @@ public class StatisticsReportService {
             }
         }
         if (ticket.status() == TicketStatus.RESOLVED) {
-            if (ticket.costStatus() == CostStatus.READY) result.add(TicketWorkQueue.COST_READY);
+            if (ticket.costStatus() == CostStatus.QUOTED) result.add(TicketWorkQueue.COST_QUOTED);
             else if (ticket.costStatus() == null || ticket.costStatus() == CostStatus.DRAFT) {
                 result.add(TicketWorkQueue.COST_DRAFT);
             }

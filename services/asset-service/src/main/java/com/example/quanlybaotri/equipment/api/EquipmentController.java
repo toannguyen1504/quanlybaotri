@@ -8,6 +8,8 @@ import com.example.quanlybaotri.shared.security.CurrentUser;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.*;
 import org.springframework.data.domain.*;
 import org.springframework.data.jpa.domain.Specification;
@@ -32,25 +34,45 @@ public class EquipmentController {
 
     @GetMapping
     public Page<View> list(@RequestParam(required=false) String q,@RequestParam(required=false) EquipmentStatus status,
-        @RequestParam(required=false) UUID customerId,@RequestParam(required=false) UUID siteId,
-        @RequestParam(required=false) WarrantyStatus warrantyStatus,Pageable pageable){
+        @RequestParam(required=false) UUID categoryId,@RequestParam(required=false) UUID customerId,@RequestParam(required=false) UUID siteId,
+        @RequestParam(required=false) WarrantyStatus warrantyStatus,@RequestParam(required=false) Boolean active,
+        @RequestParam(required=false) @org.springframework.format.annotation.DateTimeFormat(iso=org.springframework.format.annotation.DateTimeFormat.ISO.DATE) LocalDate warrantyEndFrom,
+        @RequestParam(required=false) @org.springframework.format.annotation.DateTimeFormat(iso=org.springframework.format.annotation.DateTimeFormat.ISO.DATE) LocalDate warrantyEndTo,
+        Pageable pageable){
         var actor=current.require();
         String query=blankNull(q);Set<UUID> allowedSites=allowedSites(actor,customerId);
+        if(allowedSites!=null&&allowedSites.isEmpty())return Page.empty(pageable);
         if(siteId!=null&&allowedSites!=null&&!allowedSites.contains(siteId))return Page.empty(pageable);
         Instant now=Instant.now();
-        Specification<Equipment> filters=(root,ignored,cb)->{
-            List<jakarta.persistence.criteria.Predicate> p=new ArrayList<>();
-            if(query!=null)p.add(cb.or(cb.like(cb.lower(root.get("assetCode")),"%"+query.toLowerCase(Locale.ROOT)+"%"),cb.like(cb.lower(root.get("name")),"%"+query.toLowerCase(Locale.ROOT)+"%")));
-            if(status!=null)p.add(cb.equal(root.get("status"),status));
-            if(siteId!=null)p.add(cb.equal(root.get("siteId"),siteId));else if(allowedSites!=null)p.add(allowedSites.isEmpty()?cb.disjunction():root.get("siteId").in(allowedSites));
-            if(warrantyStatus==WarrantyStatus.IN_WARRANTY)p.add(cb.and(cb.lessThanOrEqualTo(root.get("warrantyStartAt"),now),cb.greaterThanOrEqualTo(root.get("warrantyEndAt"),now)));
-            if(warrantyStatus==WarrantyStatus.OUT_OF_WARRANTY)p.add(cb.lessThan(root.get("warrantyEndAt"),now));
-            if(warrantyStatus==WarrantyStatus.UNKNOWN)p.add(cb.or(cb.isNull(root.get("warrantyStartAt")),cb.isNull(root.get("warrantyEndAt")),cb.greaterThan(root.get("warrantyStartAt"),now)));
-            return cb.and(p.toArray(jakarta.persistence.criteria.Predicate[]::new));
-        };
+        ZoneId zone=ZoneId.of("Asia/Ho_Chi_Minh");
+        Specification<Equipment> filters=filters(query,status,categoryId,siteId,warrantyStatus,active,
+            warrantyEndFrom==null?null:warrantyEndFrom.atStartOfDay(zone).toInstant(),
+            warrantyEndTo==null?null:warrantyEndTo.plusDays(1).atStartOfDay(zone).toInstant(),allowedSites,now);
         Page<Equipment> result=transactions.execute(tx->repo.findAll(filters,pageable));
         var sites=organizations.resolve(result.getContent().stream().map(Equipment::getSiteId).toList());
         return result.map(e->View.from(e,sites.get(e.getSiteId()),now));
+    }
+
+    @GetMapping("/summary")
+    public SummaryView summary(@RequestParam(required=false) String q,@RequestParam(required=false) UUID categoryId,
+        @RequestParam(required=false) UUID customerId,@RequestParam(required=false) UUID siteId,
+        @RequestParam(required=false) WarrantyStatus warrantyStatus,@RequestParam(required=false) Boolean active,
+        @RequestParam(defaultValue="30") int warrantyDays){
+        var actor=current.require();
+        Set<UUID> allowedSites=allowedSites(actor,customerId);
+        if(allowedSites!=null&&allowedSites.isEmpty())return SummaryView.empty();
+        if(siteId!=null&&allowedSites!=null&&!allowedSites.contains(siteId))return SummaryView.empty();
+        Instant now=Instant.now();
+        Specification<Equipment> base=filters(blankNull(q),null,categoryId,siteId,warrantyStatus,active,null,null,allowedSites,now);
+        return transactions.execute(tx->new SummaryView(
+            repo.count(base),
+            repo.count(base.and(hasStatus(EquipmentStatus.ACTIVE))),
+            repo.count(base.and(hasStatus(EquipmentStatus.UNDER_MAINTENANCE))),
+            repo.count(base.and(hasStatus(EquipmentStatus.RETIRED))),
+            repo.count(base.and(warrantyBetween(now,now.plusSeconds(Math.max(1,Math.min(warrantyDays,365))*86400L)))),
+            repo.count(base.and(warrantyExpired(now))),
+            repo.count(base.and(warrantyUnknown(now)))
+        ));
     }
 
     @GetMapping("/{id}")
@@ -87,6 +109,42 @@ public class EquipmentController {
         return requestedCustomer==null?null:organizations.byCustomer(requestedCustomer).stream().map(OrganizationClient.DepartmentRef::id).collect(java.util.stream.Collectors.toSet());
     }
     private void authorize(OrganizationClient.DepartmentRef site,CurrentUser.Actor actor){if(!actor.canAccess(site.customerId(),site.id()))throw ApiException.forbidden("Không có quyền xem thiết bị này");}
+    Specification<Equipment> filters(String query,EquipmentStatus status,UUID categoryId,UUID siteId,
+        WarrantyStatus warrantyStatus,Boolean active,Instant warrantyEndFrom,Instant warrantyEndTo,
+        Set<UUID> allowedSites,Instant now){
+        return (root,ignored,cb)->{
+            List<jakarta.persistence.criteria.Predicate> p=new ArrayList<>();
+            if(query!=null){
+                String pattern="%"+query.toLowerCase(Locale.ROOT)+"%";
+                p.add(cb.or(
+                    cb.like(cb.lower(root.get("assetCode")),pattern),
+                    cb.like(cb.lower(root.get("name")),pattern),
+                    cb.like(cb.lower(root.get("serialNumber")),pattern),
+                    cb.like(cb.lower(root.get("manufacturer")),pattern),
+                    cb.like(cb.lower(root.get("model")),pattern),
+                    cb.like(cb.lower(root.get("location")),pattern),
+                    cb.like(cb.lower(root.get("category").get("name")),pattern)
+                ));
+            }
+            if(status!=null)p.add(cb.equal(root.get("status"),status));
+            if(active!=null)p.add(cb.equal(root.get("active"),active));
+            if(categoryId!=null)p.add(cb.equal(root.get("category").get("id"),categoryId));
+            if(siteId!=null)p.add(cb.equal(root.get("siteId"),siteId));
+            else if(allowedSites!=null)p.add(allowedSites.isEmpty()?cb.disjunction():root.get("siteId").in(allowedSites));
+            if(warrantyStatus==WarrantyStatus.IN_WARRANTY)p.add(cb.and(cb.lessThanOrEqualTo(root.get("warrantyStartAt"),now),cb.greaterThanOrEqualTo(root.get("warrantyEndAt"),now)));
+            if(warrantyStatus==WarrantyStatus.OUT_OF_WARRANTY)p.add(cb.lessThan(root.get("warrantyEndAt"),now));
+            if(warrantyStatus==WarrantyStatus.UNKNOWN)p.add(cb.or(cb.isNull(root.get("warrantyStartAt")),cb.isNull(root.get("warrantyEndAt")),cb.greaterThan(root.get("warrantyStartAt"),now)));
+            if(warrantyEndFrom!=null)p.add(cb.greaterThanOrEqualTo(root.get("warrantyEndAt"),warrantyEndFrom));
+            if(warrantyEndTo!=null)p.add(cb.lessThan(root.get("warrantyEndAt"),warrantyEndTo));
+            return cb.and(p.toArray(jakarta.persistence.criteria.Predicate[]::new));
+        };
+    }
+    private Specification<Equipment> hasStatus(EquipmentStatus status){
+        return (root,ignored,cb)->cb.equal(root.get("status"),status);
+    }
+    private Specification<Equipment> warrantyBetween(Instant from,Instant to){return (root,ignored,cb)->cb.and(cb.isNotNull(root.get("warrantyEndAt")),cb.greaterThanOrEqualTo(root.get("warrantyEndAt"),from),cb.lessThan(root.get("warrantyEndAt"),to));}
+    private Specification<Equipment> warrantyExpired(Instant now){return (root,ignored,cb)->cb.and(cb.isNotNull(root.get("warrantyEndAt")),cb.lessThan(root.get("warrantyEndAt"),now));}
+    private Specification<Equipment> warrantyUnknown(Instant now){return (root,ignored,cb)->cb.or(cb.isNull(root.get("warrantyStartAt")),cb.isNull(root.get("warrantyEndAt")),cb.greaterThan(root.get("warrantyStartAt"),now));}
     private Equipment find(UUID id){return repo.findById(id).orElseThrow(()->ApiException.notFound("Không tìm thấy thiết bị"));}
     private EquipmentCategory category(UUID id){return categories.findById(id).orElseThrow(()->ApiException.notFound("Không tìm thấy loại thiết bị"));}
     private String blankNull(String s){return s==null||s.isBlank()?null:s.trim();}
@@ -103,5 +161,8 @@ public class EquipmentController {
         Instant installedAt,Instant acceptedAt,Instant warrantyStartAt,Instant warrantyEndAt,WarrantyStatus warrantyStatus,
         EquipmentStatus status,boolean active,long version){
         static View from(Equipment e,OrganizationClient.DepartmentRef site,Instant now){return new View(e.getId(),e.getAssetCode(),e.getName(),e.getSerialNumber(),e.getManufacturer(),e.getModel(),e.getLocation(),e.getCategory().getId(),e.getCategory().getName(),e.getSiteId(),site==null?null:site.name(),site==null?null:site.customerId(),site==null?null:site.customerName(),e.getInstalledAt(),e.getAcceptedAt(),e.getWarrantyStartAt(),e.getWarrantyEndAt(),e.warrantyStatus(now),e.getStatus(),e.isActive(),e.getVersion());}
+    }
+    public record SummaryView(long total,long active,long underMaintenance,long retired,long warrantyExpiring,long outOfWarranty,long unknownWarranty){
+        static SummaryView empty(){return new SummaryView(0,0,0,0,0,0,0);}
     }
 }

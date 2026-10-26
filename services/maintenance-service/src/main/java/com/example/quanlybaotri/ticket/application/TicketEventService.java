@@ -9,6 +9,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
 import org.slf4j.MDC;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import tools.jackson.databind.ObjectMapper;
 
@@ -18,15 +19,18 @@ public class TicketEventService {
     private final TicketEventRepository events;
     private final OutboxRepository outbox;
     private final ObjectMapper json;
+    private final ApplicationEventPublisher applicationEvents;
 
     public TicketEventService(
         TicketEventRepository events,
         OutboxRepository outbox,
-        ObjectMapper json
+        ObjectMapper json,
+        ApplicationEventPublisher applicationEvents
     ) {
         this.events = events;
         this.outbox = outbox;
         this.json = json;
+        this.applicationEvents = applicationEvents;
     }
 
     public void record(
@@ -54,6 +58,7 @@ public class TicketEventService {
             Map<String, Object> data = new LinkedHashMap<>();
             data.put("ticketId", ticket.getId());
             data.put("ticketCode", ticket.getCode());
+            data.put("title", ticket.getTitle());
             data.put("action", action);
             data.put("status", ticket.getStatus().name());
             data.put("priority", ticket.getPriority().name());
@@ -102,6 +107,7 @@ public class TicketEventService {
                     json.writeValueAsString(envelope)
                 )
             );
+            applicationEvents.publishEvent(new TicketChangeRecorded(action, from, to));
         } catch (Exception ex) {
             throw new IllegalStateException("Cannot serialize maintenance event", ex);
         }

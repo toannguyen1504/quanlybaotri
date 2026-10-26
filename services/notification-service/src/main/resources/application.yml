@@ -10,8 +10,11 @@ spring:
   flyway.enabled: true
   rabbitmq:
     host: ${RABBITMQ_HOST:rabbitmq}
+    port: ${RABBITMQ_PORT:5672}
     username: ${RABBITMQ_USERNAME:maintenance_app}
     password: ${RABBITMQ_PASSWORD:maintenance_dev}
+    publisher-confirm-type: correlated
+    publisher-returns: true
     listener.simple:
       default-requeue-rejected: false
       retry:
@@ -28,6 +31,7 @@ server.port: 8085
 app:
   identity-url: ${IDENTITY_SERVICE_URL:http://identity-service:8081}
   maintenance-url: ${MAINTENANCE_SERVICE_URL:http://maintenance-service:8083}
+  inventory-url: ${INVENTORY_SERVICE_URL:http://inventory-service:8084}
   service-client.secret: ${NOTIFICATION_SERVICE_CLIENT_SECRET:change-notification-service-client-secret}
   telegram:
     enabled: ${TELEGRAM_ENABLED:false}
@@ -35,7 +39,11 @@ app:
     bot-username: ${TELEGRAM_BOT_USERNAME:technician001_bot}
     app-public-url: ${TELEGRAM_APP_PUBLIC_URL:http://localhost:4200}
     link-ttl: 10m
+    conversation-ttl: ${TELEGRAM_CONVERSATION_TTL:2h}
     poll-timeout-seconds: 25
+  chat:
+    stomp-port: ${RABBITMQ_STOMP_PORT:61613}
+    allowed-origin-patterns: ${CHAT_ALLOWED_ORIGIN_PATTERNS:http://localhost:*}
 management:
   server.port: 9000
   endpoints.web.exposure.include: health,info,prometheus

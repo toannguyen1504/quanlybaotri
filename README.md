@@ -9,10 +9,11 @@
 | `api-gateway`          |        8080 | Điểm vào API, xác thực JWT, CORS và correlation ID        | Không             |
 | `identity-service`     |        8081 | Đăng nhập, user, role, service client/token               | `identity_db`     |
 | `asset-service`        |        8082 | Loại thiết bị, thiết bị và tài liệu thiết bị              | `asset_db`        |
-| `maintenance-service`  |        8083 | Ticket, SLA, phân công, work log, attachment và dashboard | `maintenance_db`  |
+| `maintenance-service`  |        8083 | Ticket, SLA, chi phí, attachment và dashboard             | `maintenance_db`  |
 | `inventory-service`    |        8084 | Linh kiện, tồn kho và linh kiện dùng cho ticket           | `inventory_db`    |
 | `notification-service` |        8085 | Notification                                              | `notification_db` |
 | `organization-service` |        8086 | Khách hàng và địa điểm lắp đặt                             | `organization_db` |
+| `payment-service`      |        8087 | Thanh toán, VNPay, đối soát và lịch sử giao dịch           | `payment_db`      |
 
 Mỗi service chỉ lưu aggregate thuộc nghiệp vụ của nó. Tham chiếu sang service khác là UUID, không phải quan hệ JPA hay bảng projection. Dữ liệu hiển thị được ghép bằng bulk internal API sau khi đọc dữ liệu local.
 
@@ -20,6 +21,7 @@ Mỗi service chỉ lưu aggregate thuộc nghiệp vụ của nó. Tham chiếu
 identity ───────► organization
 asset ──────────► organization
 maintenance ────► identity + asset + organization
+payment ────────► maintenance + organization
 inventory ──────► maintenance + identity
 notification ───► identity
 ```
@@ -38,12 +40,12 @@ Các sự kiện projection cũ như `identity.*` và `asset.equipment.changed` 
 - Tài khoản `INTERNAL` không gắn khách hàng. `ADMIN` quản trị toàn bộ; `MANAGER` quản lý khách hàng, địa điểm, thiết bị, tài khoản khách hàng và ticket; `TECHNICIAN` chỉ xử lý ticket được phân công.
 - Tài khoản `CUSTOMER` có `customerId` và phạm vi `ALL_SITES` hoặc `SELECTED_SITES`. Backend áp dụng phạm vi này cho danh sách, chi tiết, attachment và presigned URL.
 - JWT người dùng chứa `account_type`, `customer_id`, `site_scope` và `site_ids`.
-- Ticket chụp `warrantyStatusAtCreation` và `warrantyEndAtCreation` khi tạo. Chi phí là dữ liệu vận hành nội bộ và không được trả cho tài khoản khách hàng.
+- Ticket chụp `warrantyStatusAtCreation` và `warrantyEndAtCreation` khi tạo. Khách hàng chỉ thấy bảng chi phí đã duyệt theo nhóm; từng dòng chi phí, đơn giá và chứng từ nội bộ không được trả ra.
 - API công khai dùng `/api/v1/customers` và `/api/v1/customer-sites`; các đường dẫn branch/department cũ không còn được gateway công bố.
 
 ## Cấu trúc repository
 
-- `services/`: gateway và sáu Spring Boot service độc lập.
+- `services/`: gateway và bảy Spring Boot service độc lập.
 - `contracts/events/`: contract cho các domain event còn được hỗ trợ.
 - `infra/postgres/`: khởi tạo database/user và công cụ cutover dữ liệu.
 - `infra/rabbitmq/`: exchange, queue, binding và DLQ.
@@ -91,6 +93,32 @@ docker compose run --rm `
 
 Runner giữ nguyên `storage_key`, bỏ qua object đã có đúng kích thước/checksum và trả lỗi nếu thiếu file hoặc sai hash. Volume `attachments` cũ được mount read-only tại `/legacy-uploads`; không xóa volume trước khi báo cáo migration có `failed=0`.
 
+### Thanh toán VNPay
+
+`payment-service` sở hữu bảng `payment_attempts` trong `payment_db`. Service lấy ticket/chi phí qua internal API của `maintenance-service`; ngược lại maintenance chỉ gọi payment contract để kiểm tra điều kiện đóng/mở lại phiếu và ghép payment snapshot. Gateway giữ nguyên các URL public `/api/v1/payments/**` và `/api/v1/tickets/{id}/payments`.
+
+Với volume PostgreSQL đã tồn tại, init script không chạy lại. Tạo database/user payment một lần trước khi bật service mới:
+
+```powershell
+docker compose exec postgres sh -lc 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" --set=payment_password="$PAYMENT_DB_PASSWORD" --file=/migration/04-create-payment-database.sql'
+docker compose up -d --build payment-service api-gateway
+```
+
+Khách hàng có quyền trên địa điểm của phiếu có thể thanh toán toàn bộ bảng chi phí đã duyệt. Phiếu có tổng tiền lớn hơn 0 chỉ được đóng sau khi IPN hợp lệ xác nhận thành công; bảng chi phí bằng 0 không yêu cầu thanh toán. Cấu hình Sandbox trong `.env`:
+
+```dotenv
+VNPAY_TMN_CODE=<sandbox-tmn-code>
+VNPAY_HASH_SECRET=<sandbox-hash-secret>
+VNPAY_PAYMENT_URL=https://sandbox.vnpayment.vn/paymentv2/vpcpay.html
+VNPAY_QUERY_URL=https://sandbox.vnpayment.vn/merchant_webapi/api/transaction
+VNPAY_RETURN_URL=https://app.example.com/api/v1/payments/vnpay/return
+VNPAY_IPN_URL=https://app.example.com/api/v1/payments/vnpay/ipn
+VNPAY_FRONTEND_RESULT_URL=https://app.example.com/payment-result
+VNPAY_PAYMENT_EXPIRY=15m
+```
+
+`VNPAY_IPN_URL` phải là HTTPS URL công khai được đăng ký với VNPay. Hai callback VNPay là các endpoint công khai duy nhất trong payment API và đều kiểm tra HMAC-SHA512; secret không được ghi vào source, log hoặc frontend. ADMIN/MANAGER có thể đối soát giao dịch đang chờ từ trang chi tiết phiếu sau khoảng chờ tối thiểu 5 phút.
+
 ### Telegram cho kỹ thuật viên
 
 Để bật thông báo Telegram, tạo token mới cho bot rồi cấu hình trong `.env`:
@@ -100,13 +128,35 @@ TELEGRAM_ENABLED=true
 TELEGRAM_BOT_TOKEN=<new-token-from-botfather>
 TELEGRAM_BOT_USERNAME=technician001_bot
 TELEGRAM_APP_PUBLIC_URL=http://localhost:4200
+TELEGRAM_CONVERSATION_TTL=2h
 ```
 
 Không sử dụng lại token đã từng xuất hiện trong mã nguồn, log hoặc hội thoại. Với môi trường triển khai thật, `TELEGRAM_APP_PUBLIC_URL` phải là URL mà thiết bị của kỹ thuật viên truy cập được. `notification-service` dùng long polling nên chỉ chạy một poller cho mỗi bot token.
 
 Khi được phân công phiếu, kỹ thuật viên có thể bấm **Tiếp nhận phiếu** ngay trong Telegram để chuyển phiếu sang `IN_PROGRESS`; nút **Mở phiếu** vẫn được hiển thị khi `TELEGRAM_APP_PUBLIC_URL` là URL HTTP(S) công khai. Callback chỉ có hiệu lực với đúng tài khoản Telegram và đúng tin nhắn đã nhận.
 
+Bot hỗ trợ xử lý trọn phần việc của kỹ thuật viên trong private chat:
+
+- `/phieu`: xem và chuyển giữa các phiếu đang được giao.
+- `/huy`: hủy bước nhập hiện tại và quay về menu phiếu.
+- `/trogiup`: xem hướng dẫn nhanh.
+- Menu phiếu cho phép thêm nhật ký/thời gian, ảnh hoặc chứng từ, xuất linh kiện, khai báo khoản phát sinh có mô tả, chờ/tiếp tục, hoàn tất xử lý và gửi báo giá cho khách hàng. Thời gian làm việc không được tính vào chi phí phiếu.
+
+Phiên nhập hết hạn sau `TELEGRAM_CONVERSATION_TTL` không hoạt động. Ảnh tối đa 10 MB; video và tài liệu gửi qua bot tối đa 20 MB. Bot không nhận voice note, sticker hoặc vị trí. Kỹ thuật viên đưa phiếu tới `RESOLVED` và báo giá tới `QUOTED`; người tạo phiếu chấp nhận hoặc từ chối báo giá trước khi thanh toán và đóng phiếu.
+
+Khi triển khai nâng cấp, chạy Flyway cho `maintenance-service`, `inventory-service` và `notification-service` trước khi bật bot. Các callback **Tiếp nhận phiếu** cũ vẫn tương thích sau nâng cấp.
+
 Trên database trống, tài khoản quản trị lấy từ `BOOTSTRAP_ADMIN_*` trong `.env`. Khi cutover dữ liệu, user và password hash cũ được giữ nguyên.
+
+### Google Sign-In
+
+Tạo OAuth 2.0 Client ID loại **Web application** trong Google Cloud Console, thêm các địa chỉ web thực tế (ví dụ `http://localhost:4200`) vào **Authorized JavaScript origins**, rồi đặt Client ID vào `GOOGLE_CLIENT_ID` trong `.env`. Luồng Google Identity Services dùng popup và ID token nên không cần client secret hoặc redirect URI. Để áp dụng migration tài khoản và cấu hình mới, rebuild `identity-service`, `api-gateway` và `web`:
+
+```powershell
+docker compose up -d --build identity-service api-gateway web
+```
+
+Nếu `GOOGLE_CLIENT_ID` để trống, backend trả `googleEnabled=false` và giao diện tự ẩn nút Google.
 
 Dừng stack nhưng giữ dữ liệu:
 
@@ -121,6 +171,30 @@ Observability là profile riêng:
 ```powershell
 docker compose --profile observability up -d --build --wait
 ```
+
+### Chat realtime theo phiếu
+
+`notification-service` sở hữu dữ liệu chat và cung cấp REST đọc hộp thư/lịch sử tại
+`/api/v1/chat/**`. Gửi tin và đánh dấu đã đọc dùng STOMP qua WebSocket cùng origin
+`/ws/chat`; token truy cập được gửi trong header `Authorization` của STOMP `CONNECT`.
+
+RabbitMQ chạy cả AMQP và plugin STOMP. Cổng `5672` và `61613` chỉ nằm trong mạng
+`backend`; trình duyệt luôn kết nối qua Nginx, không nhận RabbitMQ credential. Khi triển
+khai trên domain khác localhost, đặt chính xác origin được phép, ví dụ:
+
+```dotenv
+CHAT_ALLOWED_ORIGIN_PATTERNS=https://maintenance.example.com
+```
+
+Sau khi cập nhật source hoặc biến môi trường, rebuild các thành phần liên quan:
+
+```powershell
+docker compose up -d --build rabbitmq notification-service api-gateway web
+```
+
+Phòng chat chỉ cho requester đã tạo phiếu, kỹ thuật viên đang được phân công,
+`ADMIN` và `MANAGER`. Phiếu `CLOSED`, `REJECTED`, `CANCELLED` chỉ được đọc. Trang
+`/messages` là hộp thư; cùng component chat cũng xuất hiện trong chi tiết phiếu.
 
 ## Build và kiểm thử
 

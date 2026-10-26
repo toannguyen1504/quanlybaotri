@@ -1,0 +1,53 @@
+@if (totalPages > 1) {
+  <nav class="pagination" [attr.aria-label]="'Phân trang ' + itemLabel">
+    <div class="pagination-summary">
+      <span class="summary-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" focusable="false">
+          <path d="M8 7h11M8 12h11M8 17h11" />
+          <circle cx="4" cy="7" r="1" />
+          <circle cx="4" cy="12" r="1" />
+          <circle cx="4" cy="17" r="1" />
+        </svg>
+      </span>
+      <p>
+        <span>Đang hiển thị</span>
+        <strong
+          ><b>{{ rangeStart }}–{{ rangeEnd }}</b> / {{ totalItems }} {{ itemLabel }}</strong
+        >
+      </p>
+    </div>
+    <div class="pagination-controls">
+      <button
+        type="button"
+        class="page-direction"
+        aria-label="Trang trước"
+        [disabled]="effectivePage === 0"
+        (click)="selectPage(effectivePage - 1)"
+      >
+        <span aria-hidden="true">←</span><span class="direction-label">Trước</span>
+      </button>
+      <div class="page-numbers">
+        @for (pageNumber of visiblePages; track pageNumber) {
+          <button
+            type="button"
+            [class.active]="pageNumber === effectivePage"
+            [attr.aria-label]="'Trang ' + (pageNumber + 1)"
+            [attr.aria-current]="pageNumber === effectivePage ? 'page' : null"
+            (click)="selectPage(pageNumber)"
+          >
+            {{ pageNumber + 1 }}
+          </button>
+        }
+      </div>
+      <button
+        type="button"
+        class="page-direction"
+        aria-label="Trang sau"
+        [disabled]="effectivePage >= totalPages - 1"
+        (click)="selectPage(effectivePage + 1)"
+      >
+        <span class="direction-label">Sau</span><span aria-hidden="true">→</span>
+      </button>
+    </div>
+  </nav>
+}

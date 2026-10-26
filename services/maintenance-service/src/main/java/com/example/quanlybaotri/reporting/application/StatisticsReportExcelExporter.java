@@ -101,8 +101,8 @@ public class StatisticsReportExcelExporter {
             case IN_PROGRESS -> new QueueDefinition("Theo luồng công việc", "Đang xử lý", "Kỹ thuật viên", "Trạng thái IN_PROGRESS");
             case WAITING_PARTS -> new QueueDefinition("Theo luồng công việc", "Chờ linh kiện", "Kỹ thuật viên / Điều phối", "Trạng thái WAITING_PARTS");
             case AWAITING_CLOSURE -> new QueueDefinition("Theo luồng công việc", "Chờ xác nhận đóng", "Quản trị / Quản lý", "Trạng thái RESOLVED");
-            case COST_DRAFT -> new QueueDefinition("Chi phí cần xử lý", "Chi phí chưa gửi duyệt", "Kỹ thuật viên", "Phiếu RESOLVED có chi phí DRAFT");
-            case COST_READY -> new QueueDefinition("Chi phí cần xử lý", "Chi phí chờ duyệt", "Quản trị / Quản lý", "Phiếu RESOLVED có chi phí READY");
+            case COST_DRAFT -> new QueueDefinition("Chi phí cần xử lý", "Báo giá chưa gửi", "Kỹ thuật viên", "Phiếu RESOLVED có báo giá DRAFT");
+            case COST_QUOTED -> new QueueDefinition("Chi phí cần xử lý", "Chờ khách hàng xác nhận", "Khách hàng tạo phiếu", "Phiếu RESOLVED có báo giá QUOTED");
         };
     }
 

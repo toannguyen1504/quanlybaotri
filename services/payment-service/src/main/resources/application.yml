@@ -1,0 +1,34 @@
+spring:
+  application.name: payment-service
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://postgres:5432/payment_db}
+    username: ${DB_USERNAME:payment_app}
+    password: ${DB_PASSWORD:payment_dev}
+  jpa:
+    hibernate.ddl-auto: validate
+    open-in-view: false
+  flyway.enabled: true
+  data.redis:
+    host: ${REDIS_HOST:redis}
+    port: ${REDIS_PORT:6379}
+  security.oauth2.resourceserver.jwt.jwk-set-uri: ${JWK_SET_URI:http://identity-service:8081/.well-known/jwks.json}
+server.port: 8087
+app:
+  identity-url: ${IDENTITY_URL:http://identity-service:8081}
+  maintenance-url: ${MAINTENANCE_SERVICE_URL:http://maintenance-service:8083}
+  organization-url: ${ORGANIZATION_SERVICE_URL:http://organization-service:8086}
+  service-client.secret: ${PAYMENT_SERVICE_CLIENT_SECRET:payment-service-dev-secret}
+  payment.vnpay:
+    tmn-code: ${VNPAY_TMN_CODE:}
+    hash-secret: ${VNPAY_HASH_SECRET:}
+    payment-url: ${VNPAY_PAYMENT_URL:https://sandbox.vnpayment.vn/paymentv2/vpcpay.html}
+    query-url: ${VNPAY_QUERY_URL:https://sandbox.vnpayment.vn/merchant_webapi/api/transaction}
+    return-url: ${VNPAY_RETURN_URL:http://localhost:8080/api/v1/payments/vnpay/return}
+    ipn-url: ${VNPAY_IPN_URL:http://localhost:8080/api/v1/payments/vnpay/ipn}
+    frontend-result-url: ${VNPAY_FRONTEND_RESULT_URL:http://localhost:4200/payment-result}
+    expiry: ${VNPAY_PAYMENT_EXPIRY:15m}
+management:
+  server.port: 9000
+  endpoints.web.exposure.include: health,info,prometheus
+  endpoint.health.probes.enabled: true
+logging.structured.format.console: logstash

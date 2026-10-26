@@ -7,6 +7,7 @@ import com.example.quanlybaotri.cost.domain.CostStatus;
 import com.example.quanlybaotri.ticket.domain.TicketPriority;
 import com.example.quanlybaotri.ticket.domain.TicketStatus;
 import com.example.quanlybaotri.ticket.domain.WarrantyStatus;
+import com.example.quanlybaotri.payment.client.TicketPaymentStatus;
 import java.io.ByteArrayInputStream;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -53,16 +54,17 @@ class TicketExcelExporterTest {
             dueAt.plusSeconds(60),
             dueAt.plusSeconds(120),
             "Đã thay bộ cuốn giấy",
+            null,
             WarrantyStatus.IN_WARRANTY,
             dueAt.plusSeconds(86400),
             true,
-            CostStatus.APPROVED,
+            CostStatus.ACCEPTED,
             new BigDecimal("150000.00"),
-            new BigDecimal("100000.00"),
-            BigDecimal.ZERO,
             new BigDecimal("50000.00"),
-            BigDecimal.ZERO,
-            new BigDecimal("300000.00"),
+            new BigDecimal("200000.00"),
+            TicketPaymentStatus.SUCCEEDED,
+            new BigDecimal("200000.00"),
+            dueAt.plusSeconds(90),
             2L
         );
 
@@ -86,8 +88,8 @@ class TicketExcelExporterTest {
             assertThat(sheet.getRow(3).getCell(8).getStringCellValue()).isEqualTo("Cao");
             assertThat(sheet.getRow(3).getCell(18).getStringCellValue())
                 .isEqualTo("Hoàn tất quá hạn");
-            assertThat(sheet.getRow(3).getCell(20).getStringCellValue()).isEqualTo("Đã duyệt");
-            assertThat(sheet.getRow(3).getCell(26).getNumericCellValue()).isEqualTo(300000d);
+            assertThat(sheet.getRow(3).getCell(20).getStringCellValue()).isEqualTo("Khách hàng đã chấp nhận");
+            assertThat(sheet.getRow(3).getCell(23).getNumericCellValue()).isEqualTo(200000d);
             assertThat(sheet.getPaneInformation().isFreezePane()).isTrue();
         }
     }

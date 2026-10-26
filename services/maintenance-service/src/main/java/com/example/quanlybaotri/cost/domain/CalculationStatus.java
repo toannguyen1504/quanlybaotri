@@ -1,3 +1,3 @@
 package com.example.quanlybaotri.cost.domain;
 
-public enum CalculationStatus { READY, MISSING_RATE }
+public enum CalculationStatus { READY }

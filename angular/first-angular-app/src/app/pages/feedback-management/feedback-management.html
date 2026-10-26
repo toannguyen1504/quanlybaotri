@@ -1,0 +1,268 @@
+<section class="management-page">
+  <header class="page-heading">
+    <div>
+      <span class="eyebrow">TRUNG TÂM TIẾP NHẬN</span>
+      <h1>Quản lý phản hồi</h1>
+      <p>Theo dõi góp ý về hệ thống và chất lượng xử lý phiếu tại một nơi.</p>
+    </div>
+  </header>
+
+  <nav class="tabs" aria-label="Loại phản hồi">
+    <button type="button" [class.active]="tab === 'system'" (click)="selectTab('system')">
+      Phản hồi hệ thống
+    </button>
+    <button type="button" [class.active]="tab === 'tickets'" (click)="selectTab('tickets')">
+      Phản hồi phiếu
+    </button>
+  </nav>
+
+  @if (tab === 'system') {
+    <article class="panel filters">
+      <input
+        [(ngModel)]="systemQ"
+        placeholder="Tìm tiêu đề, nội dung hoặc câu trả lời"
+        (keyup.enter)="applySystemFilters()"
+      />
+      <select [(ngModel)]="systemStatus">
+        <option value="">Tất cả trạng thái</option>
+        @for (item of statuses; track item) {
+          <option [value]="item">{{ statusLabel(item) }}</option>
+        }
+      </select>
+      <select [(ngModel)]="systemCategory">
+        <option value="">Tất cả loại</option>
+        @for (item of categories; track item) {
+          <option [value]="item">{{ categoryLabel(item) }}</option>
+        }
+      </select>
+      <select [(ngModel)]="systemRequesterId">
+        <option value="">Tất cả requester</option>
+        @for (item of requesters(); track item.id) {
+          <option [value]="item.id">{{ item.fullName }}</option>
+        }
+      </select>
+      <label>Từ ngày<input type="date" [(ngModel)]="systemFrom" /></label>
+      <label>Đến ngày<input type="date" [(ngModel)]="systemTo" /></label>
+      <div class="filter-actions">
+        <button class="secondary" type="button" (click)="clearSystemFilters()">Xóa lọc</button
+        ><button class="primary" type="button" (click)="applySystemFilters()">Áp dụng</button>
+      </div>
+    </article>
+
+    @if (error()) {
+      <p class="message error" role="alert">{{ error() }}</p>
+    }
+    <div class="management-grid" [class.with-detail]="selected()">
+      <article class="panel list-panel">
+        <div class="section-heading">
+          <h2>Phản hồi hệ thống</h2>
+          @if (systemResult(); as page) {
+            <small>{{ page.totalElements }} phản hồi</small>
+          }
+        </div>
+        @if (loading()) {
+          <div class="empty">Đang tải dữ liệu...</div>
+        } @else if (!systemResult()?.content?.length) {
+          <div class="empty">
+            <b>Không có phản hồi phù hợp</b><span>Thử thay đổi bộ lọc để xem thêm kết quả.</span>
+          </div>
+        } @else {
+          <div class="rows">
+            @for (item of systemResult()!.content; track item.id) {
+              <button
+                type="button"
+                class="row"
+                [class.active]="selected()?.id === item.id"
+                (click)="openSystem(item)"
+              >
+                <div class="row-title">
+                  <b>{{ item.title }}</b
+                  ><span class="status" [attr.data-status]="item.status">{{
+                    statusLabel(item.status)
+                  }}</span>
+                </div>
+                <p>{{ item.content }}</p>
+                <div class="row-meta">
+                  <span>{{ categoryLabel(item.category) }}</span
+                  ><span>{{ item.requesterName || 'Requester' }}</span
+                  ><span>{{ item.createdAt | date: 'dd/MM/yyyy HH:mm' }}</span>
+                </div>
+              </button>
+            }
+          </div>
+          <app-pagination
+            [totalItems]="systemResult()!.totalElements"
+            [page]="systemPage"
+            [pageSize]="pageSize"
+            itemLabel="phản hồi"
+            (pageChange)="selectSystemPage($event)"
+          />
+        }
+      </article>
+
+      @if (selected(); as item) {
+        <aside class="panel detail-panel">
+          <div class="section-heading">
+            <h2>Chi tiết xử lý</h2>
+            <button class="icon-button" type="button" aria-label="Đóng" (click)="closeSystem()">
+              ×
+            </button>
+          </div>
+          <div class="detail-meta">
+            <span>{{ categoryLabel(item.category) }}</span
+            ><span class="status" [attr.data-status]="item.status">{{
+              statusLabel(item.status)
+            }}</span>
+          </div>
+          <h3>{{ item.title }}</h3>
+          <p class="detail-content">{{ item.content }}</p>
+          <dl>
+            <div>
+              <dt>Người gửi</dt>
+              <dd>{{ item.requesterName || item.requesterId }}</dd>
+            </div>
+            <div>
+              <dt>Thời gian</dt>
+              <dd>{{ item.createdAt | date: 'dd/MM/yyyy HH:mm' }}</dd>
+            </div>
+            @if (item.reviewedByName) {
+              <div>
+                <dt>Người xử lý</dt>
+                <dd>{{ item.reviewedByName }}</dd>
+              </div>
+            }
+          </dl>
+          @if (isTerminal(item)) {
+            <div class="official-response">
+              <b>Câu trả lời chính thức</b>
+              <p>{{ item.response }}</p>
+              <small>{{ item.reviewedAt | date: 'dd/MM/yyyy HH:mm' }}</small>
+            </div>
+          } @else {
+            <form class="review-form" (ngSubmit)="review()">
+              <label
+                >Trạng thái<select
+                  name="reviewStatus"
+                  [(ngModel)]="reviewStatus"
+                  [disabled]="reviewing()"
+                >
+                  @for (value of reviewStatuses; track value) {
+                    <option [value]="value">{{ statusLabel(value) }}</option>
+                  }
+                </select></label
+              >
+              <label
+                >Câu trả lời<textarea
+                  name="reviewResponse"
+                  [(ngModel)]="reviewResponse"
+                  maxlength="5000"
+                  rows="6"
+                  placeholder="Bắt buộc khi hoàn tất hoặc từ chối"
+                  [disabled]="reviewing()"
+                ></textarea
+                ><small>{{ reviewResponse.length }}/5000 ký tự</small></label
+              >
+              @if (reviewError()) {
+                <p class="message error">{{ reviewError() }}</p>
+              }
+              @if (reviewSuccess()) {
+                <p class="message success">{{ reviewSuccess() }}</p>
+              }
+              <button class="primary" type="submit" [disabled]="reviewing()">
+                {{ reviewing() ? 'Đang cập nhật...' : 'Cập nhật & thông báo' }}
+              </button>
+            </form>
+          }
+        </aside>
+      }
+    </div>
+  } @else {
+    <article class="panel filters ticket-filters">
+      <input
+        [(ngModel)]="ticketQ"
+        placeholder="Tìm mã phiếu, tiêu đề hoặc nhận xét"
+        (keyup.enter)="applyTicketFilters()"
+      />
+      <select [(ngModel)]="ticketRating">
+        <option value="">Tất cả số sao</option>
+        @for (rating of ratings; track rating) {
+          <option [ngValue]="rating">{{ rating }} sao</option>
+        }
+      </select>
+      <select [(ngModel)]="ticketCustomerId" (ngModelChange)="ticketSiteId = ''">
+        <option value="">Tất cả khách hàng</option>
+        @for (item of customers(); track item.id) {
+          <option [value]="item.id">{{ item.name }}</option>
+        }
+      </select>
+      <select [(ngModel)]="ticketSiteId">
+        <option value="">Tất cả địa điểm</option>
+        @for (item of filteredSites(); track item.id) {
+          <option [value]="item.id">{{ item.name }}</option>
+        }
+      </select>
+      <select [(ngModel)]="ticketRequesterId">
+        <option value="">Tất cả requester</option>
+        @for (item of requesters(); track item.id) {
+          <option [value]="item.id">{{ item.fullName }}</option>
+        }
+      </select>
+      <label>Từ ngày<input type="date" [(ngModel)]="ticketFrom" /></label>
+      <label>Đến ngày<input type="date" [(ngModel)]="ticketTo" /></label>
+      <div class="filter-actions">
+        <button class="secondary" type="button" (click)="clearTicketFilters()">Xóa lọc</button
+        ><button class="primary" type="button" (click)="applyTicketFilters()">Áp dụng</button>
+      </div>
+    </article>
+    @if (error()) {
+      <p class="message error" role="alert">{{ error() }}</p>
+    }
+    <article class="panel list-panel">
+      <div class="section-heading">
+        <h2>Đánh giá sau xử lý</h2>
+        @if (ticketResult(); as page) {
+          <small>{{ page.totalElements }} phản hồi</small>
+        }
+      </div>
+      @if (loading()) {
+        <div class="empty">Đang tải dữ liệu...</div>
+      } @else if (!ticketResult()?.content?.length) {
+        <div class="empty">
+          <b>Không có phản hồi phù hợp</b
+          ><span>Các trường hợp bỏ qua đánh giá không xuất hiện trong danh sách này.</span>
+        </div>
+      } @else {
+        <div class="ticket-table">
+          <div class="table-head">
+            <span>Phiếu</span><span>Requester / Đơn vị</span><span>Đánh giá</span
+            ><span>Thời gian</span>
+          </div>
+          @for (item of ticketResult()!.content; track item.ticketId) {
+            <a class="ticket-row" [routerLink]="['/tickets', item.ticketId]">
+              <span
+                ><b>{{ item.ticketCode }}</b
+                ><small>{{ item.ticketTitle }}</small></span
+              >
+              <span
+                ><b>{{ item.requesterName || 'Requester' }}</b
+                ><small>{{ item.customerName }} · {{ item.siteName }}</small></span
+              >
+              <span
+                ><b class="stars">{{ item.rating ? '★'.repeat(item.rating) : 'Không chấm sao' }}</b
+                ><small>{{ item.comment || 'Không có nhận xét' }}</small></span
+              >
+              <span>{{ item.submittedAt | date: 'dd/MM/yyyy HH:mm' }}</span>
+            </a>
+          }
+        </div>
+        <app-pagination
+          [totalItems]="ticketResult()!.totalElements"
+          [page]="ticketPage"
+          [pageSize]="pageSize"
+          itemLabel="phản hồi"
+          (pageChange)="selectTicketPage($event)"
+        />
+      }
+    </article>
+  }
+</section>

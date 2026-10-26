@@ -1,0 +1,1062 @@
+<div class="page ticket-detail-page">
+  <a routerLink="/tickets" class="back ticket-detail-back"
+    ><span aria-hidden="true">←</span> Danh sách phiếu</a
+  >
+  @if (ticket(); as t) {
+    <header class="ticket-detail-hero">
+      <div class="ticket-detail-hero-main">
+        <div class="ticket-detail-heading">
+          <div class="ticket-detail-kicker">
+            <span class="ticket-detail-hero-mark" aria-hidden="true">
+              <svg viewBox="0 0 24 24" focusable="false">
+                <path
+                  d="M14.7 6.3a4 4 0 0 0-5 5L4 17l3 3 5.7-5.7a4 4 0 0 0 5-5l-2.4 2.4-3-3 2.4-2.4Z"
+                />
+              </svg>
+            </span>
+            <span>Phiếu bảo trì</span><i></i><b>{{ t.code }}</b>
+          </div>
+          <h1>{{ t.title }}</h1>
+        </div>
+        <div class="ticket-detail-command">
+          <span class="ticket-detail-command-label">Thao tác phiếu</span>
+          <div class="command-bar">
+            @if (manager() && t.status === 'SUBMITTED') {
+              <button class="primary" (click)="action('accept')">Tiếp nhận</button
+              ><button class="danger-button" (click)="reasonAction('reject')">Từ chối</button>
+            }
+            @if (
+              manager() &&
+              ['ACCEPTED', 'ASSIGNED', 'IN_PROGRESS', 'WAITING_PARTS'].includes(t.status)
+            ) {
+              <button
+                class="primary assignment-open-button"
+                type="button"
+                (click)="openAssignment()"
+              >
+                <span aria-hidden="true">KT</span>
+                <span>
+                  <b>{{ t.assigneeId ? 'Đổi kỹ thuật viên' : 'Phân công kỹ thuật viên' }}</b>
+                  <small>{{ technicians().length }} kỹ thuật viên khả dụng</small>
+                </span>
+                <i aria-hidden="true">→</i>
+              </button>
+            }
+            @if (technician() && t.assigneeId === auth.user()?.id) {
+              @if (t.status === 'ASSIGNED') {
+                <button class="primary" (click)="action('start')">Bắt đầu</button>
+              }
+              @if (t.status === 'IN_PROGRESS') {
+                <button class="secondary" (click)="reasonAction('wait-parts')">Chờ linh kiện</button
+                ><button class="primary" (click)="reasonAction('resolve')">Hoàn tất xử lý</button>
+              }
+              @if (t.status === 'WAITING_PARTS') {
+                <button class="primary" (click)="action('resume')">Tiếp tục</button>
+              }
+            }
+            @if (t.status === 'RESOLVED' && (t.requesterId === auth.user()?.id || manager())) {
+              <button
+                class="secondary"
+                [disabled]="paymentBlocksReopen(t)"
+                (click)="reasonAction('reopen')"
+              >
+                Yêu cầu xử lý lại
+              </button>
+              @if (isRequester(t)) {
+                <button
+                  class="primary"
+                  [disabled]="!canClose(t)"
+                  [title]="closeBlockedReason(t)"
+                  (click)="focusFeedback()"
+                >
+                  Đánh giá và đóng
+                </button>
+              } @else {
+                <button
+                  class="primary"
+                  [disabled]="!canClose(t)"
+                  [title]="closeBlockedReason(t)"
+                  (click)="close(t)"
+                >
+                  Xác nhận đóng
+                </button>
+              }
+            }
+            @if (t.status === 'SUBMITTED' && t.requesterId === auth.user()?.id) {
+              <button class="danger-button" (click)="reasonAction('cancel')">Hủy phiếu</button>
+            }
+          </div>
+        </div>
+      </div>
+      <div class="ticket-detail-hero-footer">
+        <div class="ticket-detail-equipment">
+          <span aria-hidden="true">
+            <svg viewBox="0 0 24 24" focusable="false">
+              <rect x="4" y="5" width="16" height="12" rx="2" />
+              <path d="M9 21h6M12 17v4M8 9h8" />
+            </svg>
+          </span>
+          <div>
+            <small>Thiết bị liên quan</small><b>{{ t.equipmentCode }} · {{ t.equipmentName }}</b>
+          </div>
+        </div>
+        <div class="headline-tags">
+          <span [class]="'priority ' + t.priority.toLowerCase()">{{
+            priorityLabel(t.priority)
+          }}</span
+          ><span [class]="'status ' + t.status.toLowerCase()">{{ label(t.status) }}</span>
+          @if (t.costVisible && t.costStatus) {
+            <span [class]="'charge ' + t.costStatus.toLowerCase()">{{
+              costStatusLabel(t.costStatus)
+            }}</span>
+          }
+          @if (t.paymentStatus && t.paymentStatus !== 'NOT_AVAILABLE') {
+            <span [class]="'charge payment-' + t.paymentStatus.toLowerCase()">{{
+              paymentStatusLabel(t.paymentStatus)
+            }}</span>
+          }
+          <span class="status">{{ warrantyStatusLabel(t.warrantyStatusAtCreation) }}</span>
+        </div>
+      </div>
+    </header>
+    @if (commandError()) {
+      <div class="alert command-error">{{ commandError() }}</div>
+    }
+    @if (manager() && !t.regionId) {
+      <div class="alert command-error">
+        Địa điểm của phiếu chưa được phân vùng. Chỉ kỹ thuật viên phụ trách toàn bộ khu vực được xem
+        là phù hợp; các lựa chọn khác cần xác nhận ngoại lệ.
+      </div>
+    }
+
+    <section class="ticket-detail-overview" aria-label="Tóm tắt phiếu bảo trì">
+      <article [class]="'ticket-detail-overview-card sla-card ' + slaTone(t)">
+        <span class="ticket-detail-overview-icon" aria-hidden="true">⏱</span>
+        <div>
+          <small>Hạn xử lý SLA</small><b>{{ slaLabel(t) }}</b
+          ><em>{{ t.resolutionDueAt | date: 'dd/MM/yyyy HH:mm' }}</em>
+        </div>
+      </article>
+      <article class="ticket-detail-overview-card">
+        <span class="ticket-detail-overview-icon requester-icon" aria-hidden="true">YC</span>
+        <div>
+          <small>Người yêu cầu</small><b>{{ t.requesterName }}</b
+          ><em>{{ t.customerName }} · {{ t.siteName }}</em>
+        </div>
+      </article>
+      <article class="ticket-detail-overview-card">
+        <span class="ticket-detail-overview-icon technician-icon" aria-hidden="true">KT</span>
+        <div>
+          <small>Kỹ thuật viên phụ trách</small><b>{{ t.assigneeName || 'Chưa phân công' }}</b
+          ><em>{{ t.assigneeName ? 'Đang chịu trách nhiệm' : 'Cần phân công xử lý' }}</em>
+        </div>
+      </article>
+      @if (t.costVisible) {
+        <article class="ticket-detail-overview-card cost-card-mini">
+          <span class="ticket-detail-overview-icon cost-icon" aria-hidden="true">₫</span>
+          <div>
+            <small>Tổng chi phí</small
+            ><b>{{ costs()?.grandTotal ?? t.grandTotal | number: '1.0-0' }} ₫</b
+            ><em>{{ costStatusLabel(t.costStatus!) }}</em>
+          </div>
+        </article>
+      }
+    </section>
+
+    <section class="ticket-grid">
+      <div class="main-column">
+        <div class="ticket-tab-shell ticket-primary-tabs">
+          <div class="ticket-tablist" role="tablist" aria-label="Thông tin và tiến độ phiếu">
+            <button
+              id="ticket-tab-incident"
+              type="button"
+              role="tab"
+              aria-controls="ticket-panel-incident"
+              [attr.aria-selected]="primaryTab() === 'incident'"
+              [attr.tabindex]="primaryTab() === 'incident' ? 0 : -1"
+              [class.active]="primaryTab() === 'incident'"
+              (click)="selectPrimaryTab('incident')"
+              (keydown)="handleTabKeydown($event)"
+            >
+              <span>Mô tả sự cố</span>
+            </button>
+            <button
+              id="ticket-tab-work-log"
+              type="button"
+              role="tab"
+              aria-controls="ticket-panel-work-log"
+              [attr.aria-selected]="primaryTab() === 'work-log'"
+              [attr.tabindex]="primaryTab() === 'work-log' ? 0 : -1"
+              [class.active]="primaryTab() === 'work-log'"
+              (click)="selectPrimaryTab('work-log')"
+              (keydown)="handleTabKeydown($event)"
+            >
+              <span>Nhật ký xử lý</span><b>{{ workLogs().length }}</b>
+            </button>
+            <button
+              id="ticket-tab-timeline"
+              type="button"
+              role="tab"
+              aria-controls="ticket-panel-timeline"
+              [attr.aria-selected]="primaryTab() === 'timeline'"
+              [attr.tabindex]="primaryTab() === 'timeline' ? 0 : -1"
+              [class.active]="primaryTab() === 'timeline'"
+              (click)="selectPrimaryTab('timeline')"
+              (keydown)="handleTabKeydown($event)"
+            >
+              <span>Dòng thời gian</span><b>{{ timeline().length }}</b>
+            </button>
+          </div>
+          <section
+            id="ticket-panel-incident"
+            class="ticket-tab-panel ticket-detail-section incident-panel"
+            role="tabpanel"
+            aria-labelledby="ticket-tab-incident"
+            [hidden]="primaryTab() !== 'incident'"
+          >
+            <div class="ticket-detail-section-head">
+              <span aria-hidden="true">!</span>
+              <div>
+                <h2>Mô tả sự cố</h2>
+                <p>Thông tin ban đầu và phạm vi ảnh hưởng của phiếu.</p>
+              </div>
+            </div>
+            <p class="description">{{ t.description }}</p>
+            <div class="detail-grid">
+              <div>
+                <span>Người yêu cầu</span><b>{{ t.requesterName }}</b>
+              </div>
+              <div>
+                <span>Kỹ thuật viên</span><b>{{ t.assigneeName || 'Chưa phân công' }}</b>
+              </div>
+              <div>
+                <span>Ngày gửi</span><b>{{ t.submittedAt | date: 'dd/MM/yyyy HH:mm' }}</b>
+              </div>
+              <div [class.detail-danger]="overdue(t)">
+                <span>Hạn xử lý</span
+                ><b [class.overdue]="overdue(t)">{{
+                  t.resolutionDueAt | date: 'dd/MM/yyyy HH:mm'
+                }}</b>
+              </div>
+              <div>
+                <span>Khách hàng</span><b>{{ t.customerName }}</b>
+              </div>
+              <div>
+                <span>Địa điểm</span><b>{{ t.siteName }}</b>
+              </div>
+              <div>
+                <span>Bảo hành khi tạo phiếu</span
+                ><b>{{ warrantyStatusLabel(t.warrantyStatusAtCreation) }}</b>
+              </div>
+            </div>
+          </section>
+          @if ((t.status === 'RESOLVED' && isRequester(t)) || t.status === 'CLOSED') {
+            <article id="ticket-feedback" class="panel ticket-detail-section ticket-feedback-panel">
+              <div class="ticket-detail-section-head">
+                <span class="feedback-section-icon" aria-hidden="true">PH</span>
+                <div>
+                  <h2>Phản hồi sau xử lý</h2>
+                  <p>Đánh giá trải nghiệm hỗ trợ và kết quả xử lý phiếu.</p>
+                </div>
+              </div>
+              @if (t.status === 'RESOLVED' && isRequester(t)) {
+                <form class="ticket-feedback-form" (ngSubmit)="submitFeedback(t)">
+                  <fieldset class="ticket-feedback-rating">
+                    <legend>Mức độ hài lòng <small>(không bắt buộc)</small></legend>
+                    <div class="ticket-feedback-stars">
+                      @for (rating of feedbackRatings; track rating) {
+                        <label
+                          [class.selected]="feedbackRating !== null && rating <= feedbackRating"
+                        >
+                          <input
+                            type="radio"
+                            name="feedbackRating"
+                            [value]="rating"
+                            [(ngModel)]="feedbackRating"
+                            [disabled]="feedbackSubmitting()"
+                          />
+                          <span aria-hidden="true">★</span>
+                          <small>{{ rating }}</small>
+                        </label>
+                      }
+                    </div>
+                  </fieldset>
+                  <label class="ticket-feedback-comment">
+                    <span>Nhận xét <small>(không bắt buộc)</small></span>
+                    <textarea
+                      name="feedbackComment"
+                      [(ngModel)]="feedbackComment"
+                      maxlength="5000"
+                      [disabled]="feedbackSubmitting()"
+                      placeholder="Chia sẻ điều bạn hài lòng hoặc mong muốn được cải thiện..."
+                    ></textarea>
+                    <small>{{ feedbackComment.length }}/5000 ký tự</small>
+                  </label>
+                  @if (feedbackError()) {
+                    <div class="alert ticket-feedback-error" role="alert">
+                      {{ feedbackError() }}
+                    </div>
+                  }
+                  @if (!canClose(t)) {
+                    <p class="ticket-feedback-blocked">{{ closeBlockedReason(t) }}</p>
+                  }
+                  <div class="ticket-feedback-actions">
+                    <button
+                      type="button"
+                      class="secondary"
+                      [disabled]="!canClose(t) || feedbackSubmitting()"
+                      [title]="closeBlockedReason(t)"
+                      (click)="skipFeedback(t)"
+                    >
+                      {{
+                        feedbackSubmitting() ? 'Đang đóng phiếu...' : 'Bỏ qua phản hồi & đóng phiếu'
+                      }}
+                    </button>
+                    <button
+                      type="submit"
+                      class="primary"
+                      [disabled]="!hasFeedbackDraft() || !canClose(t) || feedbackSubmitting()"
+                      [title]="closeBlockedReason(t)"
+                    >
+                      {{ feedbackSubmitting() ? 'Đang gửi...' : 'Gửi phản hồi & đóng phiếu' }}
+                    </button>
+                  </div>
+                </form>
+              } @else {
+                <div class="ticket-feedback-readonly">
+                  @if (t.feedback; as feedback) {
+                    @if (feedback.rating) {
+                      <div
+                        class="ticket-feedback-result-rating"
+                        [attr.aria-label]="feedback.rating + ' trên 5 sao'"
+                      >
+                        <div aria-hidden="true">
+                          @for (rating of feedbackRatings; track rating) {
+                            <span [class.active]="rating <= feedback.rating">★</span>
+                          }
+                        </div>
+                        <b>{{ feedback.rating }}/5</b>
+                      </div>
+                    } @else {
+                      <p class="ticket-feedback-no-rating">Người yêu cầu không chấm sao.</p>
+                    }
+                    @if (feedback.comment) {
+                      <blockquote>{{ feedback.comment }}</blockquote>
+                    }
+                    <small>Gửi lúc {{ feedback.submittedAt | date: 'dd/MM/yyyy HH:mm' }}</small>
+                  } @else {
+                    <p class="empty">Người yêu cầu không để lại phản hồi.</p>
+                  }
+                </div>
+              }
+            </article>
+          }
+          <section
+            id="ticket-panel-work-log"
+            class="ticket-tab-panel ticket-detail-section work-log-panel"
+            role="tabpanel"
+            aria-labelledby="ticket-tab-work-log"
+            [hidden]="primaryTab() !== 'work-log'"
+          >
+            <div class="ticket-detail-section-head">
+              <span class="work-log-icon" aria-hidden="true">NL</span>
+              <div>
+                <h2>Nhật ký xử lý</h2>
+                <p>Ghi nhận công việc và thời gian thực hiện của kỹ thuật viên.</p>
+              </div>
+              <b class="ticket-detail-section-count">{{ workLogs().length }}</b>
+            </div>
+            @if (
+              technician() &&
+              t.assigneeId === auth.user()?.id &&
+              ['IN_PROGRESS', 'WAITING_PARTS'].includes(t.status)
+            ) {
+              <form class="inline-form ticket-detail-entry-form" (ngSubmit)="addLog()">
+                <textarea
+                  name="log"
+                  [(ngModel)]="logContent"
+                  required
+                  placeholder="Công việc đã thực hiện..."
+                ></textarea
+                ><input
+                  name="minutes"
+                  [(ngModel)]="logMinutes"
+                  type="number"
+                  min="0"
+                  placeholder="Số phút"
+                /><button class="primary">Thêm nhật ký</button>
+              </form>
+            }
+            @for (w of workLogs(); track w.id) {
+              <div class="timeline-item">
+                <i></i>
+                <div>
+                  <div class="timeline-meta">
+                    <b>{{ w.technicianName }}</b
+                    ><span
+                      >{{ w.createdAt | date: 'dd/MM HH:mm' }} · {{ w.minutesSpent }} phút</span
+                    >
+                  </div>
+                  <p>{{ w.content }}</p>
+                </div>
+              </div>
+            } @empty {
+              <p class="empty">Chưa có nhật ký xử lý.</p>
+            }
+          </section>
+          <section
+            id="ticket-panel-timeline"
+            class="ticket-tab-panel ticket-detail-section history-panel"
+            role="tabpanel"
+            aria-labelledby="ticket-tab-timeline"
+            [hidden]="primaryTab() !== 'timeline'"
+          >
+            <div class="ticket-detail-section-head">
+              <span class="history-icon" aria-hidden="true">LS</span>
+              <div>
+                <h2>Dòng thời gian</h2>
+                <p>
+                  {{ historyExpanded() ? 'Toàn bộ lịch sử của phiếu.' : 'Các hoạt động gần đây.' }}
+                </p>
+              </div>
+              <div class="history-head-actions">
+                <b class="ticket-detail-section-count">{{ timeline().length }}</b>
+                @if (timeline().length > 3) {
+                  <button
+                    type="button"
+                    class="history-toggle"
+                    [attr.aria-expanded]="historyExpanded()"
+                    (click)="toggleHistory()"
+                  >
+                    {{ historyExpanded() ? 'Thu gọn' : 'Xem tất cả' }}
+                    <span aria-hidden="true">{{ historyExpanded() ? '↑' : '↓' }}</span>
+                  </button>
+                }
+              </div>
+            </div>
+            @if (!historyExpanded() && hiddenTimelineCount()) {
+              <p class="history-collapsed-note">
+                Đang ẩn {{ hiddenTimelineCount() }} hoạt động cũ hơn
+              </p>
+            }
+            @for (e of visibleTimeline(); track e.id) {
+              <div class="timeline-item compact">
+                <i></i>
+                <div>
+                  <div class="timeline-meta">
+                    <b>{{ eventLabel(e.type) }}</b
+                    ><span>{{ e.createdAt | date: 'dd/MM HH:mm' }} · {{ e.actorName }}</span>
+                  </div>
+                  <p>{{ e.description }}</p>
+                </div>
+              </div>
+            }
+          </section>
+        </div>
+      </div>
+      <aside class="side-column ticket-detail-sidebar">
+        <div class="ticket-tab-shell ticket-secondary-tabs">
+          <div class="ticket-tablist" role="tablist" aria-label="Trao đổi và tài liệu phiếu">
+            <button
+              id="ticket-tab-chat"
+              type="button"
+              role="tab"
+              aria-controls="ticket-panel-chat"
+              [attr.aria-selected]="secondaryTab() === 'chat'"
+              [attr.tabindex]="secondaryTab() === 'chat' ? 0 : -1"
+              [class.active]="secondaryTab() === 'chat'"
+              (click)="selectSecondaryTab('chat')"
+              (keydown)="handleTabKeydown($event)"
+            >
+              <span>Chat</span>
+            </button>
+            @if (t.costVisible) {
+              <button
+                id="ticket-tab-costs"
+                type="button"
+                role="tab"
+                aria-controls="ticket-panel-costs"
+                [attr.aria-selected]="secondaryTab() === 'costs'"
+                [attr.tabindex]="secondaryTab() === 'costs' ? 0 : -1"
+                [class.active]="secondaryTab() === 'costs'"
+                (click)="selectSecondaryTab('costs')"
+                (keydown)="handleTabKeydown($event)"
+              >
+                <span>Chi phí</span>
+              </button>
+            }
+            @if (!customerAccount()) {
+              <button
+                id="ticket-tab-parts"
+                type="button"
+                role="tab"
+                aria-controls="ticket-panel-parts"
+                [attr.aria-selected]="secondaryTab() === 'parts'"
+                [attr.tabindex]="secondaryTab() === 'parts' ? 0 : -1"
+                [class.active]="secondaryTab() === 'parts'"
+                (click)="selectSecondaryTab('parts')"
+                (keydown)="handleTabKeydown($event)"
+              >
+                <span>Linh kiện</span><b>{{ usedParts().length }}</b>
+              </button>
+            }
+            <button
+              id="ticket-tab-files"
+              type="button"
+              role="tab"
+              aria-controls="ticket-panel-files"
+              [attr.aria-selected]="secondaryTab() === 'files'"
+              [attr.tabindex]="secondaryTab() === 'files' ? 0 : -1"
+              [class.active]="secondaryTab() === 'files'"
+              (click)="selectSecondaryTab('files')"
+              (keydown)="handleTabKeydown($event)"
+            >
+              <span>Tệp</span><b>{{ attachments().length }}</b>
+            </button>
+          </div>
+          <div
+            id="ticket-panel-chat"
+            class="ticket-tab-panel ticket-chat-dock"
+            role="tabpanel"
+            aria-labelledby="ticket-tab-chat"
+            [hidden]="secondaryTab() !== 'chat'"
+          >
+            <app-ticket-chat [ticketId]="id" [embedded]="true" />
+          </div>
+          @if (t.costVisible) {
+            <section
+              id="ticket-panel-costs"
+              class="ticket-tab-panel charge-panel ticket-detail-section ticket-cost-panel"
+              role="tabpanel"
+              aria-labelledby="ticket-tab-costs"
+              [hidden]="secondaryTab() !== 'costs'"
+            >
+              <div class="ticket-detail-section-head compact-head">
+                <span class="cost-section-icon" aria-hidden="true">₫</span>
+                <div>
+                  <h2>Chi phí bảo trì</h2>
+                  <p>Chỉ bao gồm linh kiện và các khoản phát sinh có mô tả.</p>
+                </div>
+              </div>
+              @if (costs(); as c) {
+                <div class="cost-summary">
+                  <span>Trạng thái</span><b>{{ costStatusLabel(c.status) }}</b>
+                  <span>Linh kiện</span><b>{{ c.partsTotal | number: '1.0-0' }} ₫</b>
+                  <span>Phát sinh</span><b>{{ c.otherTotal | number: '1.0-0' }} ₫</b>
+                  <span>Tổng cộng</span><strong>{{ c.grandTotal | number: '1.0-0' }} ₫</strong>
+                </div>
+                @if (c.declineReason) {
+                  <p class="alert">Lý do khách hàng từ chối: {{ c.declineReason }}</p>
+                }
+                @if (c.detailVisible) {
+                  @for (item of c.items; track item.id) {
+                    <div class="list-row">
+                      <div>
+                        <b>{{ costCategoryLabel(item.category) }}</b
+                        ><small>{{ item.description }}</small>
+                        <small>
+                          {{ item.quantity | number: '1.0-3' }} {{ item.unit }} ×
+                          {{ item.unitCost ?? 0 | number: '1.0-0' }} ₫
+                        </small>
+                      </div>
+                      <div>
+                        <b>{{ item.amount ?? 0 | number: '1.0-0' }} ₫</b>
+                        @if (item.sourceType === 'MANUAL' && c.status === 'DRAFT') {
+                          <button class="link-button" (click)="deleteCost(item)">Xóa</button>
+                        }
+                      </div>
+                    </div>
+                  }
+                  @if (canEditCosts(t, c)) {
+                    <div class="stack">
+                      <label>
+                        Nội dung phát sinh <span aria-hidden="true">*</span>
+                        <input
+                          [(ngModel)]="costDraft.description"
+                          placeholder="Ví dụ: phí vận chuyển linh kiện"
+                          required
+                        />
+                        <small class="field-hint"
+                          >Bắt buộc ghi rõ khoản tiền phát sinh là gì.</small
+                        >
+                      </label>
+                      <input
+                        [(ngModel)]="costDraft.unitCost"
+                        type="number"
+                        min="1"
+                        placeholder="Số tiền phát sinh"
+                      />
+                      <input [(ngModel)]="costDraft.vendor" placeholder="Nhà cung cấp (tùy chọn)" />
+                      <button
+                        class="secondary"
+                        [disabled]="!costDraft.description.trim() || costDraft.unitCost <= 0"
+                        (click)="addCost()"
+                      >
+                        Thêm chi phí phát sinh
+                      </button>
+                    </div>
+                  }
+                  @if (
+                    technician() &&
+                    t.assigneeId === auth.user()?.id &&
+                    t.status === 'RESOLVED' &&
+                    c.status === 'DRAFT'
+                  ) {
+                    <button class="primary" [disabled]="!c.complete" (click)="quoteCosts()">
+                      Gửi báo giá
+                    </button>
+                  }
+                  @if (customerAccount() && isRequester(t) && c.status === 'QUOTED') {
+                    <div class="actions">
+                      <button
+                        class="danger-button"
+                        [disabled]="quoteDecisionLoading()"
+                        (click)="openDecline()"
+                      >
+                        Từ chối
+                      </button>
+                      <button
+                        class="primary"
+                        [disabled]="quoteDecisionLoading()"
+                        (click)="acceptCosts(c)"
+                      >
+                        Chấp nhận báo giá
+                      </button>
+                    </div>
+                  }
+                  @if (quoteDecisionError()) {
+                    <p class="alert">{{ quoteDecisionError() }}</p>
+                  }
+                }
+              }
+              @if (payments(); as payment) {
+                <div class="ticket-payment-summary">
+                  <div>
+                    <span>Thanh toán</span>
+                    <b>{{ paymentStatusLabel(payment.status) }}</b>
+                    <small>{{ payment.amountDue ?? 0 | number: '1.0-0' }} ₫</small>
+                  </div>
+                  @if (customerAccount() && payment.canPay) {
+                    <button class="primary" [disabled]="paymentLoading()" (click)="startPayment()">
+                      {{
+                        payment.status === 'PENDING'
+                          ? 'Tiếp tục thanh toán'
+                          : 'Thanh toán qua VNPay'
+                      }}
+                    </button>
+                  }
+                </div>
+                @if (paymentError()) {
+                  <p class="alert">{{ paymentError() }}</p>
+                }
+                @if ((manager() || customerAccount()) && payment.attempts.length) {
+                  <div class="payment-attempts">
+                    @for (attempt of payment.attempts; track attempt.attemptId) {
+                      <div class="list-row">
+                        <div>
+                          <b>{{ paymentAttemptLabel(attempt.status) }}</b>
+                          <small>{{ attempt.createdAt | date: 'dd/MM/yyyy HH:mm' }}</small>
+                        </div>
+                        <div>
+                          <b>{{ attempt.amount | number: '1.0-0' }} ₫</b>
+                          @if (canReconcilePayment(attempt)) {
+                            <button
+                              class="link-button"
+                              [disabled]="paymentLoading()"
+                              (click)="reconcilePayment(attempt)"
+                            >
+                              Đối soát
+                            </button>
+                          }
+                        </div>
+                      </div>
+                    }
+                  </div>
+                }
+              }
+            </section>
+          }
+          @if (!customerAccount()) {
+            <section
+              id="ticket-panel-parts"
+              class="ticket-tab-panel ticket-detail-section ticket-parts-panel"
+              role="tabpanel"
+              aria-labelledby="ticket-tab-parts"
+              [hidden]="secondaryTab() !== 'parts'"
+            >
+              <div class="ticket-detail-section-head compact-head">
+                <span class="parts-section-icon" aria-hidden="true">LK</span>
+                <div>
+                  <h2>Linh kiện sử dụng</h2>
+                  <p>{{ usedParts().length }} khoản đã ghi nhận.</p>
+                </div>
+              </div>
+              @if (
+                technician() &&
+                t.assigneeId === auth.user()?.id &&
+                ['IN_PROGRESS', 'WAITING_PARTS'].includes(t.status)
+              ) {
+                <div class="stack">
+                  <select [(ngModel)]="partId">
+                    <option value="">Chọn linh kiện</option>
+                    @for (p of parts(); track p.id) {
+                      <option [value]="p.id">
+                        {{ p.code }} · {{ p.name }} ({{ p.currentStock }})
+                      </option>
+                    }</select
+                  ><input
+                    [(ngModel)]="partQuantity"
+                    type="number"
+                    min="0.001"
+                    step="0.001"
+                  /><button class="secondary" (click)="usePart()">Ghi nhận sử dụng</button>
+                </div>
+              }
+              @for (p of usedParts(); track p.id) {
+                <div class="list-row">
+                  <div>
+                    <b>{{ p.partName }}</b
+                    ><small>{{ p.usedByName }}</small>
+                  </div>
+                  <b
+                    >{{ p.quantity }} × {{ p.unitCost | number: '1.0-2' }} =
+                    {{ p.quantity * p.unitCost | number: '1.0-0' }} ₫</b
+                  >
+                </div>
+              } @empty {
+                <p class="empty">Chưa sử dụng linh kiện.</p>
+              }
+            </section>
+          }
+          <section
+            id="ticket-panel-files"
+            class="ticket-tab-panel ticket-detail-section ticket-files-panel"
+            role="tabpanel"
+            aria-labelledby="ticket-tab-files"
+            [hidden]="secondaryTab() !== 'files'"
+          >
+            <div class="ticket-detail-section-head compact-head">
+              <span class="files-section-icon" aria-hidden="true">TE</span>
+              <div>
+                <h2>Tệp đính kèm</h2>
+                <p>{{ attachments().length }} tệp trong phiếu.</p>
+              </div>
+            </div>
+            @if (canUploadAttachments()) {
+              <select [(ngModel)]="attachmentType">
+                @for (option of availableAttachmentTypes(); track option.value) {
+                  <option [value]="option.value">{{ option.label }}</option>
+                }
+              </select>
+              @if (
+                attachmentType === 'INVOICE' && costs()?.detailVisible && costs()!.items.length
+              ) {
+                <select [(ngModel)]="attachmentCostItemId">
+                  <option value="">Chứng từ chung của phiếu</option>
+                  @for (item of costs()!.items; track item.id) {
+                    <option [value]="item.id">{{ item.description }}</option>
+                  }
+                </select>
+              }
+              <label
+                class="upload ticket-file-drop compact-file-drop"
+                (dragover)="$event.preventDefault()"
+                (drop)="dropUploads($event)"
+                >+ Chọn hoặc kéo thả ảnh, video, tài liệu<input
+                  type="file"
+                  multiple
+                  accept=".jpg,.jpeg,.png,.webp,.mp4,.webm,.pdf,.doc,.docx,.xls,.xlsx"
+                  (change)="upload($event)"
+              /></label>
+              @if (uploadError()) {
+                <p class="ticket-create-field-error">{{ uploadError() }}</p>
+              }
+              @for (
+                item of uploadQueue();
+                track item.file.name + item.file.lastModified;
+                let i = $index
+              ) {
+                <div class="ticket-upload-row">
+                  <div>
+                    <b>{{ item.file.name }}</b
+                    ><small>{{ item.status === 'failed' ? item.error : item.status }}</small>
+                  </div>
+                  <progress max="100" [value]="item.progress"></progress>
+                  @if (item.status === 'failed') {
+                    <button class="link-button" (click)="retryUpload(i)">Thử lại</button>
+                  }
+                </div>
+              }
+            }
+            @for (group of attachmentGroups(); track group.type) {
+              @if (group.items.length) {
+                <h3 class="file-group-title">{{ group.label }}</h3>
+                @for (a of group.items; track a.id) {
+                  <div class="file-row">
+                    @if (a.previewKind === 'IMAGE' && attachmentThumbnails()[a.id]) {
+                      <img
+                        class="file-thumb"
+                        [src]="attachmentThumbnails()[a.id]"
+                        [alt]="a.originalName"
+                      />
+                    } @else {
+                      <span>▤</span>
+                    }
+                    <button class="file-main" (click)="openAttachment(a)">
+                      <b>{{ a.originalName }}</b
+                      ><small
+                        >{{ a.uploadedByName }} ·
+                        {{ a.fileSize / 1024 | number: '1.0-0' }} KB</small
+                      >
+                    </button>
+                    <button class="link-button" (click)="download(a)">Tải</button>
+                    @if (a.canDelete) {
+                      <button class="link-button danger-link" (click)="deleteAttachment(a)">
+                        Xóa
+                      </button>
+                    }
+                  </div>
+                }
+              }
+            }
+            @if (!attachments().length) {
+              <p class="empty">Chưa có tệp đính kèm.</p>
+            }
+          </section>
+        </div>
+      </aside>
+    </section>
+    @if (assignmentOpen()) {
+      <div class="assignment-picker-backdrop" (click)="closeAssignment()">
+        <section
+          class="assignment-picker"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="assignment-picker-title"
+          (click)="$event.stopPropagation()"
+        >
+          <header class="assignment-picker-head">
+            <div class="assignment-picker-title">
+              <span aria-hidden="true">KT</span>
+              <div>
+                <small>ĐIỀU PHỐI NHÂN SỰ</small>
+                <h2 id="assignment-picker-title">Chọn kỹ thuật viên xử lý</h2>
+                <p>{{ t.code }} · {{ t.equipmentName }}</p>
+              </div>
+            </div>
+            <button type="button" aria-label="Đóng cửa sổ phân công" (click)="closeAssignment()">
+              ×
+            </button>
+          </header>
+
+          <div class="assignment-context">
+            <div>
+              <span aria-hidden="true">⌖</span>
+              <p>
+                <small>Khu vực của phiếu</small><b>{{ t.regionName || 'Chưa phân vùng' }}</b>
+              </p>
+            </div>
+            <div>
+              <span aria-hidden="true">✓</span>
+              <p>
+                <small>Nhân sự phù hợp</small
+                ><b>{{ matchingTechnicians().length }} kỹ thuật viên</b>
+              </p>
+            </div>
+          </div>
+
+          <div class="assignment-tools">
+            <label class="assignment-search">
+              <span aria-hidden="true">⌕</span>
+              <input
+                [(ngModel)]="technicianSearch"
+                type="search"
+                placeholder="Tìm theo tên, tài khoản hoặc email..."
+                autocomplete="off"
+              />
+            </label>
+            <div class="assignment-tabs" role="tablist" aria-label="Lọc kỹ thuật viên">
+              <button
+                type="button"
+                role="tab"
+                [class.active]="assignmentFilter === 'MATCHING'"
+                [attr.aria-selected]="assignmentFilter === 'MATCHING'"
+                (click)="assignmentFilter = 'MATCHING'"
+              >
+                Phù hợp khu vực <b>{{ matchingTechnicians().length }}</b>
+              </button>
+              <button
+                type="button"
+                role="tab"
+                [class.active]="assignmentFilter === 'ALL'"
+                [attr.aria-selected]="assignmentFilter === 'ALL'"
+                (click)="assignmentFilter = 'ALL'"
+              >
+                Tất cả <b>{{ technicians().length }}</b>
+              </button>
+            </div>
+          </div>
+
+          <div class="assignment-list" role="listbox" aria-label="Danh sách kỹ thuật viên">
+            @for (user of assignmentCandidates(); track user.id) {
+              <button
+                type="button"
+                role="option"
+                class="assignment-candidate"
+                [class.selected]="technicianId === user.id"
+                [class.outside]="!technicianMatchesRegion(user)"
+                [attr.aria-selected]="technicianId === user.id"
+                (click)="selectTechnician(user.id)"
+              >
+                <span class="assignment-avatar">{{ technicianInitials(user) }}</span>
+                <span class="assignment-candidate-copy">
+                  <span
+                    ><b>{{ user.fullName }}</b
+                    ><small>{{ '@' + user.username }}</small></span
+                  >
+                  <small>{{ user.email }}</small>
+                  <span class="assignment-badges">
+                    <em [class.match]="technicianMatchesRegion(user)">
+                      {{
+                        technicianMatchesRegion(user)
+                          ? 'Phù hợp ' + (t.regionName || 'khu vực')
+                          : 'Ngoài khu vực'
+                      }}
+                    </em>
+                    <em>{{ technicianScopeLabel(user) }}</em>
+                    @if (t.assigneeId === user.id) {
+                      <em class="current">Đang phụ trách</em>
+                    }
+                  </span>
+                </span>
+                <span class="assignment-radio" aria-hidden="true">{{
+                  technicianId === user.id ? '✓' : ''
+                }}</span>
+              </button>
+            } @empty {
+              <div class="assignment-empty">
+                <span aria-hidden="true">⌕</span>
+                <b>Không tìm thấy kỹ thuật viên</b>
+                <p>Thử từ khóa khác hoặc chuyển sang danh sách tất cả.</p>
+              </div>
+            }
+          </div>
+
+          @if (selectedTechnician(); as selected) {
+            @if (!technicianMatchesRegion(selected)) {
+              <label class="assignment-exception">
+                <input type="checkbox" [(ngModel)]="outsideRegionConfirmed" />
+                <span>
+                  <b>Xác nhận phân công ngoại lệ</b>
+                  <small>
+                    {{ selected.fullName }} không phụ trách
+                    {{ t.regionName || 'khu vực của phiếu này' }}.
+                  </small>
+                </span>
+              </label>
+            }
+          }
+
+          @if (assignmentError()) {
+            <div class="assignment-error" role="alert">{{ assignmentError() }}</div>
+          }
+
+          <footer class="assignment-picker-footer">
+            <div>
+              @if (selectedTechnician(); as selected) {
+                <span class="assignment-mini-avatar">{{ technicianInitials(selected) }}</span>
+                <p>
+                  <small>Đã chọn</small><b>{{ selected.fullName }}</b>
+                </p>
+              } @else {
+                <p><small>Chưa chọn kỹ thuật viên</small><b>Chọn một người từ danh sách</b></p>
+              }
+            </div>
+            <div>
+              <button
+                type="button"
+                class="secondary"
+                [disabled]="assigning()"
+                (click)="closeAssignment()"
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                class="primary"
+                [disabled]="!canConfirmAssignment()"
+                (click)="assign()"
+              >
+                {{ assigning() ? 'Đang phân công...' : 'Xác nhận phân công' }}
+              </button>
+            </div>
+          </footer>
+        </section>
+      </div>
+    }
+    @if (previewUrl()) {
+      <div class="file-preview-backdrop" (click)="closePreview()">
+        <div class="file-preview" (click)="$event.stopPropagation()">
+          <button class="file-preview-close" (click)="closePreview()">×</button>
+          @if (previewKind() === 'IMAGE') {
+            <img [src]="previewUrl()" alt="Xem trước tệp" />
+          }
+          @if (previewKind() === 'VIDEO') {
+            <video [src]="previewUrl()" controls autoplay></video>
+          }
+        </div>
+      </div>
+    }
+    @if (declineOpen()) {
+      <div class="users-modal-backdrop" (click)="closeDecline()">
+        <form
+          class="users-modal"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="decline-quote-title"
+          (click)="$event.stopPropagation()"
+          (ngSubmit)="declineCosts()"
+        >
+          <div class="users-section-head">
+            <span aria-hidden="true">!</span>
+            <div>
+              <h2 id="decline-quote-title">Từ chối báo giá</h2>
+              <p>Hãy ghi rõ lý do để kỹ thuật viên điều chỉnh và gửi lại.</p>
+            </div>
+          </div>
+          <label>
+            Lý do từ chối
+            <textarea
+              name="declineReason"
+              [(ngModel)]="declineReason"
+              maxlength="1000"
+              required
+              autofocus
+            ></textarea>
+          </label>
+          @if (quoteDecisionError()) {
+            <div class="alert">{{ quoteDecisionError() }}</div>
+          }
+          <div class="users-form-actions">
+            <button
+              type="button"
+              class="secondary"
+              [disabled]="quoteDecisionLoading()"
+              (click)="closeDecline()"
+            >
+              Hủy
+            </button>
+            <button
+              class="danger-button"
+              [disabled]="!declineReason.trim() || quoteDecisionLoading()"
+            >
+              {{ quoteDecisionLoading() ? 'Đang xử lý...' : 'Xác nhận từ chối' }}
+            </button>
+          </div>
+        </form>
+      </div>
+    }
+  } @else {
+    <div class="loading">Đang tải phiếu…</div>
+  }
+</div>

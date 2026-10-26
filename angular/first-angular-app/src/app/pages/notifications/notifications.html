@@ -1,0 +1,161 @@
+<div class="page notification-page">
+  <header class="page-head notification-page-head">
+    <div>
+      <p class="eyebrow">TRUNG TÂM THÔNG BÁO</p>
+      <h1>Thông báo của bạn</h1>
+      <p class="muted">Theo dõi các cập nhật quan trọng trong quy trình bảo trì.</p>
+    </div>
+    <div class="notification-head-actions">
+      <button type="button" class="secondary" [disabled]="loading()" (click)="load()">
+        <span aria-hidden="true">↻</span> Làm mới
+      </button>
+      <button
+        type="button"
+        class="primary"
+        [disabled]="unread() === 0 || markingAll()"
+        (click)="markAllRead()"
+      >
+        <span aria-hidden="true">✓</span>
+        {{ markingAll() ? 'Đang cập nhật...' : 'Đánh dấu đã đọc' }}
+      </button>
+    </div>
+  </header>
+
+  <section class="notification-overview" aria-label="Tổng quan thông báo">
+    <article class="notification-stat featured">
+      <span class="notification-stat-icon" aria-hidden="true">●</span>
+      <div>
+        <small>Chưa đọc</small>
+        <strong>{{ unread() }}</strong>
+        <p>{{ unread() ? 'Cập nhật đang chờ bạn xem' : 'Bạn đã xem hết thông báo' }}</p>
+      </div>
+    </article>
+    <article class="notification-stat">
+      <span class="notification-stat-icon" aria-hidden="true">▤</span>
+      <div>
+        <small>Tổng thông báo</small>
+        <strong>{{ total() }}</strong>
+        <p>Trong hộp thư hiện tại</p>
+      </div>
+    </article>
+    <article class="notification-stat">
+      <span class="notification-stat-icon" aria-hidden="true">✓</span>
+      <div>
+        <small>Đã đọc</small>
+        <strong>{{ read() }}</strong>
+        <p>Thông báo đã được xử lý</p>
+      </div>
+    </article>
+  </section>
+
+  <section class="notification-toolbar" aria-label="Bộ lọc thông báo">
+    <div class="notification-tabs" role="tablist" aria-label="Trạng thái đọc">
+      @for (tab of tabs; track tab.value) {
+        <button
+          type="button"
+          role="tab"
+          [class.active]="filter() === tab.value"
+          [attr.aria-selected]="filter() === tab.value"
+          (click)="selectFilter(tab.value)"
+        >
+          {{ tab.label }}
+          <span>{{ tabCount(tab.value) }}</span>
+        </button>
+      }
+    </div>
+    <p>
+      Hiển thị <b>{{ filteredNotifications().length }}</b> thông báo
+    </p>
+  </section>
+
+  @if (error()) {
+    <section class="notification-error" role="alert">
+      <span aria-hidden="true">!</span>
+      <div>
+        <strong>Không thể tải thông báo</strong>
+        <p>{{ error() }}</p>
+      </div>
+      <button type="button" class="secondary" (click)="load()">Thử lại</button>
+    </section>
+  } @else if (loading()) {
+    <section class="panel notification-skeleton" aria-label="Đang tải thông báo">
+      @for (row of skeletonRows; track row) {
+        <div>
+          <i></i><span><i></i><i></i><i></i></span>
+        </div>
+      }
+    </section>
+  } @else if (filteredNotifications().length) {
+    <section class="panel notification-center" aria-label="Danh sách thông báo">
+      <div class="notification-list-head">
+        <div>
+          <h2>{{ listTitle() }}</h2>
+          <p>Nhấn vào một thông báo để xem chi tiết.</p>
+        </div>
+        @if (lastUpdated()) {
+          <span>Cập nhật lúc {{ lastUpdated() | date: 'HH:mm' }}</span>
+        }
+      </div>
+
+      <div class="notification-list">
+        @for (notification of pagedNotifications(); track notification.id) {
+          <button
+            type="button"
+            class="notification-item"
+            [class.unread]="!notification.readAt"
+            (click)="open(notification)"
+          >
+            <span
+              [class]="'notification-type-icon ' + notificationTone(notification.type)"
+              aria-hidden="true"
+            >
+              {{ notificationIcon(notification.type) }}
+            </span>
+            <span class="notification-item-content">
+              <span class="notification-item-topline">
+                <span [class]="'notification-type-label ' + notificationTone(notification.type)">
+                  {{ notificationTypeLabel(notification.type) }}
+                </span>
+                <time [attr.datetime]="notification.createdAt">
+                  {{ relativeTime(notification.createdAt) }}
+                </time>
+              </span>
+              <span class="notification-title-row">
+                <strong>{{ notification.title }}</strong>
+                @if (!notification.readAt) {
+                  <span class="notification-new">Mới</span>
+                }
+              </span>
+              <span class="notification-message">{{ notification.message }}</span>
+              <span class="notification-item-footer">
+                <span>{{ notification.createdAt | date: 'dd/MM/yyyy · HH:mm' }}</span>
+                @if (notification.referenceType === 'TICKET') {
+                  <b>Xem chi tiết <span aria-hidden="true">→</span></b>
+                }
+              </span>
+            </span>
+            <span class="notification-chevron" aria-hidden="true">›</span>
+          </button>
+        }
+      </div>
+    </section>
+    <app-pagination
+      [totalItems]="filteredNotifications().length"
+      [page]="currentPage()"
+      [pageSize]="pageSize"
+      itemLabel="thông báo"
+      (pageChange)="currentPage.set($event)"
+    />
+  } @else {
+    <section class="panel notification-empty">
+      <span class="notification-empty-icon" aria-hidden="true">✓</span>
+      <h2>{{ emptyTitle() }}</h2>
+      <p>{{ emptyMessage() }}</p>
+      @if (filter() !== 'ALL') {
+        <button type="button" class="secondary" (click)="selectFilter('ALL')">
+          Xem tất cả thông báo
+        </button>
+      }
+    </section>
+  }
+</div>

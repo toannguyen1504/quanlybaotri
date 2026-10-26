@@ -2,6 +2,7 @@ package com.example.quanlybaotri.identity.application;
 
 import com.example.quanlybaotri.identity.domain.RefreshToken;
 import com.example.quanlybaotri.identity.domain.UserAccount;
+import com.example.quanlybaotri.identity.domain.RegistrationStatus;
 import com.example.quanlybaotri.identity.persistence.RefreshTokenRepository;
 import com.example.quanlybaotri.identity.persistence.UserRepository;
 import com.example.quanlybaotri.shared.api.ApiException;
@@ -16,9 +17,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,27 +25,27 @@ import org.springframework.transaction.annotation.Transactional;
 public class AuthService {
 
     private static final Logger log = LoggerFactory.getLogger(AuthService.class);
-    private final AuthenticationManager authenticationManager;
     private final UserRepository users;
     private final RefreshTokenRepository refreshTokens;
     private final JwtService jwt;
     private final LoginRateLimiter limiter;
+    private final PasswordEncoder encoder;
     private final Duration refreshTtl;
     private final SecureRandom random = new SecureRandom();
 
     public AuthService(
-        AuthenticationManager authenticationManager,
         UserRepository users,
         RefreshTokenRepository refreshTokens,
         JwtService jwt,
         LoginRateLimiter limiter,
+        PasswordEncoder encoder,
         @Value("${app.jwt.refresh-days:7}") long refreshDays
     ) {
-        this.authenticationManager = authenticationManager;
         this.users = users;
         this.refreshTokens = refreshTokens;
         this.jwt = jwt;
         this.limiter = limiter;
+        this.encoder = encoder;
         this.refreshTtl = Duration.ofDays(refreshDays);
     }
 
@@ -57,16 +56,9 @@ public class AuthService {
             "LOGIN_RATE_LIMIT",
             "Thử đăng nhập lại sau 15 phút"
         );
-        try {
-            authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(username.toLowerCase(), password)
-            );
-        } catch (AuthenticationException ex) {
-            log.warn(
-                "Login authentication failed for user {}: {}",
-                username.toLowerCase(),
-                ex.getClass().getSimpleName()
-            );
+        UserAccount user = users.findWithRolesByUsernameOrEmail(username.trim().toLowerCase()).orElse(null);
+        if (user == null || !user.hasPassword() || !encoder.matches(password, user.getPassword())) {
+            log.warn("Login authentication failed for identifier {}", username.toLowerCase());
             limiter.failure(username, ip);
             throw new ApiException(
                 HttpStatus.UNAUTHORIZED,
@@ -75,7 +67,7 @@ public class AuthService {
             );
         }
         limiter.success(username, ip);
-        UserAccount user = users.findWithRolesByUsername(username.toLowerCase()).orElseThrow();
+        ensureLoginAllowed(user);
         return issuePair(user, null);
     }
 
@@ -95,6 +87,7 @@ public class AuthService {
             "EXPIRED_REFRESH_TOKEN",
             "Refresh token đã hết hạn hoặc bị thu hồi"
         );
+        ensureLoginAllowed(current.getUser());
         return issuePair(current.getUser(), current);
     }
 
@@ -107,6 +100,11 @@ public class AuthService {
             .ifPresent(t -> t.revoke(null));
     }
 
+    @Transactional
+    public TokenPair issuePair(UserAccount user) {
+        return issuePair(user, null);
+    }
+
     private TokenPair issuePair(UserAccount user, RefreshToken replaced) {
         String raw = randomToken();
         String hash = hash(raw);
@@ -115,6 +113,19 @@ public class AuthService {
         refreshTokens.save(refresh);
         JwtService.IssuedAccessToken access = jwt.issue(user);
         return new TokenPair(access.value(), raw, access.expiresAt(), refresh.getExpiresAt());
+    }
+
+    private void ensureLoginAllowed(UserAccount user) {
+        if (user.getRegistrationStatus() == RegistrationStatus.PENDING) throw new ApiException(
+            HttpStatus.FORBIDDEN, "ACCOUNT_PENDING", "Tài khoản đang chờ quản trị viên duyệt"
+        );
+        if (user.getRegistrationStatus() == RegistrationStatus.REJECTED) throw new ApiException(
+            HttpStatus.FORBIDDEN, "ACCOUNT_REJECTED",
+            user.getRejectionReason() == null ? "Yêu cầu đăng ký đã bị từ chối" : user.getRejectionReason()
+        );
+        if (!user.isEnabled()) throw new ApiException(
+            HttpStatus.FORBIDDEN, "ACCOUNT_DISABLED", "Tài khoản đã bị khóa"
+        );
     }
 
     private String randomToken() {

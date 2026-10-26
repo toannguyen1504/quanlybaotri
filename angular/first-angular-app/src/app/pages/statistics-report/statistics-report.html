@@ -1,0 +1,161 @@
+<div class="page operational-report">
+  <header class="report-heading">
+    <div>
+      <p class="breadcrumb">Báo cáo / Điều hành công việc</p>
+      <h1>Hàng chờ nghiệp vụ</h1>
+      <p class="heading-copy">
+        Theo dõi các phiếu đang cần tiếp nhận, xử lý hoặc xác nhận tại thời điểm hiện tại.
+      </p>
+    </div>
+    <button
+      class="primary"
+      type="button"
+      [disabled]="loading() || exporting()"
+      (click)="exportReport()"
+    >
+      {{ exporting() ? 'Đang xuất...' : 'Xuất Excel' }}
+    </button>
+  </header>
+
+  <section class="panel filter-panel" aria-labelledby="report-filter-title">
+    <div class="section-heading">
+      <div>
+        <h2 id="report-filter-title">Phạm vi theo dõi</h2>
+        <p>Bộ lọc được áp dụng đồng thời cho tất cả hàng chờ.</p>
+      </div>
+      <button class="text-button" type="button" [disabled]="loading()" (click)="resetFilters()">
+        Đặt lại
+      </button>
+    </div>
+    <div class="filter-grid">
+      <label
+        ><span>Khách hàng</span
+        ><select [(ngModel)]="filters.customerId" (ngModelChange)="customerChanged()">
+          <option value="">Tất cả khách hàng</option>
+          @for (customer of customers(); track customer.id) {
+            <option [value]="customer.id">{{ customer.name }}</option>
+          }
+        </select></label
+      >
+      <label
+        ><span>Địa điểm</span
+        ><select [(ngModel)]="filters.siteId">
+          <option value="">Tất cả địa điểm</option>
+          @for (site of filteredSites(); track site.id) {
+            <option [value]="site.id">{{ site.name }}</option>
+          }
+        </select></label
+      >
+      <label
+        ><span>Thiết bị</span
+        ><select [(ngModel)]="filters.equipmentId">
+          <option value="">Tất cả thiết bị</option>
+          @for (item of filteredEquipment(); track item.id) {
+            <option [value]="item.id">{{ item.assetCode }} · {{ item.name }}</option>
+          }
+        </select></label
+      >
+      <label
+        ><span>Loại thiết bị</span
+        ><select [(ngModel)]="filters.equipmentCategoryId">
+          <option value="">Tất cả loại thiết bị</option>
+          @for (category of equipmentCategories(); track category.id) {
+            <option [value]="category.id">{{ category.name }}</option>
+          }
+        </select></label
+      >
+      <label
+        ><span>Bảo hành</span
+        ><select [(ngModel)]="filters.warrantyStatus">
+          <option value="">Tất cả</option>
+          <option value="IN_WARRANTY">Còn bảo hành</option>
+          <option value="OUT_OF_WARRANTY">Hết bảo hành</option>
+          <option value="UNKNOWN">Chưa rõ</option>
+        </select></label
+      >
+      <label
+        ><span>Mức ưu tiên</span
+        ><select [(ngModel)]="filters.priority">
+          <option value="">Tất cả</option>
+          <option value="CRITICAL">Khẩn cấp</option>
+          <option value="HIGH">Cao</option>
+          <option value="MEDIUM">Trung bình</option>
+          <option value="LOW">Thấp</option>
+        </select></label
+      >
+      <label
+        ><span>Kỹ thuật viên</span
+        ><select [(ngModel)]="filters.technicianId">
+          <option value="">Tất cả kỹ thuật viên</option>
+          @for (user of technicians(); track user.id) {
+            <option [value]="user.id">{{ user.fullName }}</option>
+          }
+        </select></label
+      >
+      <button class="primary apply-button" type="button" [disabled]="loading()" (click)="load()">
+        {{ loading() ? 'Đang tải...' : 'Áp dụng' }}
+      </button>
+    </div>
+  </section>
+
+  @if (error()) {
+    <div class="report-error" role="alert">
+      <span>{{ error() }}</span
+      ><button type="button" (click)="load()">Thử lại</button>
+    </div>
+  }
+
+  @if (loading() && !report()) {
+    <section class="panel loading-state">Đang tổng hợp hàng chờ nghiệp vụ...</section>
+  } @else if (report(); as data) {
+    <div class="snapshot-line">
+      <span
+        ><b>{{ data.openTotal }}</b> phiếu chưa kết thúc quy trình</span
+      >
+      <span>Chốt số liệu lúc {{ data.generatedAt | date: 'dd/MM/yyyy HH:mm' }}</span>
+    </div>
+
+    @for (group of queueGroups; track group.title) {
+      <section class="panel queue-section">
+        <div class="section-heading">
+          <div>
+            <h2>{{ group.title }}</h2>
+            <p>{{ group.description }}</p>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Hàng chờ</th>
+                <th class="number">Số phiếu</th>
+                <th>Phụ trách</th>
+                <th>Điều kiện</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (queue of group.queues; track queue.key) {
+                <tr>
+                  <td>
+                    <b>{{ queue.label }}</b>
+                  </td>
+                  <td class="number">
+                    <strong>{{ data.queues[queue.key] || 0 }}</strong>
+                  </td>
+                  <td>{{ queue.owner }}</td>
+                  <td class="condition">{{ queue.condition }}</td>
+                  <td class="action">
+                    <a [routerLink]="['/tickets']" [queryParams]="ticketParams(queue.key)"
+                      >Xem phiếu</a
+                    >
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </section>
+    }
+  }
+</div>

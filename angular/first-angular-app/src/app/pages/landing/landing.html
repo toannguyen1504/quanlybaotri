@@ -1,0 +1,443 @@
+<div class="landing-page">
+  <header class="site-header">
+    <nav class="nav-shell" aria-label="Điều hướng chính">
+      <a class="brand" href="#top" aria-label="Maintenance Hub - Trang chủ" (click)="closeMenu()">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <path d="M12 3 4.5 6.5v5.2c0 4.4 3 7.7 7.5 9.3 4.5-1.6 7.5-4.9 7.5-9.3V6.5L12 3Z" />
+            <path d="m8.8 12 2 2 4.5-4.5" />
+          </svg>
+        </span>
+        <span class="brand-copy">
+          <strong>Maintenance Hub</strong>
+          <small>Nền tảng vận hành thiết bị</small>
+        </span>
+      </a>
+
+      <button
+        class="menu-toggle"
+        type="button"
+        aria-label="Mở hoặc đóng menu"
+        aria-controls="landing-navigation"
+        [attr.aria-expanded]="menuOpen()"
+        (click)="toggleMenu()"
+      >
+        <span></span><span></span><span></span>
+      </button>
+
+      <div id="landing-navigation" class="nav-content" [class.open]="menuOpen()">
+        <div class="nav-links">
+          <a href="#benefits" (click)="closeMenu()">Lợi ích</a>
+          <a href="#features" (click)="closeMenu()">Tính năng</a>
+          <a href="#workflow" (click)="closeMenu()">Quy trình</a>
+          <a href="#roles" (click)="closeMenu()">Dành cho ai</a>
+        </div>
+        <div class="nav-actions">
+          <a class="button button-ghost" routerLink="/login" (click)="closeMenu()">Đăng nhập</a>
+          <a
+            class="button button-primary"
+            routerLink="/login"
+            [queryParams]="{ tab: 'register' }"
+            (click)="closeMenu()"
+          >
+            Đăng ký tài khoản
+          </a>
+        </div>
+      </div>
+    </nav>
+  </header>
+
+  <main id="top">
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="section-shell hero-grid">
+        <div class="hero-copy">
+          <p class="eyebrow"><span></span> Quản lý bảo trì tập trung</p>
+          <h1 id="hero-title">Mọi sự cố.<br /><em>Một luồng xử lý.</em></h1>
+          <p class="hero-lead">
+            Kết nối khách hàng, đội ngũ vận hành và kỹ thuật viên trên một nền tảng duy nhất — rõ
+            ràng từ lúc tiếp nhận đến khi hoàn tất.
+          </p>
+          <div class="hero-actions">
+            <a class="button button-light" routerLink="/login">
+              Đăng nhập hệ thống
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                aria-hidden="true"
+              >
+                <path d="M5 12h14m-5-5 5 5-5 5" />
+              </svg>
+            </a>
+            <a class="text-link" href="#workflow"
+              >Xem cách vận hành <span aria-hidden="true">↓</span></a
+            >
+          </div>
+          <ul class="hero-assurances" aria-label="Các giá trị chính">
+            <li>
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                aria-hidden="true"
+              >
+                <path d="m5 12 4 4L19 6" />
+              </svg>
+              Theo dõi xuyên suốt
+            </li>
+            <li>
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                aria-hidden="true"
+              >
+                <path d="m5 12 4 4L19 6" />
+              </svg>
+              Phân quyền rõ ràng
+            </li>
+            <li>
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                aria-hidden="true"
+              >
+                <path d="m5 12 4 4L19 6" />
+              </svg>
+              Dữ liệu tập trung
+            </li>
+          </ul>
+        </div>
+
+        <div class="product-preview" aria-label="Minh họa bảng điều hành Maintenance Hub">
+          <div class="preview-topbar">
+            <div class="preview-brand"><span></span><b>Maintenance Hub</b></div>
+            <div class="preview-search">Tìm kiếm phiếu...</div>
+            <div class="preview-avatar">NA</div>
+          </div>
+          <div class="preview-body">
+            <aside class="preview-sidebar" aria-hidden="true">
+              <span class="active"></span><span></span><span></span><span></span><span></span>
+            </aside>
+            <div class="preview-main">
+              <div class="preview-heading">
+                <div><small>TỔNG QUAN VẬN HÀNH</small><strong>Chào buổi sáng!</strong></div>
+                <span class="preview-create" aria-hidden="true">+ Tạo phiếu mới</span>
+              </div>
+              <div class="metric-grid">
+                <article>
+                  <span class="metric-icon red">24</span><small>Phiếu đang mở</small
+                  ><strong>24</strong><i>6 phiếu mới</i>
+                </article>
+                <article>
+                  <span class="metric-icon amber">!</span><small>Sắp quá hạn</small
+                  ><strong>05</strong><i>Cần ưu tiên</i>
+                </article>
+                <article>
+                  <span class="metric-icon green">✓</span><small>Đã hoàn tất</small
+                  ><strong>18</strong><i>Trong kỳ này</i>
+                </article>
+              </div>
+              <div class="preview-panels">
+                <article class="ticket-panel">
+                  <div class="panel-title">
+                    <strong>Phiếu gần đây</strong><span>Xem tất cả</span>
+                  </div>
+                  <div class="ticket-row">
+                    <b>BT-1042</b><span>Điều hòa tầng 3</span
+                    ><i class="status progress">Đang xử lý</i>
+                  </div>
+                  <div class="ticket-row">
+                    <b>BT-1041</b><span>Máy phát điện</span
+                    ><i class="status waiting">Chờ linh kiện</i>
+                  </div>
+                  <div class="ticket-row">
+                    <b>BT-1040</b><span>Hệ thống mạng</span><i class="status done">Hoàn tất</i>
+                  </div>
+                </article>
+                <article class="chart-panel">
+                  <div class="panel-title"><strong>Hiệu suất</strong><span>7 ngày</span></div>
+                  <div class="chart-bars" aria-hidden="true">
+                    <i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+                  </div>
+                  <small>Phiếu được xử lý theo ngày</small>
+                </article>
+              </div>
+            </div>
+          </div>
+          <div class="floating-note note-top" aria-hidden="true">
+            <i>✓</i
+            ><span><b>Phiếu đã cập nhật</b><small>Thông tin được đồng bộ tức thời</small></span>
+          </div>
+          <div class="floating-note note-bottom" aria-hidden="true">
+            <i>⌁</i><span><b>Trao đổi liền mạch</b><small>Mọi người cùng nắm tiến độ</small></span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="benefits" class="benefits section-block" aria-labelledby="benefits-title">
+      <div class="section-shell">
+        <div class="section-heading centered">
+          <p class="section-kicker">VẬN HÀNH RÕ RÀNG HƠN</p>
+          <h2 id="benefits-title">Một nguồn thông tin chung cho mọi bên</h2>
+          <p>
+            Từ yêu cầu đầu tiên đến kết quả cuối cùng, mỗi bước đều có người phụ trách và trạng thái
+            cụ thể.
+          </p>
+        </div>
+        <div class="benefit-grid">
+          <article>
+            <span class="card-number">01</span>
+            <div class="icon-box">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.7"
+                aria-hidden="true"
+              >
+                <path d="M5 4h14v16H5zM8 8h8m-8 4h5m-5 4h7" />
+                <path d="m15.5 13.5 1.5 1.5 3-3" />
+              </svg>
+            </div>
+            <h3>Không bỏ sót yêu cầu</h3>
+            <p>Mọi phiếu được ghi nhận tập trung, phân loại và chuyển đến đúng người xử lý.</p>
+          </article>
+          <article class="featured">
+            <span class="card-number">02</span>
+            <div class="icon-box">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.7"
+                aria-hidden="true"
+              >
+                <circle cx="12" cy="12" r="8" />
+                <path d="M12 8v4l3 2" />
+              </svg>
+            </div>
+            <h3>Chủ động với SLA</h3>
+            <p>Theo dõi thời hạn và mức ưu tiên để đội ngũ tập trung vào việc cần làm trước.</p>
+          </article>
+          <article>
+            <span class="card-number">03</span>
+            <div class="icon-box">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.7"
+                aria-hidden="true"
+              >
+                <path d="M4 18V9m6 9V5m6 13v-7m4 7H2" />
+              </svg>
+            </div>
+            <h3>Quyết định bằng dữ liệu</h3>
+            <p>Báo cáo vận hành, chi phí và lịch sử thiết bị giúp cải thiện kế hoạch bảo trì.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="features" class="features section-block" aria-labelledby="features-title">
+      <div class="section-shell feature-layout">
+        <div class="feature-intro">
+          <p class="section-kicker">MỘT NỀN TẢNG, ĐỦ NGỮ CẢNH</p>
+          <h2 id="features-title">Theo dõi công việc mà không phải ghép nối thông tin thủ công</h2>
+          <p>
+            Mỗi nghiệp vụ liên kết với đúng phiếu, thiết bị và người liên quan để đội ngũ luôn có đủ
+            dữ liệu khi hành động.
+          </p>
+          <a class="feature-cta" routerLink="/login" [queryParams]="{ tab: 'register' }"
+            >Bắt đầu với Maintenance Hub <span aria-hidden="true">→</span></a
+          >
+        </div>
+        <div class="feature-list">
+          <article>
+            <span>01</span>
+            <div>
+              <h3>Phiếu bảo trì & SLA</h3>
+              <p>Tiếp nhận, ưu tiên, phân công và theo dõi tiến độ trong một luồng thống nhất.</p>
+            </div>
+          </article>
+          <article>
+            <span>02</span>
+            <div>
+              <h3>Thiết bị & tài liệu</h3>
+              <p>Tra cứu hồ sơ, vị trí lắp đặt, bảo hành và tài liệu gắn với từng thiết bị.</p>
+            </div>
+          </article>
+          <article>
+            <span>03</span>
+            <div>
+              <h3>Trao đổi thời gian thực</h3>
+              <p>
+                Giữ hội thoại theo từng phiếu để khách hàng và kỹ thuật viên cùng nắm tình hình.
+              </p>
+            </div>
+          </article>
+          <article>
+            <span>04</span>
+            <div>
+              <h3>Linh kiện & chi phí</h3>
+              <p>Ghi nhận vật tư sử dụng, chi phí được duyệt và trạng thái thanh toán rõ ràng.</p>
+            </div>
+          </article>
+          <article>
+            <span>05</span>
+            <div>
+              <h3>Thông báo đa kênh</h3>
+              <p>
+                Cập nhật thay đổi quan trọng trên hệ thống và hỗ trợ quy trình kỹ thuật qua
+                Telegram.
+              </p>
+            </div>
+          </article>
+          <article>
+            <span>06</span>
+            <div>
+              <h3>Báo cáo vận hành</h3>
+              <p>Quan sát khối lượng công việc và kết quả xử lý để điều phối hiệu quả hơn.</p>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="workflow" class="workflow section-block" aria-labelledby="workflow-title">
+      <div class="section-shell">
+        <div class="section-heading">
+          <p class="section-kicker">QUY TRÌNH XUYÊN SUỐT</p>
+          <h2 id="workflow-title">Từ phát hiện sự cố đến hoàn tất bảo trì</h2>
+          <p>Một hành trình dễ theo dõi, với trách nhiệm rõ ràng tại từng điểm chuyển giao.</p>
+        </div>
+        <ol class="workflow-list">
+          <li>
+            <span>01</span>
+            <div>
+              <small>TIẾP NHẬN</small>
+              <h3>Tạo yêu cầu</h3>
+              <p>Khách hàng mô tả sự cố, chọn thiết bị và cung cấp thông tin cần thiết.</p>
+            </div>
+          </li>
+          <li>
+            <span>02</span>
+            <div>
+              <small>ĐIỀU PHỐI</small>
+              <h3>Đánh giá & phân công</h3>
+              <p>Quản lý xác định mức ưu tiên và giao phiếu cho kỹ thuật viên phù hợp.</p>
+            </div>
+          </li>
+          <li>
+            <span>03</span>
+            <div>
+              <small>THỰC HIỆN</small>
+              <h3>Xử lý & cập nhật</h3>
+              <p>Kỹ thuật viên ghi nhật ký, linh kiện, chi phí và trao đổi ngay trên phiếu.</p>
+            </div>
+          </li>
+          <li>
+            <span>04</span>
+            <div>
+              <small>HOÀN TẤT</small>
+              <h3>Nghiệm thu & báo cáo</h3>
+              <p>Kết quả được xác nhận, lưu vào lịch sử và phản ánh trong báo cáo vận hành.</p>
+            </div>
+          </li>
+        </ol>
+      </div>
+    </section>
+
+    <section id="roles" class="roles section-block" aria-labelledby="roles-title">
+      <div class="section-shell">
+        <div class="section-heading centered">
+          <p class="section-kicker">ĐÚNG THÔNG TIN, ĐÚNG VAI TRÒ</p>
+          <h2 id="roles-title">Mỗi người một góc nhìn, cùng một tiến độ</h2>
+        </div>
+        <div class="role-grid">
+          <article>
+            <div class="role-icon customer" aria-hidden="true">KH</div>
+            <h3>Khách hàng</h3>
+            <p>
+              Gửi yêu cầu, theo dõi tình trạng, trao đổi với đội ngũ xử lý và phản hồi sau dịch vụ.
+            </p>
+            <ul>
+              <li>Tiến độ minh bạch</li>
+              <li>Thông tin đúng phạm vi</li>
+            </ul>
+          </article>
+          <article>
+            <div class="role-icon manager" aria-hidden="true">QL</div>
+            <h3>Quản lý vận hành</h3>
+            <p>
+              Điều phối nguồn lực, theo dõi SLA, giám sát báo giá và quan sát hiệu suất tổng thể.
+            </p>
+            <ul>
+              <li>Ưu tiên rõ ràng</li>
+              <li>Báo cáo tập trung</li>
+            </ul>
+          </article>
+          <article>
+            <div class="role-icon technician" aria-hidden="true">KT</div>
+            <h3>Kỹ thuật viên</h3>
+            <p>
+              Nhận việc, cập nhật hiện trường, sử dụng linh kiện và hoàn tất phần xử lý được giao.
+            </p>
+            <ul>
+              <li>Đủ ngữ cảnh công việc</li>
+              <li>Cập nhật ngay tại hiện trường</li>
+            </ul>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="final-cta" aria-labelledby="cta-title">
+      <div class="cta-pattern" aria-hidden="true"></div>
+      <div class="section-shell cta-content">
+        <div>
+          <p class="section-kicker light">SẴN SÀNG BẮT ĐẦU?</p>
+          <h2 id="cta-title">Đưa toàn bộ quy trình bảo trì về một nơi.</h2>
+          <p>Đăng nhập để tiếp tục công việc hoặc gửi yêu cầu tạo tài khoản cho đơn vị của bạn.</p>
+        </div>
+        <div class="cta-actions">
+          <a class="button button-light" routerLink="/login">Đăng nhập hệ thống</a>
+          <a
+            class="button button-outline-light"
+            routerLink="/login"
+            [queryParams]="{ tab: 'register' }"
+            >Đăng ký tài khoản</a
+          >
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="section-shell footer-content">
+      <div class="brand footer-brand">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <path d="M12 3 4.5 6.5v5.2c0 4.4 3 7.7 7.5 9.3 4.5-1.6 7.5-4.9 7.5-9.3V6.5L12 3Z" />
+            <path d="m8.8 12 2 2 4.5-4.5" />
+          </svg>
+        </span>
+        <span class="brand-copy"
+          ><strong>Maintenance Hub</strong><small>Nền tảng vận hành thiết bị</small></span
+        >
+      </div>
+      <p>Quản lý tiếp nhận, phân công và xử lý yêu cầu bảo trì.</p>
+      <div class="footer-links">
+        <a href="#features">Tính năng</a><a href="#workflow">Quy trình</a
+        ><a routerLink="/login">Đăng nhập</a>
+      </div>
+    </div>
+  </footer>
+</div>

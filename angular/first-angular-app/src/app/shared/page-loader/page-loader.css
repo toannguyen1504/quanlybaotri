@@ -1,0 +1,299 @@
+:host {
+  position: fixed;
+  z-index: 9999;
+  inset: 0;
+  display: block;
+}
+
+.loader-page {
+  position: relative;
+  display: grid;
+  min-height: 100%;
+  overflow: hidden;
+  place-items: center;
+  padding: 32px 20px;
+  background:
+    radial-gradient(circle at 50% 42%, #ffffff 0, #fff 24%, transparent 56%),
+    linear-gradient(145deg, #fff 0%, var(--color-primary-wash) 54%, #f8fafc 100%);
+  color: #17233c;
+}
+
+.loader-page::before {
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(var(--color-primary-ring) 1px, transparent 1px);
+  background-size: 24px 24px;
+  content: '';
+  mask-image: linear-gradient(to bottom, #000, transparent 80%);
+}
+
+.loader-glow {
+  position: absolute;
+  width: 310px;
+  height: 310px;
+  border-radius: 50%;
+  filter: blur(4px);
+  opacity: 0.54;
+}
+
+.loader-glow-left {
+  top: -160px;
+  left: -100px;
+  background: var(--color-primary-border);
+}
+
+.loader-glow-right {
+  right: -140px;
+  bottom: -170px;
+  background: var(--color-primary-soft);
+}
+
+.loader-content {
+  position: relative;
+  display: grid;
+  width: min(460px, 100%);
+  justify-items: center;
+  text-align: center;
+}
+
+.loader-brand {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  text-align: left;
+}
+
+.brand-mark {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: var(--color-primary);
+  box-shadow: 0 9px 24px var(--color-primary-shadow);
+  color: #fff;
+  place-items: center;
+}
+
+.brand-mark svg {
+  width: 25px;
+}
+
+.loader-brand strong,
+.loader-brand small {
+  display: block;
+}
+
+.loader-brand strong {
+  font-size: 14px;
+  letter-spacing: -0.01em;
+}
+
+.loader-brand small {
+  margin-top: 2px;
+  color: #8590a3;
+  font-size: 10px;
+}
+
+.loader-illustration {
+  width: min(420px, 92vw);
+  margin: -2px 0 -18px;
+}
+
+.loader-illustration svg {
+  display: block;
+  width: 100%;
+  overflow: visible;
+}
+
+.ticket-shadow {
+  animation: shadow-breathe 1.8s ease-in-out infinite;
+  transform-origin: center;
+}
+
+.ticket {
+  animation: ticket-float 2.6s ease-in-out infinite;
+  transform-origin: 200px 146px;
+}
+
+.gear-large {
+  animation: spin 4.2s linear infinite;
+}
+
+.gear-small {
+  animation: spin-reverse 3.4s linear infinite;
+}
+
+.gear {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.wrench {
+  animation: wrench-move 2.3s ease-in-out infinite;
+  transform-origin: 323px 180px;
+}
+
+.orbit {
+  stroke: var(--color-primary-border);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-dasharray: 8 10;
+}
+
+.orbit-one {
+  animation: dash 4s linear infinite;
+}
+
+.orbit-two {
+  animation: dash-reverse 4.5s linear infinite;
+}
+
+.pulse-dot {
+  animation: dot-pulse 1.6s ease-in-out infinite;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.dot-two {
+  animation-delay: -0.7s;
+}
+
+.loader-copy h1 {
+  margin: 0;
+  color: #17233c;
+  font-size: clamp(22px, 4vw, 28px);
+  letter-spacing: -0.035em;
+  line-height: 1.2;
+}
+
+.loader-copy p {
+  margin: 9px 0 22px;
+  color: #64748b;
+  font-size: 14px;
+}
+
+.progress-track {
+  width: min(240px, 68vw);
+  height: 5px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--color-primary-border);
+}
+
+.progress-track span {
+  display: block;
+  width: 46%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--color-primary-hover), var(--color-primary));
+  animation: loading-bar 1.45s ease-in-out infinite;
+}
+
+.loader-copy small {
+  display: block;
+  margin-top: 13px;
+  color: #94a3b8;
+  font-size: 11px;
+}
+
+@keyframes ticket-float {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-0.4deg);
+  }
+  50% {
+    transform: translateY(-8px) rotate(0.4deg);
+  }
+}
+
+@keyframes shadow-breathe {
+  0%,
+  100% {
+    opacity: 0.7;
+    transform: translate(7px, 7px) scale(0.98);
+  }
+  50% {
+    opacity: 0.35;
+    transform: translate(7px, 14px) scale(0.94);
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes spin-reverse {
+  to {
+    transform: rotate(-360deg);
+  }
+}
+
+@keyframes wrench-move {
+  0%,
+  100% {
+    transform: rotate(-4deg) translateY(0);
+  }
+  50% {
+    transform: rotate(8deg) translateY(-4px);
+  }
+}
+
+@keyframes dash {
+  to {
+    stroke-dashoffset: -72;
+  }
+}
+
+@keyframes dash-reverse {
+  to {
+    stroke-dashoffset: 72;
+  }
+}
+
+@keyframes dot-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(0.65);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+}
+
+@keyframes loading-bar {
+  0% {
+    transform: translateX(-110%);
+  }
+  50% {
+    transform: translateX(58%);
+  }
+  100% {
+    transform: translateX(235%);
+  }
+}
+
+@media (max-width: 520px) {
+  .loader-page {
+    padding: 24px 16px;
+  }
+
+  .loader-illustration {
+    margin: 4px 0 -10px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ticket-shadow,
+  .ticket,
+  .gear,
+  .wrench,
+  .orbit,
+  .pulse-dot,
+  .progress-track span {
+    animation-duration: 8s;
+  }
+}

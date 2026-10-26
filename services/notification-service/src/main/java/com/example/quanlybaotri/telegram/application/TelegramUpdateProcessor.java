@@ -12,6 +12,7 @@ import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
+import org.springframework.beans.factory.annotation.Autowired;
 
 @Component
 public class TelegramUpdateProcessor {
@@ -30,14 +31,17 @@ public class TelegramUpdateProcessor {
     private final MaintenanceTicketClient maintenance;
     private final TelegramKeyboardFactory keyboards;
     private final TelegramClient client;
+    private final TelegramWorkflowProcessor workflow;
 
+    @Autowired
     public TelegramUpdateProcessor(
         TelegramLinkService links,
         TelegramLinkRepository linkRepository,
         TelegramDeliveryRepository deliveries,
         MaintenanceTicketClient maintenance,
         TelegramKeyboardFactory keyboards,
-        TelegramClient client
+        TelegramClient client,
+        TelegramWorkflowProcessor workflow
     ) {
         this.links = links;
         this.linkRepository = linkRepository;
@@ -45,10 +49,26 @@ public class TelegramUpdateProcessor {
         this.maintenance = maintenance;
         this.keyboards = keyboards;
         this.client = client;
+        this.workflow = workflow;
+    }
+
+    TelegramUpdateProcessor(
+        TelegramLinkService links,
+        TelegramLinkRepository linkRepository,
+        TelegramDeliveryRepository deliveries,
+        MaintenanceTicketClient maintenance,
+        TelegramKeyboardFactory keyboards,
+        TelegramClient client
+    ) {
+        this(links, linkRepository, deliveries, maintenance, keyboards, client, null);
     }
 
     public void process(TelegramClient.Update update) {
         if (update.isCallbackQuery()) {
+            if (workflow != null && update.callbackData() != null && update.callbackData().startsWith("wf:")) {
+                workflow.process(update);
+                return;
+            }
             processCallback(update);
             return;
         }
@@ -59,6 +79,10 @@ public class TelegramUpdateProcessor {
         if (!"private".equals(update.chatType())) return;
         Matcher matcher = START.matcher(update.text());
         if (!matcher.matches()) {
+            if (workflow != null) {
+                workflow.process(update);
+                return;
+            }
             reply(
                 update.chatId(),
                 "Hãy mở liên kết được tạo tại trang Hồ sơ của hệ thống bảo trì để kết nối tài khoản."
@@ -110,6 +134,11 @@ public class TelegramUpdateProcessor {
             CallbackResult response = callbackResult(result.outcome());
             answer(update.callbackQueryId(), response.message(), response.alert());
             editCompletedMessage(update, delivery, response);
+            if (
+                workflow != null &&
+                (result.outcome() == MaintenanceTicketClient.Outcome.STARTED ||
+                    result.outcome() == MaintenanceTicketClient.Outcome.ALREADY_HANDLED)
+            ) workflow.openTicket(delivery.getUserId(), delivery.getReferenceId(), update.chatId());
             log.info(
                 "Telegram ticket action completed deliveryId={} outcome={}",
                 delivery.getId(),

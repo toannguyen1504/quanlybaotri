@@ -1,0 +1,198 @@
+<div class="equipment-form-page">
+  <a class="back-link" [routerLink]="cancelLink()"
+    >← {{ isEditing() ? 'Về chi tiết thiết bị' : 'Về danh sách thiết bị' }}</a
+  >
+
+  <header>
+    <p class="eyebrow">QUẢN LÝ TÀI SẢN</p>
+    <h1>{{ isEditing() ? 'Chỉnh sửa thiết bị' : 'Thêm thiết bị mới' }}</h1>
+    <p>
+      {{
+        isEditing()
+          ? 'Cập nhật hồ sơ nhận diện và thông tin vận hành.'
+          : 'Khai báo đầy đủ để thiết bị được theo dõi chính xác trong suốt vòng đời.'
+      }}
+    </p>
+  </header>
+
+  @if (loading()) {
+    <section class="panel form-state" aria-busy="true">
+      <span></span>
+      <p>Đang tải biểu mẫu...</p>
+    </section>
+  } @else if (error() && isEditing() && !model.assetCode) {
+    <section class="panel form-error" role="alert">
+      <b>Không thể mở thiết bị</b>
+      <p>{{ error() }}</p>
+      <a class="secondary button-link" routerLink="/equipment">Về danh sách</a>
+    </section>
+  } @else {
+    <form (ngSubmit)="save()">
+      <section class="panel form-section">
+        <div class="section-heading">
+          <span>01</span>
+          <div>
+            <h2>Thông tin nhận diện</h2>
+            <p>Mã, tên và thông tin từ nhà sản xuất.</p>
+          </div>
+        </div>
+        <div class="form-grid">
+          <label
+            ><span>Mã thiết bị <i>*</i></span
+            ><input
+              name="assetCode"
+              [(ngModel)]="model.assetCode"
+              required
+              maxlength="80"
+              placeholder="Ví dụ: TB-LAP-001"
+          /></label>
+          <label
+            ><span>Tên thiết bị <i>*</i></span
+            ><input
+              name="name"
+              [(ngModel)]="model.name"
+              required
+              maxlength="200"
+              placeholder="Ví dụ: Laptop Dell Latitude"
+          /></label>
+          <label
+            ><span>Số serial</span
+            ><input
+              name="serialNumber"
+              [(ngModel)]="model.serialNumber"
+              maxlength="150"
+              placeholder="Nhập số serial"
+          /></label>
+          <label
+            ><span>Hãng sản xuất</span
+            ><input
+              name="manufacturer"
+              [(ngModel)]="model.manufacturer"
+              maxlength="150"
+              placeholder="Ví dụ: Dell"
+          /></label>
+          <label
+            ><span>Model</span
+            ><input
+              name="model"
+              [(ngModel)]="model.model"
+              maxlength="150"
+              placeholder="Ví dụ: Latitude 5440"
+          /></label>
+          <label
+            ><span>Loại thiết bị <i>*</i></span
+            ><select name="categoryId" [(ngModel)]="model.categoryId" required>
+              <option value="">Chọn loại thiết bị</option>
+              @for (category of categories(); track category.id) {
+                <option [value]="category.id">
+                  {{ category.name }}{{ category.active ? '' : ' (đã ngừng)' }}
+                </option>
+              }
+            </select></label
+          >
+        </div>
+      </section>
+
+      <section class="panel form-section">
+        <div class="section-heading">
+          <span>02</span>
+          <div>
+            <h2>Đơn vị và vận hành</h2>
+            <p>Nơi sử dụng và trạng thái hiện tại của thiết bị.</p>
+          </div>
+        </div>
+        <div class="form-grid">
+          <label
+            ><span>Khách hàng <i>*</i></span
+            ><select
+              name="customerId"
+              [(ngModel)]="model.customerId"
+              (change)="customerChanged()"
+              required
+            >
+              <option value="">Chọn khách hàng</option>
+              @for (customer of customers(); track customer.id) {
+                <option [value]="customer.id">
+                  {{ customer.name }}{{ customer.active ? '' : ' (đã ngừng)' }}
+                </option>
+              }
+            </select></label
+          >
+          <label
+            ><span>Địa điểm lắp đặt <i>*</i></span
+            ><select name="siteId" [(ngModel)]="model.siteId" required>
+              <option value="">Chọn địa điểm</option>
+              @for (site of formSites(); track site.id) {
+                <option [value]="site.id">
+                  {{ site.name }}{{ site.active ? '' : ' (đã ngừng)' }}
+                </option>
+              }
+            </select></label
+          >
+          <label
+            ><span>Vị trí đặt thiết bị</span
+            ><input
+              name="location"
+              [(ngModel)]="model.location"
+              maxlength="255"
+              placeholder="Ví dụ: Tầng 3, phòng 305"
+          /></label>
+          <label
+            ><span>Trạng thái vận hành <i>*</i></span
+            ><select name="status" [(ngModel)]="model.status" required>
+              <option value="ACTIVE">Đang hoạt động</option>
+              <option value="UNDER_MAINTENANCE">Đang bảo trì</option>
+              <option value="RETIRED">Ngừng sử dụng</option>
+            </select></label
+          >
+          <label class="check-field"
+            ><input type="checkbox" name="active" [(ngModel)]="model.active" /><span
+              >Tiếp tục quản lý thiết bị này</span
+            ></label
+          >
+        </div>
+      </section>
+
+      <section class="panel form-section">
+        <div class="section-heading">
+          <span>03</span>
+          <div>
+            <h2>Mốc thời gian và bảo hành</h2>
+            <p>Thông tin dùng để theo dõi vòng đời tài sản.</p>
+          </div>
+        </div>
+        <div class="form-grid dates-grid">
+          <label
+            ><span>Ngày lắp đặt</span
+            ><input type="date" name="installedAt" [(ngModel)]="model.installedAt"
+          /></label>
+          <label
+            ><span>Ngày nghiệm thu</span
+            ><input type="date" name="acceptedAt" [(ngModel)]="model.acceptedAt"
+          /></label>
+          <label
+            ><span>Bắt đầu bảo hành</span
+            ><input type="date" name="warrantyStartAt" [(ngModel)]="model.warrantyStartAt"
+          /></label>
+          <label
+            ><span>Kết thúc bảo hành</span
+            ><input type="date" name="warrantyEndAt" [(ngModel)]="model.warrantyEndAt"
+          /></label>
+        </div>
+      </section>
+
+      @if (error()) {
+        <div class="form-submit-error" role="alert">{{ error() }}</div>
+      }
+      <div class="form-actions">
+        <small><i>*</i> Thông tin bắt buộc</small>
+        <div>
+          <a class="secondary button-link" [routerLink]="cancelLink()">Hủy</a
+          ><button class="primary" [disabled]="saving()">
+            {{ saving() ? 'Đang lưu...' : isEditing() ? 'Lưu thay đổi' : 'Tạo thiết bị' }}
+          </button>
+        </div>
+      </div>
+    </form>
+  }
+</div>

@@ -61,6 +61,40 @@
       "durable": true,
       "auto_delete": false,
       "arguments": {}
+    },
+    {
+      "name": "notification.chat-events",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-dead-letter-exchange": "",
+        "x-dead-letter-routing-key": "notification.chat-events.dlq"
+      }
+    },
+    {
+      "name": "notification.chat-events.dlq",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    },
+    {
+      "name": "notification.chat-ticket-events",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-dead-letter-exchange": "",
+        "x-dead-letter-routing-key": "notification.chat-ticket-events.dlq"
+      }
+    },
+    {
+      "name": "notification.chat-ticket-events.dlq",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
     }
   ],
   "bindings": [
@@ -94,6 +128,22 @@
       "destination": "notification.events",
       "destination_type": "queue",
       "routing_key": "inventory.part.low-stock",
+      "arguments": {}
+    },
+    {
+      "source": "domain.events",
+      "vhost": "/",
+      "destination": "notification.chat-events",
+      "destination_type": "queue",
+      "routing_key": "notification.chat.#",
+      "arguments": {}
+    },
+    {
+      "source": "domain.events",
+      "vhost": "/",
+      "destination": "notification.chat-ticket-events",
+      "destination_type": "queue",
+      "routing_key": "maintenance.ticket.changed",
       "arguments": {}
     }
   ]

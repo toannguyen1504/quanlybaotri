@@ -15,6 +15,9 @@ spring:
     redis:
       host: ${REDIS_HOST:redis}
       port: ${REDIS_PORT:6379}
+    web:
+      pageable:
+        max-page-size: 100
   security:
     oauth2:
       resourceserver:
