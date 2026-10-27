@@ -130,8 +130,11 @@ public class TicketController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasAnyRole('REQUESTER','ADMIN','MANAGER')")
-    public TicketView create(@Valid @RequestBody CreateTicketRequest r) {
-        return service.create(r, current.require());
+    public TicketView create(
+        @Valid @RequestBody CreateTicketRequest r,
+        @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey
+    ) {
+        return service.create(r, current.require(), idempotencyKey);
     }
 
     @PostMapping("/{id}/accept")

@@ -22,7 +22,11 @@ import jakarta.persistence.criteria.Subquery;
 import jakarta.persistence.criteria.Predicate;
 import java.time.*;
 import java.time.format.DateTimeFormatter;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.*;
+import java.util.HexFormat;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.*;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
@@ -204,6 +208,16 @@ public class TicketService {
     }
 
     public TicketView create(CreateTicketRequest request, Actor actor) {
+        return create(request, actor, null);
+    }
+
+    public TicketView create(CreateTicketRequest request, Actor actor, String suppliedKey) {
+        String idempotencyKey = normalizeKey(suppliedKey);
+        String requestHash = creationHash(request);
+        if (idempotencyKey != null) {
+            MaintenanceTicket existing = tickets.findByCreationIdempotencyKey(idempotencyKey).orElse(null);
+            if (existing != null) return duplicateCreation(existing, actor, requestHash);
+        }
         AssetClient.EquipmentRef equipment = assets.get(request.equipmentId());
         if (
             equipment == null ||
@@ -222,7 +236,9 @@ public class TicketService {
         }
         if (requester == null || !requester.enabled() || !"CUSTOMER".equals(requester.accountType()) || !requester.roles().contains(RoleName.REQUESTER)) throw ApiException.conflict("Người yêu cầu không phải tài khoản khách hàng đang hoạt động");
         if (!requester.canAccess(equipment.customerId(), equipment.siteId())) throw ApiException.conflict("Người yêu cầu không có quyền tại địa điểm của thiết bị");
-        MaintenanceTicket ticket = transactions.execute(tx -> {
+        MaintenanceTicket ticket;
+        try {
+            ticket = transactions.execute(tx -> {
             SlaPolicy policy = sla
                 .findByPriorityAndActiveTrue(request.priority())
                 .orElseThrow(() -> ApiException.conflict("Chưa cấu hình SLA cho mức ưu tiên"));
@@ -237,8 +253,7 @@ public class TicketService {
                 DateTimeFormatter.ofPattern("yyyy").withZone(ZoneOffset.UTC).format(now) +
                 "-" +
                 String.format("%06d", seq);
-            MaintenanceTicket created = tickets.save(
-                new MaintenanceTicket(
+            MaintenanceTicket created = new MaintenanceTicket(
                     code,
                     equipment.id(),
                     requester.id(),
@@ -252,8 +267,9 @@ public class TicketService {
                     now.plusSeconds(policy.getResolutionMinutes() * 60L),
                     WarrantyStatus.valueOf(equipment.warrantyStatus()),
                     equipment.warrantyEndAt()
-                )
-            );
+                );
+            if (idempotencyKey != null) created.creationRequest(idempotencyKey, actor.id(), requestHash);
+            created = tickets.saveAndFlush(created);
             eventService.record(
                 created,
                 actor.id(),
@@ -265,8 +281,43 @@ public class TicketService {
             );
             costs.createForTicket(created.getId());
             return created;
-        });
+            });
+        } catch (DataIntegrityViolationException duplicate) {
+            if (idempotencyKey == null) throw duplicate;
+            MaintenanceTicket existing = tickets.findByCreationIdempotencyKey(idempotencyKey).orElse(null);
+            if (existing == null) throw duplicate;
+            return duplicateCreation(existing, actor, requestHash);
+        }
         return enrich(ticket,equipment,identities.resolve(List.of(requester.id(),actor.id())),actor);
+    }
+
+    private String normalizeKey(String key) {
+        if (key == null || key.isBlank()) return null;
+        String value = key.trim();
+        if (value.length() > 128) throw new ApiException(org.springframework.http.HttpStatus.BAD_REQUEST,
+            "INVALID_IDEMPOTENCY_KEY", "Idempotency-Key không được vượt quá 128 ký tự");
+        return value;
+    }
+
+    private String creationHash(CreateTicketRequest request) {
+        String canonical = String.join("|", request.equipmentId().toString(),
+            request.requesterId() == null ? "-" : request.requesterId().toString(),
+            request.title().trim(), request.description().trim(), request.priority().name());
+        try {
+            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
+                .digest(canonical.getBytes(StandardCharsets.UTF_8)));
+        } catch (Exception unavailable) {
+            throw new IllegalStateException("SHA-256 is not available", unavailable);
+        }
+    }
+
+    private TicketView duplicateCreation(MaintenanceTicket existing, Actor actor, String requestHash) {
+        if (!actor.id().equals(existing.getCreationActorId()) ||
+            !requestHash.equals(existing.getCreationRequestHash())) {
+            throw new ApiException(org.springframework.http.HttpStatus.CONFLICT,
+                "IDEMPOTENCY_KEY_REUSED", "Idempotency-Key đã được dùng cho yêu cầu khác");
+        }
+        return get(existing.getId(), actor);
     }
 
     public TicketView accept(UUID id, Actor actor) {

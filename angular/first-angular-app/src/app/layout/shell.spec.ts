@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuthService } from '../core/auth';
 import { ChatService } from '../core/chat';
 import { NotificationCenterService } from '../core/notifications';
+import { Api } from '../core/api';
 import { Shell } from './shell';
 
 describe('Shell', () => {
@@ -42,6 +43,7 @@ describe('Shell', () => {
     open: vi.fn(),
     badgeLabel: (count: number) => (count > 99 ? '99+' : String(count)),
   };
+  const api = { post: vi.fn(), delete: vi.fn() };
 
   beforeEach(() => {
     localStorage.removeItem('maintenance-sidebar-collapsed');
@@ -63,6 +65,7 @@ describe('Shell', () => {
         { provide: AuthService, useValue: auth },
         { provide: ChatService, useValue: chat },
         { provide: NotificationCenterService, useValue: notificationCenter },
+        { provide: Api, useValue: api },
       ],
     }).compileComponents();
     const fixture = TestBed.createComponent(Shell);

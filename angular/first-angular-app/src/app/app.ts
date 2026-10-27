@@ -3,9 +3,10 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NavigationEnd, NavigationError, Router, RouterOutlet } from '@angular/router';
 import { filter, take } from 'rxjs';
 import { PageLoader } from './shared/page-loader/page-loader';
+import { RouteFade } from './shared/route-fade';
 
 @Component({
-  imports: [PageLoader, RouterOutlet],
+  imports: [PageLoader, RouteFade, RouterOutlet],
   selector: 'app-root',
   styleUrl: './app.css',
   templateUrl: './app.html',

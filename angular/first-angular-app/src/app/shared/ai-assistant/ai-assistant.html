@@ -1,0 +1,95 @@
+<button type="button" class="ai-launcher" [class.active]="open()" aria-label="Mở trợ lý AI" [attr.aria-expanded]="open()" (click)="toggle()">
+  @if (open()) { <span aria-hidden="true">×</span> } @else {
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a7 7 0 0 0-7 7v4a4 4 0 0 0 4 4h1l2 3 2-3h1a4 4 0 0 0 4-4v-4a7 7 0 0 0-7-7Z"/><path d="M9 10h.01M15 10h.01M9 14h6"/></svg>
+  }
+</button>
+
+@if (open()) {
+  <section #panel class="ai-panel" role="dialog" aria-modal="true" aria-label="Trợ lý bảo trì AI">
+    <header>
+      <div><span class="ai-mark">AI</span><p><strong>Trợ lý bảo trì</strong><small>NVIDIA Nemotron 3.5</small></p></div>
+      <div class="ai-header-actions">
+        <button type="button" title="Bắt đầu lại" aria-label="Bắt đầu phiên mới" (click)="reset()">↻</button>
+        <button type="button" title="Đóng" aria-label="Đóng trợ lý" (click)="close()">×</button>
+      </div>
+    </header>
+
+    <div class="ai-message-list" aria-live="polite">
+      @if (starting()) { <div class="ai-state">Đang khởi tạo trợ lý...</div> }
+      @for (item of messages(); track item.id) {
+        <article class="ai-message" [class.user]="item.role === 'user'">
+          <div class="ai-bubble">{{ item.text }}</div>
+          @if (item.response; as response) {
+            @if (response.tickets.length) {
+              <div class="ai-cards">
+                @for (ticket of response.tickets; track ticket.id) {
+                  <a class="ai-card" [routerLink]="['/tickets', ticket.id]" (click)="close()">
+                    <span><b>{{ ticket.code }}</b><i>{{ ticket.status }}</i></span>
+                    <strong>{{ ticket.title }}</strong>
+                    <small>{{ ticket.equipmentCode }} · {{ ticket.siteName }}</small>
+                  </a>
+                }
+              </div>
+            }
+            @if (response.equipment.length) {
+              <div class="ai-cards">
+                @for (equipment of response.equipment; track equipment.id) {
+                  <div class="ai-card">
+                    <span><b>{{ equipment.assetCode }}</b><i>{{ equipment.status }}</i></span>
+                    <strong>{{ equipment.name }}</strong>
+                    <small>{{ equipment.siteName }} · {{ equipment.location || 'Chưa có vị trí' }}</small>
+                    @if (response.type === 'TICKET_DRAFT') { <button type="button" (click)="chooseEquipment(equipment)">Chọn thiết bị này</button> }
+                    @else { <a [routerLink]="['/equipment', equipment.id]" (click)="close()">Mở chi tiết</a> }
+                  </div>
+                }
+              </div>
+            }
+            @if (response.draft; as draft) {
+              <section class="ai-draft" [class.ready]="draft.status === 'READY'">
+                <div class="ai-draft-title"><strong>Bản nháp phiếu</strong><span>{{ draft.status === 'READY' ? 'Sẵn sàng' : 'Chưa đủ thông tin' }}</span></div>
+                <dl>
+                  <div><dt>Thiết bị</dt><dd>{{ draft.equipmentCode || '—' }} {{ draft.equipmentName }}</dd></div>
+                  <div><dt>Người yêu cầu</dt><dd>{{ draft.requesterName || '—' }}</dd></div>
+                  <div><dt>Tiêu đề</dt><dd>{{ draft.title || '—' }}</dd></div>
+                  <div><dt>Ưu tiên</dt><dd>{{ draft.priority || '—' }}</dd></div>
+                  <div class="wide"><dt>Mô tả</dt><dd>{{ draft.description || '—' }}</dd></div>
+                </dl>
+                @if (draft.missingFields.length) { <p class="ai-missing">Còn thiếu: {{ draft.missingFields.join(', ') }}</p> }
+                @if (!draft.requesterId && draft.requesterOptions.length) {
+                  <div class="ai-options"><span>Chọn người yêu cầu:</span>
+                    @for (requester of draft.requesterOptions; track requester.id) { <button type="button" (click)="chooseRequester(requester)">{{ requester.fullName }}</button> }
+                  </div>
+                }
+                <button type="button" class="ai-confirm" [disabled]="draft.status !== 'READY' || confirming()" (click)="confirm(draft)">
+                  {{ draft.status === 'CREATED' ? 'Phiếu đã được tạo' : confirming() ? 'Đang tạo phiếu...' : 'Xác nhận tạo phiếu' }}
+                </button>
+                <small>Phiếu chỉ được tạo sau khi bạn bấm xác nhận.</small>
+              </section>
+            }
+            @if (response.sources.length) {
+              <div class="ai-sources"><span>Nguồn quy trình</span>
+                @for (source of response.sources; track source.sourceId) { <small>[{{ source.sourceId }}] {{ source.title }} · {{ source.section }}</small> }
+              </div>
+            }
+          }
+          @if (item.createdTicket; as ticket) {
+            <a class="ai-created" [routerLink]="['/tickets', ticket.id]" (click)="close()">Mở {{ ticket.code }} →</a>
+          }
+        </article>
+      }
+      @if (sending()) { <div class="ai-typing" aria-label="Trợ lý đang trả lời"><i></i><i></i><i></i></div> }
+    </div>
+
+    @if (!messages().length || messages().length === 1) {
+      <div class="ai-suggestions">
+        @for (suggestion of suggestions; track suggestion) { <button type="button" [disabled]="!conversationId()" (click)="send(suggestion)">{{ suggestion }}</button> }
+      </div>
+    }
+    @if (error()) { <div class="ai-error" role="alert"><span>{{ error() }}</span><button type="button" (click)="conversationId() ? error.set('') : start()">Thử lại</button></div> }
+    <form class="ai-composer" (submit)="submit($event)">
+      <textarea #messageInput name="message" [(ngModel)]="message" maxlength="2000" rows="2" placeholder="Nhập yêu cầu..." [disabled]="!conversationId() || sending()" (keydown.enter)="enter($event)"></textarea>
+      <button type="submit" [disabled]="!message.trim() || !conversationId() || sending()" aria-label="Gửi tin nhắn">➤</button>
+    </form>
+    <footer>AI có thể nhầm. Hãy kiểm tra dữ liệu trước khi xác nhận.</footer>
+  </section>
+}

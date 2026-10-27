@@ -1,4 +1,6 @@
-<router-outlet />
+<div class="app-route-content" appRouteFade #appRouteFade="routeFade">
+  <router-outlet (activate)="appRouteFade.play()" (attach)="appRouteFade.play()" />
+</div>
 
 @if (initialLoading()) {
   <app-page-loader />

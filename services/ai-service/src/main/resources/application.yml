@@ -1,0 +1,34 @@
+spring:
+  application.name: ai-service
+  data.redis:
+    host: ${REDIS_HOST:redis}
+    port: ${REDIS_PORT:6379}
+  security.oauth2.resourceserver.jwt.jwk-set-uri: ${JWK_SET_URI:http://identity-service:8081/.well-known/jwks.json}
+server.port: 8088
+app:
+  ai:
+    api-key: ${OPENROUTER_API_KEY}
+    api-base-url: ${OPENROUTER_API_BASE_URL:https://openrouter.ai/api/v1}
+    model: ${AI_MODEL:nvidia/nemotron-3.5-super-vl}
+    reasoning-effort: ${AI_REASONING_EFFORT:none}
+    connect-timeout: ${AI_CONNECT_TIMEOUT:10s}
+    read-timeout: ${AI_READ_TIMEOUT:60s}
+    session-ttl: ${AI_SESSION_TTL:30m}
+    max-turns: ${AI_MAX_TURNS:20}
+    max-input-length: ${AI_MAX_INPUT_LENGTH:2000}
+    max-results: ${AI_MAX_RESULTS:5}
+    rate-per-minute: ${AI_RATE_PER_MINUTE:10}
+    classify-max-output-tokens: ${AI_CLASSIFY_MAX_OUTPUT_TOKENS:256}
+    max-output-tokens: ${AI_MAX_OUTPUT_TOKENS:400}
+    general-max-output-tokens: ${AI_GENERAL_MAX_OUTPUT_TOKENS:800}
+  maintenance-url: ${MAINTENANCE_SERVICE_URL:http://maintenance-service:8083}
+  asset-url: ${ASSET_SERVICE_URL:http://asset-service:8082}
+  identity-url: ${IDENTITY_SERVICE_URL:http://identity-service:8081}
+management:
+  server.port: 9000
+  endpoints.web.exposure.include: health,info,prometheus
+  endpoint:
+    health:
+      probes.enabled: true
+      group.readiness.include: readinessState,redis
+logging.structured.format.console: logstash

@@ -91,6 +91,7 @@ a {
   color: inherit;
 }
 .app-shell {
+  --app-footer-height: 48px;
   display: grid;
   grid-template-columns: 248px minmax(0, 1fr);
   min-height: 100vh;
@@ -5668,7 +5669,7 @@ td small {
 .shell-content {
   flex: 1 0 auto;
   min-width: 0;
-  padding-bottom: 48px;
+  padding-bottom: var(--app-footer-height);
 }
 
 .app-footer {
@@ -5678,7 +5679,8 @@ td small {
   bottom: 0;
   left: 248px;
   display: flex;
-  min-height: 48px;
+  height: var(--app-footer-height);
+  box-sizing: border-box;
   flex: 0 0 auto;
   align-items: center;
   justify-content: space-between;
@@ -5748,12 +5750,11 @@ td small {
 }
 
 @media (max-width: 480px) {
-  .shell-content {
-    padding-bottom: 44px;
+  .app-shell {
+    --app-footer-height: 44px;
   }
 
   .app-footer {
-    min-height: 44px;
     padding: 8px 16px;
   }
 
@@ -7725,6 +7726,201 @@ td small {
   .ticket-create-skeleton i,
   .ticket-create-skeleton > b {
     animation: none;
+  }
+}
+
+.page-enter {
+  animation: pageEnter 220ms ease-out both;
+  will-change: opacity, transform;
+}
+
+@keyframes pageEnter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-enter {
+    animation: pageEnterReduced 160ms ease-out both;
+  }
+}
+
+@keyframes pageEnterReduced {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+/* Form motion system */
+form :where(input, select, textarea) {
+  transition:
+    border-color 180ms ease,
+    background-color 180ms ease,
+    box-shadow 180ms ease,
+    transform 180ms ease;
+}
+
+form
+  :where(input:not([type='checkbox']):not([type='radio']), select, textarea):hover:not(:disabled) {
+  border-color: #aebdca;
+}
+
+form :where(input:not([type='checkbox']):not([type='radio']), select, textarea):focus {
+  background: #fff;
+  transform: translateY(-1px);
+}
+
+form label > span:first-child,
+form label.field {
+  transition:
+    color 180ms ease,
+    transform 180ms ease;
+}
+
+form label:focus-within > span:first-child,
+form label.field:focus-within {
+  color: var(--color-primary-strong);
+}
+
+:where(
+  form > .field,
+  .auth-grid > .field,
+  .form-grid > label,
+  .users-form-grid > label,
+  .account-form-grid > label,
+  .management-form-section,
+  .management-modal-form > *,
+  .ticket-create-field,
+  .ticket-create-priorities,
+  .review-form > *,
+  .ticket-feedback-form > *,
+  .equipment-form-page .form-section
+) {
+  --form-motion-order: 0;
+  animation: form-detail-enter 360ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(var(--form-motion-order) * 45ms);
+}
+
+:where(
+  form > .field,
+  .auth-grid > .field,
+  .form-grid > label,
+  .users-form-grid > label,
+  .account-form-grid > label,
+  .management-form-section,
+  .management-modal-form > *,
+  .ticket-create-field,
+  .ticket-create-priorities,
+  .review-form > *,
+  .ticket-feedback-form > *,
+  .equipment-form-page .form-section
+):nth-child(2) {
+  --form-motion-order: 1;
+}
+
+:where(
+  form > .field,
+  .auth-grid > .field,
+  .form-grid > label,
+  .users-form-grid > label,
+  .account-form-grid > label,
+  .management-form-section,
+  .management-modal-form > *,
+  .ticket-create-field,
+  .ticket-create-priorities,
+  .review-form > *,
+  .ticket-feedback-form > *,
+  .equipment-form-page .form-section
+):nth-child(3) {
+  --form-motion-order: 2;
+}
+
+:where(
+  form > .field,
+  .auth-grid > .field,
+  .form-grid > label,
+  .users-form-grid > label,
+  .account-form-grid > label,
+  .management-form-section,
+  .management-modal-form > *,
+  .ticket-create-field,
+  .ticket-create-priorities,
+  .review-form > *,
+  .ticket-feedback-form > *,
+  .equipment-form-page .form-section
+):nth-child(n + 4) {
+  --form-motion-order: 3;
+}
+
+.management-modal-backdrop,
+.users-modal-backdrop {
+  animation: form-backdrop-enter 180ms ease-out both;
+}
+
+.management-modal,
+.users-modal {
+  animation: form-dialog-enter 280ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  transform-origin: center bottom;
+}
+
+form :where([aria-invalid='true'], .ng-invalid.ng-touched),
+form .has-error {
+  animation: form-invalid-nudge 260ms ease-out;
+}
+
+form :where(button[type='submit'], button:not([type])):not(:disabled):active {
+  transform: translateY(1px) scale(0.985);
+}
+
+@keyframes form-detail-enter {
+  from {
+    filter: blur(4px);
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    filter: blur(0);
+  }
+}
+
+@keyframes form-backdrop-enter {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes form-dialog-enter {
+  from {
+    filter: blur(6px);
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    filter: blur(0);
+  }
+}
+
+@keyframes form-invalid-nudge {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  35% {
+    transform: translateX(-4px);
+  }
+  70% {
+    transform: translateX(3px);
   }
 }
 

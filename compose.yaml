@@ -398,6 +398,43 @@ services:
         ]
     restart: unless-stopped
 
+  ai-service:
+    build:
+      context: .
+      dockerfile: services/ai-service/Dockerfile
+    environment:
+      <<: *service-environment
+      # NVIDIA_API_KEY remains a temporary fallback for existing local .env files.
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-${NVIDIA_API_KEY:-}}
+      OPENROUTER_API_BASE_URL: ${OPENROUTER_API_BASE_URL:-https://openrouter.ai/api/v1}
+      AI_MODEL: ${AI_MODEL:-nvidia/nemotron-3.5-super-vl}
+      AI_REASONING_EFFORT: ${AI_REASONING_EFFORT:-none}
+      AI_CONNECT_TIMEOUT: ${AI_CONNECT_TIMEOUT:-10s}
+      AI_READ_TIMEOUT: ${AI_READ_TIMEOUT:-60s}
+      AI_SESSION_TTL: ${AI_SESSION_TTL:-30m}
+      AI_MAX_TURNS: ${AI_MAX_TURNS:-20}
+      AI_MAX_INPUT_LENGTH: ${AI_MAX_INPUT_LENGTH:-2000}
+      AI_MAX_RESULTS: ${AI_MAX_RESULTS:-5}
+      AI_RATE_PER_MINUTE: ${AI_RATE_PER_MINUTE:-10}
+      AI_CLASSIFY_MAX_OUTPUT_TOKENS: ${AI_CLASSIFY_MAX_OUTPUT_TOKENS:-256}
+      AI_MAX_OUTPUT_TOKENS: ${AI_MAX_OUTPUT_TOKENS:-400}
+      AI_GENERAL_MAX_OUTPUT_TOKENS: ${AI_GENERAL_MAX_OUTPUT_TOKENS:-800}
+      IDENTITY_SERVICE_URL: http://identity-service:8081
+      ASSET_SERVICE_URL: http://asset-service:8082
+      MAINTENANCE_SERVICE_URL: http://maintenance-service:8083
+    tmpfs: [/tmp]
+    read_only: true
+    networks: [backend, openrouter-egress]
+    depends_on:
+      redis: { condition: service_healthy }
+      identity-service: { condition: service_healthy }
+      asset-service: { condition: service_healthy }
+      maintenance-service: { condition: service_healthy }
+    healthcheck:
+      <<: *java-healthcheck
+      test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:9000/actuator/health/readiness >/dev/null || exit 1']
+    restart: unless-stopped
+
   api-gateway:
     build:
       context: .
@@ -411,6 +448,7 @@ services:
       INVENTORY_SERVICE_URL: http://inventory-service:8084
       ORGANIZATION_SERVICE_URL: http://organization-service:8086
       NOTIFICATION_SERVICE_URL: http://notification-service:8085
+      AI_SERVICE_URL: http://ai-service:8088
     ports:
       - '8080:8080'
     tmpfs: [/tmp]
@@ -477,6 +515,7 @@ networks:
   telegram-egress:
   google-egress:
   vnpay-egress:
+  openrouter-egress:
 
 volumes:
   postgres-data:
