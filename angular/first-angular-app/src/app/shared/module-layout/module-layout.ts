@@ -19,7 +19,6 @@ import {
   PaymentSummary,
   Role,
 } from '../../core/models';
-import { RouteFade } from '../route-fade';
 
 interface ModuleTab {
   path: string;
@@ -48,7 +47,7 @@ interface RefreshableModuleContent {
 
 @Component({
   selector: 'app-module-layout',
-  imports: [DecimalPipe, RouteFade, RouterLink, RouterLinkActive, RouterOutlet],
+  imports: [DecimalPipe, RouterLink, RouterLinkActive, RouterOutlet],
   templateUrl: './module-layout.html',
   styleUrl: './module-layout.css',
 })

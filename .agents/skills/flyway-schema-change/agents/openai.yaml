@@ -1,0 +1,5 @@
+interface:
+  display_name: "Flyway Schema Change"
+  short_description: "Create safe service-owned Flyway migrations"
+  default_prompt: "Use $flyway-schema-change to design and verify this database migration."
+

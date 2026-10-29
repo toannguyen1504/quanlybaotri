@@ -1,0 +1,5 @@
+interface:
+  display_name: "Cross-Service Contract Change"
+  short_description: "Coordinate APIs, routes, and event contracts"
+  default_prompt: "Use $cross-service-contract-change to coordinate this contract change."
+

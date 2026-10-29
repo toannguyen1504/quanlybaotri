@@ -827,7 +827,12 @@
       </aside>
     </section>
     @if (assignmentOpen()) {
-      <div class="assignment-picker-backdrop" (click)="closeAssignment()">
+      <div
+        class="assignment-picker-backdrop"
+        animate.enter="motion-modal-enter"
+        animate.leave="motion-modal-leave"
+        (click)="closeAssignment()"
+      >
         <section
           class="assignment-picker"
           role="dialog"
@@ -995,7 +1000,12 @@
       </div>
     }
     @if (previewUrl()) {
-      <div class="file-preview-backdrop" (click)="closePreview()">
+      <div
+        class="file-preview-backdrop"
+        animate.enter="motion-modal-enter"
+        animate.leave="motion-modal-leave"
+        (click)="closePreview()"
+      >
         <div class="file-preview" (click)="$event.stopPropagation()">
           <button class="file-preview-close" (click)="closePreview()">×</button>
           @if (previewKind() === 'IMAGE') {
@@ -1008,7 +1018,12 @@
       </div>
     }
     @if (declineOpen()) {
-      <div class="users-modal-backdrop" (click)="closeDecline()">
+      <div
+        class="users-modal-backdrop"
+        animate.enter="motion-modal-enter"
+        animate.leave="motion-modal-leave"
+        (click)="closeDecline()"
+      >
         <form
           class="users-modal"
           role="dialog"

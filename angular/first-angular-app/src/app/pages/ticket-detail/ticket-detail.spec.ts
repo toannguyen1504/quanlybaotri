@@ -239,7 +239,7 @@ describe('TicketDetailPage region assignment', () => {
     }).compileComponents();
     const fixture = TestBed.createComponent(TicketDetailPage);
     const component = fixture.componentInstance;
-    fixture.detectChanges();
+    await fixture.whenStable();
     component.ticket.set(ticket());
     component.technicians.set([
       technician('south-tech', 'SELECTED_REGIONS', ['south']),
@@ -249,7 +249,7 @@ describe('TicketDetailPage region assignment', () => {
     component.assignmentFilter = 'ALL';
     component.openAssignment();
     component.assignmentFilter = 'ALL';
-    fixture.detectChanges();
+    await fixture.whenStable();
 
     const element = fixture.nativeElement as HTMLElement;
     expect(element.querySelector('.assignment-picker')).not.toBeNull();
@@ -264,6 +264,10 @@ describe('TicketDetailPage region assignment', () => {
 
     component.technicianSearch = 'south';
     expect(component.assignmentCandidates().map((user) => user.id)).toEqual(['south-tech']);
+
+    element.querySelector<HTMLElement>('.assignment-picker-backdrop')!.click();
+    await fixture.whenStable();
+    expect(element.querySelector('.assignment-picker')).toBeNull();
   });
 
   it('shows an accepted itemized quote and VNPay action to the requester', async () => {

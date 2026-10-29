@@ -359,7 +359,12 @@
   }
 
   @if (movementPart(); as part) {
-    <div class="management-modal-backdrop" (click)="closeMovement()">
+    <div
+      class="management-modal-backdrop"
+      animate.enter="motion-modal-enter"
+      animate.leave="motion-modal-leave"
+      (click)="closeMovement()"
+    >
       <section
         class="management-modal"
         role="dialog"

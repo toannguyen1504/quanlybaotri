@@ -15,18 +15,29 @@ describe('AiAssistant', () => {
   });
   async function setup() {
     await TestBed.configureTestingModule({ imports: [AiAssistant], providers: [provideRouter([]), { provide: Api, useValue: api }] }).compileComponents();
-    const fixture=TestBed.createComponent(AiAssistant);fixture.detectChanges();return fixture;
+    const fixture = TestBed.createComponent(AiAssistant);
+    await fixture.whenStable();
+    return fixture;
   }
   it('creates a conversation only when opened', async () => {
-    const fixture=await setup();const element=fixture.nativeElement as HTMLElement;
+    const fixture = await setup();
+    const element = fixture.nativeElement as HTMLElement;
     expect(api.post).not.toHaveBeenCalled();
-    element.querySelector<HTMLButtonElement>('.ai-launcher')!.click();fixture.detectChanges();
+    element.querySelector<HTMLButtonElement>('.ai-launcher')!.click();
+    await fixture.whenStable();
     expect(api.post).toHaveBeenCalledWith('/ai/conversations');
     expect(element.querySelector('.ai-panel')).not.toBeNull();
+
+    element.querySelector<HTMLButtonElement>('.ai-panel [aria-label="Đóng trợ lý"]')!.click();
+    await fixture.whenStable();
+    expect(element.querySelector('.ai-panel')).toBeNull();
   });
   it('renders an assistant response', async () => {
-    const fixture=await setup();fixture.componentInstance.toggle();fixture.detectChanges();
-    fixture.componentInstance.send('Quy trình tạo phiếu');fixture.detectChanges();
+    const fixture = await setup();
+    fixture.componentInstance.toggle();
+    await fixture.whenStable();
+    fixture.componentInstance.send('Quy trình tạo phiếu');
+    await fixture.whenStable();
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('Nội dung trả lời');
   });
 });

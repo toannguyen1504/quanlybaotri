@@ -1,0 +1,5 @@
+interface:
+  display_name: "Project Change Verification"
+  short_description: "Run scoped backend, frontend, and config checks"
+  default_prompt: "Use $project-change-verification to verify the current changes before handoff."
+

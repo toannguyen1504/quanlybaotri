@@ -1,0 +1,5 @@
+interface:
+  display_name: "Angular Feature Change"
+  short_description: "Build and test Angular application changes"
+  default_prompt: "Use $angular-feature-change to implement this Angular feature."
+

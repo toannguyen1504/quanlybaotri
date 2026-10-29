@@ -24,7 +24,10 @@ describe('Shell', () => {
   };
   const chat = {
     unreadCount: signal(0),
-    toast: signal(null),
+    toast: signal<{
+      ticket: { code: string };
+      message?: { sender?: { fullName?: string }; content?: string };
+    } | null>(null),
     connect: vi.fn(),
     disconnect: vi.fn(),
     openToast: vi.fn(),
@@ -50,6 +53,7 @@ describe('Shell', () => {
     localStorage.removeItem('maintenance-accent-theme');
     vi.clearAllMocks();
     chat.unreadCount.set(0);
+    chat.toast.set(null);
     notificationCenter.unreadCount.set(0);
     notificationCenter.previewNotifications.set([]);
     notificationCenter.previewLoading.set(false);
@@ -69,7 +73,7 @@ describe('Shell', () => {
       ],
     }).compileComponents();
     const fixture = TestBed.createComponent(Shell);
-    fixture.detectChanges();
+    await fixture.whenStable();
     return fixture;
   }
 
@@ -82,13 +86,13 @@ describe('Shell', () => {
       false,
     );
     toggle.click();
-    fixture.detectChanges();
+    await fixture.whenStable();
     expect(element.querySelector('.app-shell')?.classList.contains('sidebar-collapsed')).toBe(true);
     expect(localStorage.getItem('maintenance-sidebar-collapsed')).toBe('true');
     expect(toggle.getAttribute('aria-expanded')).toBe('false');
 
     toggle.click();
-    fixture.detectChanges();
+    await fixture.whenStable();
     expect(element.querySelector('.app-shell')?.classList.contains('sidebar-collapsed')).toBe(
       false,
     );
@@ -100,12 +104,12 @@ describe('Shell', () => {
     const element = fixture.nativeElement as HTMLElement;
 
     element.querySelector<HTMLButtonElement>('.mobile-menu-button')!.click();
-    fixture.detectChanges();
+    await fixture.whenStable();
     expect(element.querySelector('.app-shell')?.classList.contains('mobile-menu-open')).toBe(true);
     expect(element.querySelector('.sidebar-backdrop')).not.toBeNull();
 
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
-    fixture.detectChanges();
+    await fixture.whenStable();
     expect(element.querySelector('.app-shell')?.classList.contains('mobile-menu-open')).toBe(false);
   });
 
@@ -114,18 +118,36 @@ describe('Shell', () => {
     const element = fixture.nativeElement as HTMLElement;
 
     element.querySelector<HTMLButtonElement>('[aria-label="Mở thông báo"]')!.click();
-    fixture.detectChanges();
+    await fixture.whenStable();
     expect(element.querySelector('.notification-dropdown')).not.toBeNull();
     expect(notificationCenter.loadPreview).toHaveBeenCalledOnce();
 
     element.querySelector<HTMLButtonElement>('[aria-haspopup="menu"]')!.click();
-    fixture.detectChanges();
+    await fixture.whenStable();
     expect(element.querySelector('.notification-dropdown')).toBeNull();
     expect(element.querySelector('.account-dropdown')).not.toBeNull();
 
     document.body.click();
-    fixture.detectChanges();
+    await fixture.whenStable();
     expect(element.querySelector('.account-dropdown')).toBeNull();
+  });
+
+  it('renders and removes the chat toast through its signal state', async () => {
+    const fixture = await setup();
+    const element = fixture.nativeElement as HTMLElement;
+
+    chat.toast.set({
+      ticket: { code: 'BT-2026-001' },
+      message: { sender: { fullName: 'Nguyễn Văn An' }, content: 'Có tin nhắn mới' },
+    });
+    await fixture.whenStable();
+
+    expect(element.querySelector('.chat-toast')?.textContent).toContain('BT-2026-001');
+
+    chat.toast.set(null);
+    await fixture.whenStable();
+
+    expect(element.querySelector('.chat-toast')).toBeNull();
   });
 
   it('caps header badges at 99+', async () => {
@@ -148,19 +170,19 @@ describe('Shell', () => {
 
     expect(shell.getAttribute('data-accent-theme')).toBe('red');
     toggle.click();
-    fixture.detectChanges();
+    await fixture.whenStable();
 
     expect(shell.getAttribute('data-accent-theme')).toBe('blue');
     expect(toggle.getAttribute('aria-label')).toContain('Xanh dương');
     expect(localStorage.getItem('maintenance-accent-theme')).toBe('blue');
 
     toggle.click();
-    fixture.detectChanges();
+    await fixture.whenStable();
     expect(shell.getAttribute('data-accent-theme')).toBe('green');
     expect(localStorage.getItem('maintenance-accent-theme')).toBe('green');
 
     toggle.click();
-    fixture.detectChanges();
+    await fixture.whenStable();
     expect(shell.getAttribute('data-accent-theme')).toBe('red');
     expect(localStorage.getItem('maintenance-accent-theme')).toBe('red');
   });
@@ -197,6 +219,8 @@ describe('Shell', () => {
     const footer = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>('.app-footer');
 
     expect(footer).not.toBeNull();
+    expect(footer?.parentElement?.classList.contains('app-shell')).toBe(true);
+    expect(footer?.closest('main')).toBeNull();
     expect(footer?.textContent).toContain('Hệ thống bảo trì');
     expect(footer?.textContent).toContain(String(new Date().getFullYear()));
   });

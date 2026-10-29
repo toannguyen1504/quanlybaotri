@@ -430,6 +430,8 @@
     @if (documentPreviewUrl()) {
       <div
         class="preview-backdrop"
+        animate.enter="motion-modal-enter"
+        animate.leave="motion-modal-leave"
         role="dialog"
         aria-modal="true"
         aria-label="Xem trước tài liệu"

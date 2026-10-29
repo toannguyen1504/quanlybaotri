@@ -1,5 +1,5 @@
-<div class="app-route-content" appRouteFade #appRouteFade="routeFade">
-  <router-outlet (activate)="appRouteFade.play()" (attach)="appRouteFade.play()" />
+<div class="app-route-content">
+  <router-outlet />
 </div>
 
 @if (initialLoading()) {

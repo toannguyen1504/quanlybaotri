@@ -8,6 +8,8 @@
     <button
       type="button"
       class="sidebar-backdrop"
+      animate.enter="motion-backdrop-enter"
+      animate.leave="motion-backdrop-leave"
       aria-label="Đóng menu điều hướng"
       (click)="closeMobile()"
     ></button>
@@ -275,7 +277,12 @@
           </button>
 
           @if (activeHeaderMenu() === 'notifications') {
-            <section class="header-dropdown notification-dropdown" aria-label="Thông báo gần đây">
+            <section
+              class="header-dropdown notification-dropdown"
+              animate.enter="motion-menu-enter"
+              animate.leave="motion-menu-leave"
+              aria-label="Thông báo gần đây"
+            >
               <div class="dropdown-heading">
                 <div>
                   <strong>Thông báo</strong>
@@ -369,7 +376,12 @@
           </button>
 
           @if (activeHeaderMenu() === 'account') {
-            <section class="header-dropdown account-dropdown" aria-label="Tài khoản">
+            <section
+              class="header-dropdown account-dropdown"
+              animate.enter="motion-menu-enter"
+              animate.leave="motion-menu-leave"
+              aria-label="Tài khoản"
+            >
               <div class="account-summary">
                 <span class="header-avatar large">{{ initials() }}</span>
                 <div>
@@ -398,19 +410,25 @@
         </div>
       </div>
     </header>
-    <div class="shell-content" appRouteFade>
+    <div class="shell-content">
       <router-outlet />
     </div>
-    <footer class="app-footer">
-      <div class="app-footer-brand">
-        <span aria-hidden="true">BT</span>
-        <p><b>Hệ thống bảo trì</b><small>Thiết bị doanh nghiệp</small></p>
-      </div>
-      <p class="app-footer-copy">© {{ currentYear }} VNPT Cloud</p>
-    </footer>
   </main>
+  <footer class="app-footer">
+    <div class="app-footer-brand">
+      <span aria-hidden="true">BT</span>
+      <p><b>Hệ thống bảo trì</b><small>Thiết bị doanh nghiệp</small></p>
+    </div>
+    <p class="app-footer-copy">© {{ currentYear }} VNPT Cloud</p>
+  </footer>
   @if (chat.toast(); as toast) {
-    <button type="button" class="chat-toast" (click)="chat.openToast()">
+    <button
+      type="button"
+      class="chat-toast"
+      animate.enter="motion-toast-enter"
+      animate.leave="motion-toast-leave"
+      (click)="chat.openToast()"
+    >
       <b>{{ toast.ticket.code }} · {{ toast.message?.sender?.fullName }}</b>
       <span>{{ toast.message?.content }}</span>
     </button>

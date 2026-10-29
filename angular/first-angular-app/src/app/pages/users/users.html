@@ -541,7 +541,12 @@
   }
 
   @if (approvalTarget(); as user) {
-    <div class="users-modal-backdrop" (click)="closeApproval()">
+    <div
+      class="users-modal-backdrop"
+      animate.enter="motion-modal-enter"
+      animate.leave="motion-modal-leave"
+      (click)="closeApproval()"
+    >
       <form
         class="users-modal"
         role="dialog"
@@ -605,7 +610,12 @@
   }
 
   @if (rejectionTarget(); as user) {
-    <div class="users-modal-backdrop" (click)="closeRejection()">
+    <div
+      class="users-modal-backdrop"
+      animate.enter="motion-modal-enter"
+      animate.leave="motion-modal-leave"
+      (click)="closeRejection()"
+    >
       <form
         class="users-modal"
         role="dialog"
@@ -643,7 +653,12 @@
   }
 
   @if (regionTarget(); as user) {
-    <div class="users-modal-backdrop" (click)="closeRegionEditor()">
+    <div
+      class="users-modal-backdrop"
+      animate.enter="motion-modal-enter"
+      animate.leave="motion-modal-leave"
+      (click)="closeRegionEditor()"
+    >
       <form
         class="users-modal"
         role="dialog"
@@ -694,7 +709,12 @@
   }
 
   @if (resetTarget(); as user) {
-    <div class="users-modal-backdrop" (click)="closeReset()">
+    <div
+      class="users-modal-backdrop"
+      animate.enter="motion-modal-enter"
+      animate.leave="motion-modal-leave"
+      (click)="closeReset()"
+    >
       <form
         class="users-modal"
         role="dialog"

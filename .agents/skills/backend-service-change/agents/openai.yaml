@@ -1,0 +1,5 @@
+interface:
+  display_name: "Backend Service Change"
+  short_description: "Change one Spring Boot service safely"
+  default_prompt: "Use $backend-service-change to implement this Spring Boot service change."
+

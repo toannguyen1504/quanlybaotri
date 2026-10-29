@@ -6,7 +6,6 @@ import {
   inject,
   OnDestroy,
   signal,
-  ViewChild,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
@@ -15,7 +14,6 @@ import { AuthService } from '../core/auth';
 import { ChatService } from '../core/chat';
 import { NotificationItem } from '../core/models';
 import { NotificationCenterService } from '../core/notifications';
-import { RouteFade } from '../shared/route-fade';
 import { AiAssistant } from '../shared/ai-assistant/ai-assistant';
 
 type HeaderMenu = 'notifications' | 'account' | null;
@@ -23,13 +21,11 @@ type AccentTheme = 'red' | 'blue' | 'green';
 
 @Component({
   selector: 'app-shell',
-  imports: [DatePipe, RouteFade, RouterOutlet, RouterLink, RouterLinkActive, AiAssistant],
+  imports: [DatePipe, RouterOutlet, RouterLink, RouterLinkActive, AiAssistant],
   templateUrl: './shell.html',
   styleUrl: './shell.css',
 })
 export class Shell implements OnDestroy {
-  @ViewChild(RouteFade) private routeFade?: RouteFade;
-
   private readonly storageKey = 'maintenance-sidebar-collapsed';
   private readonly accentStorageKey = 'maintenance-accent-theme';
   private readonly router = inject(Router);
@@ -56,7 +52,6 @@ export class Shell implements OnDestroy {
       .subscribe(() => {
         this.updatePageTitle();
         this.closeHeaderMenus();
-        if (!this.isModuleTabRoute()) this.routeFade?.play();
       });
   }
 
@@ -173,16 +168,6 @@ export class Shell implements OnDestroy {
     let route = this.router.routerState.snapshot.root;
     while (route.firstChild) route = route.firstChild;
     this.pageTitle.set(route.data['title'] ?? 'Phiếu bảo trì');
-  }
-
-  private isModuleTabRoute() {
-    let route = this.router.routerState.snapshot.root;
-    while (route) {
-      if (route.data['moduleKind']) return true;
-      if (!route.firstChild) return false;
-      route = route.firstChild;
-    }
-    return false;
   }
 
   private readCollapsedState() {
