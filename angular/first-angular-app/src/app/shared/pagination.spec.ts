@@ -12,7 +12,7 @@ describe('PaginationComponent', () => {
     fixture.componentRef.setInput('itemLabel', 'thiết bị');
     const pageChange = vi.fn();
     fixture.componentInstance.pageChange.subscribe(pageChange);
-    fixture.detectChanges();
+    await fixture.whenStable();
 
     const element = fixture.nativeElement as HTMLElement;
     expect(element.querySelector('p')?.textContent).toContain('11–20');
@@ -28,7 +28,7 @@ describe('PaginationComponent', () => {
     const fixture = TestBed.createComponent(PaginationComponent);
     fixture.componentRef.setInput('totalItems', 10);
     fixture.componentRef.setInput('pageSize', 10);
-    fixture.detectChanges();
+    await fixture.whenStable();
 
     expect((fixture.nativeElement as HTMLElement).querySelector('nav')).toBeNull();
   });

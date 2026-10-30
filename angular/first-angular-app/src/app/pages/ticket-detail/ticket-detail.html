@@ -829,9 +829,10 @@
     @if (assignmentOpen()) {
       <div
         class="assignment-picker-backdrop"
+        appAccessibleDialog
         animate.enter="motion-modal-enter"
         animate.leave="motion-modal-leave"
-        (click)="closeAssignment()"
+        (dialogDismissed)="closeAssignment()"
       >
         <section
           class="assignment-picker"
@@ -1018,58 +1019,13 @@
       </div>
     }
     @if (declineOpen()) {
-      <div
-        class="users-modal-backdrop"
-        animate.enter="motion-modal-enter"
-        animate.leave="motion-modal-leave"
-        (click)="closeDecline()"
-      >
-        <form
-          class="users-modal"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="decline-quote-title"
-          (click)="$event.stopPropagation()"
-          (ngSubmit)="declineCosts()"
-        >
-          <div class="users-section-head">
-            <span aria-hidden="true">!</span>
-            <div>
-              <h2 id="decline-quote-title">Từ chối báo giá</h2>
-              <p>Hãy ghi rõ lý do để kỹ thuật viên điều chỉnh và gửi lại.</p>
-            </div>
-          </div>
-          <label>
-            Lý do từ chối
-            <textarea
-              name="declineReason"
-              [(ngModel)]="declineReason"
-              maxlength="1000"
-              required
-              autofocus
-            ></textarea>
-          </label>
-          @if (quoteDecisionError()) {
-            <div class="alert">{{ quoteDecisionError() }}</div>
-          }
-          <div class="users-form-actions">
-            <button
-              type="button"
-              class="secondary"
-              [disabled]="quoteDecisionLoading()"
-              (click)="closeDecline()"
-            >
-              Hủy
-            </button>
-            <button
-              class="danger-button"
-              [disabled]="!declineReason.trim() || quoteDecisionLoading()"
-            >
-              {{ quoteDecisionLoading() ? 'Đang xử lý...' : 'Xác nhận từ chối' }}
-            </button>
-          </div>
-        </form>
-      </div>
+      <app-ticket-decline-dialog
+        [(reason)]="declineReason"
+        [loading]="quoteDecisionLoading()"
+        [error]="quoteDecisionError()"
+        (dismissed)="closeDecline()"
+        (submitted)="declineCosts($event)"
+      />
     }
   } @else {
     <div class="loading">Đang tải phiếu…</div>

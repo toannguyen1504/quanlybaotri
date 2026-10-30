@@ -1,5 +1,5 @@
-@if (totalPages > 1) {
-  <nav class="pagination" [attr.aria-label]="'Phân trang ' + itemLabel">
+@if (totalPages() > 1) {
+  <nav class="pagination" [attr.aria-label]="'Phân trang ' + itemLabel()">
     <div class="pagination-summary">
       <span class="summary-icon" aria-hidden="true">
         <svg viewBox="0 0 24 24" focusable="false">
@@ -12,7 +12,7 @@
       <p>
         <span>Đang hiển thị</span>
         <strong
-          ><b>{{ rangeStart }}–{{ rangeEnd }}</b> / {{ totalItems }} {{ itemLabel }}</strong
+          ><b>{{ rangeStart() }}–{{ rangeEnd() }}</b> / {{ totalItems() }} {{ itemLabel() }}</strong
         >
       </p>
     </div>
@@ -21,18 +21,18 @@
         type="button"
         class="page-direction"
         aria-label="Trang trước"
-        [disabled]="effectivePage === 0"
-        (click)="selectPage(effectivePage - 1)"
+        [disabled]="effectivePage() === 0"
+        (click)="selectPage(effectivePage() - 1)"
       >
         <span aria-hidden="true">←</span><span class="direction-label">Trước</span>
       </button>
       <div class="page-numbers">
-        @for (pageNumber of visiblePages; track pageNumber) {
+        @for (pageNumber of visiblePages(); track pageNumber) {
           <button
             type="button"
-            [class.active]="pageNumber === effectivePage"
+            [class.active]="pageNumber === effectivePage()"
             [attr.aria-label]="'Trang ' + (pageNumber + 1)"
-            [attr.aria-current]="pageNumber === effectivePage ? 'page' : null"
+            [attr.aria-current]="pageNumber === effectivePage() ? 'page' : null"
             (click)="selectPage(pageNumber)"
           >
             {{ pageNumber + 1 }}
@@ -43,8 +43,8 @@
         type="button"
         class="page-direction"
         aria-label="Trang sau"
-        [disabled]="effectivePage >= totalPages - 1"
-        (click)="selectPage(effectivePage + 1)"
+        [disabled]="effectivePage() >= totalPages() - 1"
+        (click)="selectPage(effectivePage() + 1)"
       >
         <span class="direction-label">Sau</span><span aria-hidden="true">→</span>
       </button>

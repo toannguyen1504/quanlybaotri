@@ -59,9 +59,9 @@ describe('EquipmentFormPage', () => {
       ],
     }).compileComponents();
     const fixture = TestBed.createComponent(EquipmentFormPage);
-    fixture.detectChanges();
     await fixture.whenStable();
-    fixture.detectChanges();
+    await fixture.whenStable();
+    await fixture.whenStable();
     return { fixture, component: fixture.componentInstance, api, router: TestBed.inject(Router) };
   }
 

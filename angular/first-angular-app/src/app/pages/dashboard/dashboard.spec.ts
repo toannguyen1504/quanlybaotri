@@ -25,7 +25,7 @@ describe('DashboardPage', () => {
       providers: [provideRouter([]), { provide: Api, useValue: api }],
     }).compileComponents();
     const fixture = TestBed.createComponent(DashboardPage);
-    fixture.detectChanges();
+    await fixture.whenStable();
     const element = fixture.nativeElement as HTMLElement;
     const chart = element.querySelector<HTMLElement>('.priority-donut');
 

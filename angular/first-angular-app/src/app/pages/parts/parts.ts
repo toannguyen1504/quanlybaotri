@@ -7,6 +7,7 @@ import { Api } from '../../core/api';
 import { AuthService } from '../../core/auth';
 import { Page, Part } from '../../core/models';
 import { PaginationComponent } from '../../shared/pagination';
+import { AccessibleDialog } from '../../shared/accessible-dialog';
 
 type StockFilter = '' | 'AVAILABLE' | 'LOW' | 'OUT';
 type PartStatusFilter = '' | 'ACTIVE' | 'INACTIVE';
@@ -14,7 +15,7 @@ type MovementMode = 'RECEIVE' | 'ADJUST';
 
 @Component({
   selector: 'app-parts',
-  imports: [FormsModule, DecimalPipe, PaginationComponent],
+  imports: [FormsModule, DecimalPipe, PaginationComponent, AccessibleDialog],
   templateUrl: './parts.html',
 })
 export class PartsPage implements OnInit {

@@ -6,6 +6,8 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { Api } from '../../core/api';
 import { AuthService } from '../../core/auth';
 import { TicketChat } from '../../shared/ticket-chat';
+import { AccessibleDialog } from '../../shared/accessible-dialog';
+import { TicketDeclineDialog } from './ticket-decline-dialog/ticket-decline-dialog';
 import {
   CostCategory,
   CostItem,
@@ -47,7 +49,15 @@ type PrimaryTicketTab = 'incident' | 'work-log' | 'timeline';
 type SecondaryTicketTab = 'chat' | 'costs' | 'parts' | 'files';
 @Component({
   selector: 'app-ticket-detail',
-  imports: [FormsModule, RouterLink, DatePipe, DecimalPipe, TicketChat],
+  imports: [
+    FormsModule,
+    RouterLink,
+    DatePipe,
+    DecimalPipe,
+    TicketChat,
+    AccessibleDialog,
+    TicketDeclineDialog,
+  ],
   templateUrl: './ticket-detail.html',
 })
 export class TicketDetailPage implements OnInit {
@@ -474,8 +484,7 @@ export class TicketDetailPage implements OnInit {
     this.declineOpen.set(false);
     this.declineReason = '';
   }
-  declineCosts() {
-    const reason = this.declineReason.trim();
+  declineCosts(reason = this.declineReason.trim()) {
     if (!reason || this.quoteDecisionLoading()) return;
     this.quoteDecisionLoading.set(true);
     this.quoteDecisionError.set('');

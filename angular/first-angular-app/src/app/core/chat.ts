@@ -21,16 +21,27 @@ export class ChatService {
   private readonly browser = isPlatformBrowser(inject(PLATFORM_ID));
   private client?: Client;
   private tokenReconnectTimer?: number;
-  readonly connected = signal(false);
-  readonly unreadCount = signal(0);
-  readonly conversations = signal<ChatConversation[]>([]);
-  readonly nextCursor = signal<string | undefined>(undefined);
-  readonly inboxLoading = signal(false);
-  readonly inboxError = signal('');
-  readonly activeTicketId = signal<string | null>(null);
-  readonly toast = signal<ChatSocketEvent | null>(null);
-  readonly events$ = new Subject<ChatSocketEvent>();
-  readonly errors$ = new Subject<ChatCommandError>();
+  private readonly connectedState = signal(false);
+  private readonly unreadTotal = signal(0);
+  private readonly conversationItems = signal<ChatConversation[]>([]);
+  private readonly nextPageCursor = signal<string | undefined>(undefined);
+  private readonly inboxLoadingState = signal(false);
+  private readonly inboxErrorState = signal('');
+  private readonly activeTicket = signal<string | null>(null);
+  private readonly toastEvent = signal<ChatSocketEvent | null>(null);
+  private readonly eventSubject = new Subject<ChatSocketEvent>();
+  private readonly errorSubject = new Subject<ChatCommandError>();
+
+  readonly connected = this.connectedState.asReadonly();
+  readonly unreadCount = this.unreadTotal.asReadonly();
+  readonly conversations = this.conversationItems.asReadonly();
+  readonly nextCursor = this.nextPageCursor.asReadonly();
+  readonly inboxLoading = this.inboxLoadingState.asReadonly();
+  readonly inboxError = this.inboxErrorState.asReadonly();
+  readonly activeTicketId = this.activeTicket.asReadonly();
+  readonly toast = this.toastEvent.asReadonly();
+  readonly events$ = this.eventSubject.asObservable();
+  readonly errors$ = this.errorSubject.asObservable();
   private inboxQuery = '';
   private inboxBucket = 'ALL';
   private inboxUnreadOnly = false;
@@ -51,25 +62,25 @@ export class ChatService {
         this.client!.connectHeaders = { Authorization: `Bearer ${this.auth.token()}` };
       },
       onConnect: () => {
-        this.connected.set(true);
+        this.connectedState.set(true);
         this.scheduleTokenReconnect();
         this.client?.subscribe('/user/exchange/amq.direct/chat-events', (message) =>
           this.receiveEvent(message),
         );
         this.client?.subscribe('/user/exchange/amq.direct/chat-errors', (message) =>
-          this.errors$.next(JSON.parse(message.body) as ChatCommandError),
+          this.errorSubject.next(JSON.parse(message.body) as ChatCommandError),
         );
         this.refreshInbox();
       },
-      onWebSocketClose: () => this.connected.set(false),
-      onStompError: () => this.connected.set(false),
+      onWebSocketClose: () => this.connectedState.set(false),
+      onStompError: () => this.connectedState.set(false),
     });
     this.client.activate();
   }
 
   disconnect() {
     if (this.tokenReconnectTimer) window.clearTimeout(this.tokenReconnectTimer);
-    this.connected.set(false);
+    this.connectedState.set(false);
     void this.client?.deactivate();
     this.client = undefined;
   }
@@ -84,35 +95,35 @@ export class ChatService {
     this.inboxBucket = bucket;
     this.inboxUnreadOnly = unreadOnly;
     const requestId = ++this.inboxRequest;
-    this.inboxLoading.set(true);
-    this.inboxError.set('');
+    this.inboxLoadingState.set(true);
+    this.inboxErrorState.set('');
     this.api.get<{ count: number }>('/chat/unread-count').subscribe({
-      next: (result) => this.unreadCount.set(result.count),
+      next: (result) => this.unreadTotal.set(result.count),
     });
     this.api
       .get<ChatConversationPage>('/chat/conversations', {
         q: this.inboxQuery,
         bucket: this.inboxBucket,
         unreadOnly: this.inboxUnreadOnly,
-        cursor: append ? this.nextCursor() : undefined,
+        cursor: append ? this.nextPageCursor() : undefined,
         size: 20,
       })
       .subscribe({
         next: (result) => {
           if (requestId !== this.inboxRequest) return;
-          this.conversations.update((items) =>
+          this.conversationItems.update((items) =>
             append
               ? this.mergeConversations(items, result.content)
               : this.keepActive(items, result.content),
           );
-          this.nextCursor.set(result.nextCursor);
-          this.inboxLoading.set(false);
+          this.nextPageCursor.set(result.nextCursor);
+          this.inboxLoadingState.set(false);
         },
         error: (response) => {
           if (requestId !== this.inboxRequest) return;
-          this.inboxLoading.set(false);
-          if (!this.conversations().length) {
-            this.inboxError.set(
+          this.inboxLoadingState.set(false);
+          if (!this.conversationItems().length) {
+            this.inboxErrorState.set(
               response.error?.detail ?? 'Không thể tải danh sách tin nhắn. Vui lòng thử lại.',
             );
           }
@@ -149,29 +160,41 @@ export class ChatService {
     });
   }
 
+  activateTicket(ticketId: string) {
+    this.activeTicket.set(ticketId);
+  }
+
+  deactivateTicket(ticketId: string) {
+    if (this.activeTicket() === ticketId) this.activeTicket.set(null);
+  }
+
+  dismissToast() {
+    this.toastEvent.set(null);
+  }
+
   openToast() {
-    const event = this.toast();
+    const event = this.toastEvent();
     if (!event) return;
-    this.toast.set(null);
+    this.dismissToast();
     void this.router.navigate(['/messages/active'], { queryParams: { ticketId: event.ticket.id } });
   }
 
   private receiveEvent(message: IMessage) {
     const event = JSON.parse(message.body) as ChatSocketEvent;
-    this.events$.next(event);
+    this.eventSubject.next(event);
     if (event.type === 'MESSAGE_CREATED') {
       if (
         event.message?.sender.id !== this.auth.user()?.id &&
-        event.ticket.id !== this.activeTicketId()
+        event.ticket.id !== this.activeTicket()
       ) {
-        this.toast.set(event);
+        this.toastEvent.set(event);
       }
       this.refreshInbox(this.inboxQuery, this.inboxBucket, this.inboxUnreadOnly);
     } else if (event.type === 'ACCESS_REVOKED') {
-      this.conversations.update((items) =>
+      this.conversationItems.update((items) =>
         items.filter((item) => item.ticket.id !== event.ticket.id),
       );
-      if (this.activeTicketId() === event.ticket.id) this.activeTicketId.set(null);
+      if (this.activeTicket() === event.ticket.id) this.activeTicket.set(null);
       this.refreshInbox(this.inboxQuery, this.inboxBucket, this.inboxUnreadOnly);
     } else if (event.type === 'READ_UPDATED' || event.type === 'CONVERSATION_UPDATED') {
       this.refreshInbox(this.inboxQuery, this.inboxBucket, this.inboxUnreadOnly);
@@ -196,7 +219,7 @@ export class ChatService {
   }
 
   private keepActive(current: ChatConversation[], incoming: ChatConversation[]) {
-    const active = this.activeTicketId();
+    const active = this.activeTicket();
     if (!active || incoming.some((item) => item.ticket.id === active)) return incoming;
     const selected = current.find((item) => item.ticket.id === active);
     return selected ? [selected, ...incoming] : incoming;

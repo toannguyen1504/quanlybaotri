@@ -1,0 +1,18 @@
+<section class="users-overview" aria-label="Tổng quan người dùng">
+  <article class="user-stat featured">
+    <span class="user-stat-icon" aria-hidden="true">ND</span>
+    <div><small>Tổng người dùng</small><strong>{{ total() }}</strong><p>Tài khoản trong hệ thống</p></div>
+  </article>
+  <article class="user-stat">
+    <span class="user-stat-icon success" aria-hidden="true">✓</span>
+    <div><small>Đang hoạt động</small><strong>{{ active() }}</strong><p>Sẵn sàng đăng nhập</p></div>
+  </article>
+  <article class="user-stat">
+    <span class="user-stat-icon warning" aria-hidden="true">!</span>
+    <div><small>Cần đổi mật khẩu</small><strong>{{ passwordChange() }}</strong><p>Cần hoàn tất bảo mật</p></div>
+  </article>
+  <article class="user-stat">
+    <span class="user-stat-icon neutral" aria-hidden="true">—</span>
+    <div><small>Đã khóa</small><strong>{{ locked() }}</strong><p>Không thể truy cập</p></div>
+  </article>
+</section>

@@ -102,9 +102,9 @@ describe('EquipmentDetailPage', () => {
       ],
     }).compileComponents();
     const fixture = TestBed.createComponent(EquipmentDetailPage);
-    fixture.detectChanges();
     await fixture.whenStable();
-    fixture.detectChanges();
+    await fixture.whenStable();
+    await fixture.whenStable();
     return { fixture, component: fixture.componentInstance, api };
   }
 

@@ -1,9 +1,10 @@
 import { Component, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { LandingSections } from './landing-sections/landing-sections';
 
 @Component({
   selector: 'app-landing',
-  imports: [RouterLink],
+  imports: [RouterLink, LandingSections],
   templateUrl: './landing.html',
   styleUrl: './landing.css',
 })

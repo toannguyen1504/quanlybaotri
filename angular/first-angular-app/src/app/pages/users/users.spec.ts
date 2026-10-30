@@ -30,11 +30,11 @@ describe('UsersPage technician regions', () => {
     }).compileComponents();
     const fixture = TestBed.createComponent(UsersPage);
     const component = fixture.componentInstance;
-    fixture.detectChanges();
+    await fixture.whenStable();
     component.showForm.set(true);
     component.model.accountType = 'INTERNAL';
     component.accountTypeChanged();
-    fixture.detectChanges();
+    await fixture.whenStable();
 
     const element = fixture.nativeElement as HTMLElement;
     const selector = element.querySelector<HTMLSelectElement>(

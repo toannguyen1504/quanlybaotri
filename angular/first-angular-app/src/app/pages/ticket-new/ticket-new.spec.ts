@@ -98,9 +98,9 @@ describe('TicketNewPage', () => {
       ],
     }).compileComponents();
     const fixture = TestBed.createComponent(TicketNewPage);
-    fixture.detectChanges();
     await fixture.whenStable();
-    fixture.detectChanges();
+    await fixture.whenStable();
+    await fixture.whenStable();
     return { fixture, component: fixture.componentInstance, api, router: TestBed.inject(Router) };
   }
 
@@ -121,7 +121,7 @@ describe('TicketNewPage', () => {
     );
 
     element.querySelector<HTMLInputElement>('input[name="equipmentId"]')?.click();
-    fixture.detectChanges();
+    await fixture.whenStable();
 
     expect(element.querySelector('.ticket-create-summary')?.textContent).toContain('Máy in tầng 5');
     expect(element.querySelector('.ticket-create-equipment-card.selected')).not.toBeNull();
@@ -171,7 +171,7 @@ describe('TicketNewPage', () => {
     expect(element.querySelectorAll('.ticket-create-skeleton')).toHaveLength(3);
 
     pending.error({ error: { detail: 'Dịch vụ thiết bị chưa sẵn sàng' } });
-    fixture.detectChanges();
+    await fixture.whenStable();
 
     expect(element.querySelector('.ticket-create-state-error')?.textContent).toContain(
       'Dịch vụ thiết bị chưa sẵn sàng',
@@ -179,7 +179,7 @@ describe('TicketNewPage', () => {
 
     api.get.mockReturnValueOnce(of(page([equipment()])));
     component.loadEquipment();
-    fixture.detectChanges();
+    await fixture.whenStable();
     expect(component.equipmentError()).toBe('');
     expect(component.equipment()).toHaveLength(1);
   });
@@ -245,7 +245,7 @@ describe('TicketNewPage', () => {
     };
 
     component.submit(formStub());
-    fixture.detectChanges();
+    await fixture.whenStable();
 
     expect(component.saving()).toBe(false);
     expect(component.model.title).toBe('Máy in lỗi');

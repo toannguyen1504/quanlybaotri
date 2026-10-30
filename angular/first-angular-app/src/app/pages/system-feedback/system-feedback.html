@@ -16,10 +16,10 @@
         </div>
         <small>Các trường đều bắt buộc</small>
       </div>
-      <form (ngSubmit)="submit()">
+      <form (submit)="submit(); $event.preventDefault()">
         <label>
           Loại phản hồi
-          <select name="category" [(ngModel)]="category" [disabled]="submitting()">
+          <select [formField]="feedbackForm.category">
             @for (item of categories; track item) {
               <option [value]="item">{{ categoryLabel(item) }}</option>
             }
@@ -28,25 +28,19 @@
         <label>
           Tiêu đề
           <input
-            name="title"
-            [(ngModel)]="title"
-            maxlength="200"
+            [formField]="feedbackForm.title"
             placeholder="Mô tả ngắn gọn vấn đề hoặc đề xuất"
-            [disabled]="submitting()"
           />
-          <small>{{ title.length }}/200 ký tự</small>
+          <small>{{ feedbackModel().title.length }}/200 ký tự</small>
         </label>
         <label>
           Nội dung
           <textarea
-            name="content"
-            [(ngModel)]="content"
-            maxlength="5000"
+            [formField]="feedbackForm.content"
             rows="7"
             placeholder="Cho chúng tôi biết chi tiết trải nghiệm của bạn..."
-            [disabled]="submitting()"
           ></textarea>
-          <small>{{ content.length }}/5000 ký tự</small>
+          <small>{{ feedbackModel().content.length }}/5000 ký tự</small>
         </label>
         @if (formError()) {
           <p class="message error" role="alert">{{ formError() }}</p>

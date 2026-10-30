@@ -11,40 +11,12 @@
     </button>
   </header>
 
-  <section class="users-overview" aria-label="Tổng quan người dùng">
-    <article class="user-stat featured">
-      <span class="user-stat-icon" aria-hidden="true">ND</span>
-      <div>
-        <small>Tổng người dùng</small>
-        <strong>{{ users().length }}</strong>
-        <p>Tài khoản trong hệ thống</p>
-      </div>
-    </article>
-    <article class="user-stat">
-      <span class="user-stat-icon success" aria-hidden="true">✓</span>
-      <div>
-        <small>Đang hoạt động</small>
-        <strong>{{ activeCount() }}</strong>
-        <p>Sẵn sàng đăng nhập</p>
-      </div>
-    </article>
-    <article class="user-stat">
-      <span class="user-stat-icon warning" aria-hidden="true">!</span>
-      <div>
-        <small>Cần đổi mật khẩu</small>
-        <strong>{{ passwordChangeCount() }}</strong>
-        <p>Cần hoàn tất bảo mật</p>
-      </div>
-    </article>
-    <article class="user-stat">
-      <span class="user-stat-icon neutral" aria-hidden="true">—</span>
-      <div>
-        <small>Đã khóa</small>
-        <strong>{{ lockedCount() }}</strong>
-        <p>Không thể truy cập</p>
-      </div>
-    </article>
-  </section>
+  <app-users-overview
+    [total]="users().length"
+    [active]="activeCount()"
+    [passwordChange]="passwordChangeCount()"
+    [locked]="lockedCount()"
+  />
 
   @if (message()) {
     <div class="users-success" role="status"><span aria-hidden="true">✓</span>{{ message() }}</div>
@@ -543,9 +515,10 @@
   @if (approvalTarget(); as user) {
     <div
       class="users-modal-backdrop"
+      appAccessibleDialog
       animate.enter="motion-modal-enter"
       animate.leave="motion-modal-leave"
-      (click)="closeApproval()"
+      (dialogDismissed)="closeApproval()"
     >
       <form
         class="users-modal"
@@ -612,9 +585,10 @@
   @if (rejectionTarget(); as user) {
     <div
       class="users-modal-backdrop"
+      appAccessibleDialog
       animate.enter="motion-modal-enter"
       animate.leave="motion-modal-leave"
-      (click)="closeRejection()"
+      (dialogDismissed)="closeRejection()"
     >
       <form
         class="users-modal"
@@ -655,9 +629,10 @@
   @if (regionTarget(); as user) {
     <div
       class="users-modal-backdrop"
+      appAccessibleDialog
       animate.enter="motion-modal-enter"
       animate.leave="motion-modal-leave"
-      (click)="closeRegionEditor()"
+      (dialogDismissed)="closeRegionEditor()"
     >
       <form
         class="users-modal"
@@ -711,9 +686,10 @@
   @if (resetTarget(); as user) {
     <div
       class="users-modal-backdrop"
+      appAccessibleDialog
       animate.enter="motion-modal-enter"
       animate.leave="motion-modal-leave"
-      (click)="closeReset()"
+      (dialogDismissed)="closeReset()"
     >
       <form
         class="users-modal"

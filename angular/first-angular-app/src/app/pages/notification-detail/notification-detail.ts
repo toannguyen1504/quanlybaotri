@@ -3,7 +3,8 @@ import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { finalize } from 'rxjs';
 import { Api } from '../../core/api';
-import { NotificationItem, SystemFeedback, Ticket } from '../../core/models';
+import { NotificationItem, Ticket } from '../../core/models';
+import { SystemFeedback } from '../../core/system-feedback.model';
 import { NotificationCenterService } from '../../core/notifications';
 
 type NotificationTone = 'info' | 'success' | 'warning' | 'danger';

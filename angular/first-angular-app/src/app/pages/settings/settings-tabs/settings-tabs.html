@@ -1,0 +1,16 @@
+<div class="settings-tabs" role="tablist" aria-label="Nhóm cấu hình">
+  @for (tab of tabs; track tab.id; let index = $index) {
+    <button
+      type="button"
+      role="tab"
+      [class.active]="activeTab() === tab.id"
+      [attr.aria-selected]="activeTab() === tab.id"
+      [attr.aria-controls]="tab.id + '-panel'"
+      [attr.tabindex]="activeTab() === tab.id ? 0 : -1"
+      (click)="select(tab.id)"
+      (keydown)="handleKeydown($event, index)"
+    >
+      {{ tab.label }}
+    </button>
+  }
+</div>

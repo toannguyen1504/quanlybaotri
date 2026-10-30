@@ -3,7 +3,8 @@ import { ActivatedRoute, convertToParamMap, provideRouter } from '@angular/route
 import { of } from 'rxjs';
 import { describe, expect, it, vi } from 'vitest';
 import { Api } from '../../core/api';
-import { Page, SystemFeedback, TicketFeedbackManagementItem } from '../../core/models';
+import { Page, TicketFeedbackManagementItem } from '../../core/models';
+import { SystemFeedback } from '../../core/system-feedback.model';
 import { FeedbackManagementPage } from './feedback-management';
 
 describe('FeedbackManagementPage', () => {
@@ -73,7 +74,7 @@ describe('FeedbackManagementPage', () => {
       ],
     }).compileComponents();
     const fixture = TestBed.createComponent(FeedbackManagementPage);
-    fixture.detectChanges();
+    await fixture.whenStable();
     return { fixture, component: fixture.componentInstance, api };
   }
 

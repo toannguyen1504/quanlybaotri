@@ -8,20 +8,21 @@ import {
   signal,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { NavigationEnd, Router, RouterLink, RouterOutlet } from '@angular/router';
 import { filter } from 'rxjs';
 import { AuthService } from '../core/auth';
 import { ChatService } from '../core/chat';
 import { NotificationItem } from '../core/models';
 import { NotificationCenterService } from '../core/notifications';
 import { AiAssistant } from '../shared/ai-assistant/ai-assistant';
+import { Sidebar } from './sidebar/sidebar';
 
 type HeaderMenu = 'notifications' | 'account' | null;
 type AccentTheme = 'red' | 'blue' | 'green';
 
 @Component({
   selector: 'app-shell',
-  imports: [DatePipe, RouterOutlet, RouterLink, RouterLinkActive, AiAssistant],
+  imports: [DatePipe, RouterOutlet, RouterLink, AiAssistant, Sidebar],
   templateUrl: './shell.html',
   styleUrl: './shell.css',
 })

@@ -361,9 +361,10 @@
   @if (movementPart(); as part) {
     <div
       class="management-modal-backdrop"
+      appAccessibleDialog
       animate.enter="motion-modal-enter"
       animate.leave="motion-modal-leave"
-      (click)="closeMovement()"
+      (dialogDismissed)="closeMovement()"
     >
       <section
         class="management-modal"

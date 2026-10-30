@@ -6,6 +6,108 @@
       "sourceType": "github",
       "skillPath": "angular-developer/SKILL.md",
       "computedHash": "b92225159ef7f1b48e2575e421ecce246c2d3201dcafe4285b85c9ebd5f2d76c"
+    },
+    "api-design": {
+      "source": "Dancan254/spring-boot-skills",
+      "sourceType": "github",
+      "skillPath": "skills/api-design/SKILL.md",
+      "computedHash": "f97931abe238a510e9bd0124168b706752409133a4d5aaa164f1db061f2b661b"
+    },
+    "devops-scaffold": {
+      "source": "Dancan254/spring-boot-skills",
+      "sourceType": "github",
+      "skillPath": "skills/devops-scaffold/SKILL.md",
+      "computedHash": "4b2d389f385c8f1c1f8519530be34f5d18660315a8f1df2b5ce390925f77f4a7"
+    },
+    "http-resilience": {
+      "source": "Dancan254/spring-boot-skills",
+      "sourceType": "github",
+      "skillPath": "skills/http-resilience/SKILL.md",
+      "computedHash": "15f0e88fc57a804e38d765d0cbfe6eaed9a6c44cd9071a8680097ddee313a736"
+    },
+    "kafka-setup": {
+      "source": "Dancan254/spring-boot-skills",
+      "sourceType": "github",
+      "skillPath": "skills/kafka-setup/SKILL.md",
+      "computedHash": "2859838e19368776095473ebcbdb7fcc7b5478fcff3f3785119a78d6495aff36"
+    },
+    "legacy-migration": {
+      "source": "Dancan254/spring-boot-skills",
+      "sourceType": "github",
+      "skillPath": "skills/legacy-migration/SKILL.md",
+      "computedHash": "06f37f87c36a06d369b038320f6420ddba2e659abf43060efbafd85caa902468"
+    },
+    "mcp-server": {
+      "source": "Dancan254/spring-boot-skills",
+      "sourceType": "github",
+      "skillPath": "skills/mcp-server/SKILL.md",
+      "computedHash": "b91e6f0dd57bc8bb14f7f127764dff5e4fa4b5fa7743daa35dfc3bb6212d91d7"
+    },
+    "otel-setup": {
+      "source": "Dancan254/spring-boot-skills",
+      "sourceType": "github",
+      "skillPath": "skills/otel-setup/SKILL.md",
+      "computedHash": "fb3c26a965c3f4fd6dbdd85e55b2c26efa8e2d29f7da41643667dcc90c7a18b3"
+    },
+    "pentest-audit": {
+      "source": "Dancan254/spring-boot-skills",
+      "sourceType": "github",
+      "skillPath": "skills/pentest-audit/SKILL.md",
+      "computedHash": "9ba48c99e73090322adf6c5b6265ba16d5acf55de5423b2a761d5ba644306b15"
+    },
+    "rabbitmq-setup": {
+      "source": "Dancan254/spring-boot-skills",
+      "sourceType": "github",
+      "skillPath": "skills/rabbitmq-setup/SKILL.md",
+      "computedHash": "2b1c35356042ce39e7aab509e97d37770f215b4fad9340d9c87537ba5818201e"
+    },
+    "redis-setup": {
+      "source": "Dancan254/spring-boot-skills",
+      "sourceType": "github",
+      "skillPath": "skills/redis-setup/SKILL.md",
+      "computedHash": "5354ddb34704ae5b92478ef25a417d06eb38e261de85e466bdeb7144a568b445"
+    },
+    "security-hardening": {
+      "source": "Dancan254/spring-boot-skills",
+      "sourceType": "github",
+      "skillPath": "skills/security-hardening/SKILL.md",
+      "computedHash": "0dfe013ec4331f1bc1419c8c8c1e47fc76ace11f980475d39f10c5d9df2fa583"
+    },
+    "spring-ai-chat": {
+      "source": "Dancan254/spring-boot-skills",
+      "sourceType": "github",
+      "skillPath": "skills/spring-ai-chat/SKILL.md",
+      "computedHash": "d83c4eac522a202cea845dd584ea8a7da43517fe68ae9d07feffda6895cc1e85"
+    },
+    "spring-ai-rag": {
+      "source": "Dancan254/spring-boot-skills",
+      "sourceType": "github",
+      "skillPath": "skills/spring-ai-rag/SKILL.md",
+      "computedHash": "96d203cf492df58ca7c3f0fbcd6b691f7527e5646ea1daf4fba6a2a84e14be3e"
+    },
+    "spring-data-jpa": {
+      "source": "Dancan254/spring-boot-skills",
+      "sourceType": "github",
+      "skillPath": "skills/spring-data-jpa/SKILL.md",
+      "computedHash": "af8027ac12acdfb301359b8e6709d0544310f639faa4ea23b3c655bd30794e72"
+    },
+    "spring-scaffold": {
+      "source": "Dancan254/spring-boot-skills",
+      "sourceType": "github",
+      "skillPath": "skills/spring-scaffold/SKILL.md",
+      "computedHash": "69c78ba45d3f291e6dfc45fee6c61cd0e5e02f15addbbb93921bfd31201bf466"
+    },
+    "spring-security": {
+      "source": "Dancan254/spring-boot-skills",
+      "sourceType": "github",
+      "skillPath": "skills/spring-security/SKILL.md",
+      "computedHash": "e514b2fc2f6a772d467e3fd7f240f0ceebec7ca90940d79399c7be2766f0a03f"
+    },
+    "spring-testing": {
+      "source": "Dancan254/spring-boot-skills",
+      "sourceType": "github",
+      "skillPath": "skills/spring-testing/SKILL.md",
+      "computedHash": "5f7470767b5903e33d5c93b0e2c491e6be20cb9de0fb26f6034e27e22abb897b"
     }
   }
 }

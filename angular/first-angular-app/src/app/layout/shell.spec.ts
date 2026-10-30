@@ -99,6 +99,21 @@ describe('Shell', () => {
     expect(localStorage.getItem('maintenance-sidebar-collapsed')).toBe('false');
   });
 
+  it('keeps the extracted sidebar styled and synchronizes its collapsed class', async () => {
+    const fixture = await setup();
+    const element = fixture.nativeElement as HTMLElement;
+    const sidebar = element.querySelector<HTMLElement>('.sidebar')!;
+
+    expect(getComputedStyle(sidebar).display).toBe('flex');
+    expect(sidebar.classList.contains('collapsed')).toBe(false);
+
+    element.querySelector<HTMLButtonElement>('.sidebar-toggle')!.click();
+    await fixture.whenStable();
+
+    expect(sidebar.classList.contains('collapsed')).toBe(true);
+    expect(element.querySelector('.app-shell')?.classList.contains('sidebar-collapsed')).toBe(true);
+  });
+
   it('opens the mobile drawer and closes it with Escape', async () => {
     const fixture = await setup();
     const element = fixture.nativeElement as HTMLElement;

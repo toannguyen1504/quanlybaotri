@@ -62,7 +62,7 @@ describe('PaymentManagementPage', () => {
       ],
     }).compileComponents();
     const fixture = TestBed.createComponent(PaymentManagementPage);
-    fixture.detectChanges();
+    await fixture.whenStable();
     return { fixture, component: fixture.componentInstance, api, router: TestBed.inject(Router) };
   }
 
@@ -90,7 +90,7 @@ describe('PaymentManagementPage', () => {
     expect(api.get).toHaveBeenCalledTimes(1);
 
     component.toggleDetails(item);
-    fixture.detectChanges();
+    await fixture.whenStable();
 
     expect(api.get).toHaveBeenCalledWith('/tickets/ticket-1/payments');
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('TXN-001');

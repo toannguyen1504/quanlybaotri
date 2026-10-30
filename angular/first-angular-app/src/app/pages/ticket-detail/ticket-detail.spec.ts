@@ -30,7 +30,7 @@ describe('TicketDetailPage region assignment', () => {
     const fixture = TestBed.createComponent(TicketDetailPage);
     const component = fixture.componentInstance;
     component.ticket.set({ ...ticket(), costVisible: true, costStatus: 'DRAFT' });
-    fixture.detectChanges();
+    await fixture.whenStable();
 
     const element = fixture.nativeElement as HTMLElement;
     const incidentTab = element.querySelector<HTMLButtonElement>('#ticket-tab-incident')!;
@@ -45,9 +45,9 @@ describe('TicketDetailPage region assignment', () => {
     expect(chatPanel.hidden).toBe(false);
 
     workLogTab.click();
-    fixture.detectChanges();
+    await fixture.whenStable();
     element.querySelector<HTMLButtonElement>('#ticket-tab-costs')!.click();
-    fixture.detectChanges();
+    await fixture.whenStable();
 
     expect(component.primaryTab()).toBe('work-log');
     expect(component.secondaryTab()).toBe('costs');
@@ -80,12 +80,12 @@ describe('TicketDetailPage region assignment', () => {
     const fixture = TestBed.createComponent(TicketDetailPage);
     const component = fixture.componentInstance;
     component.ticket.set(ticket());
-    fixture.detectChanges();
+    await fixture.whenStable();
 
     const element = fixture.nativeElement as HTMLElement;
     const incidentTab = element.querySelector<HTMLButtonElement>('#ticket-tab-incident')!;
     incidentTab.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
-    fixture.detectChanges();
+    await fixture.whenStable();
 
     expect(component.primaryTab()).toBe('work-log');
     expect(element.querySelector('#ticket-tab-work-log')?.getAttribute('tabindex')).toBe('0');
@@ -94,7 +94,7 @@ describe('TicketDetailPage region assignment', () => {
     element
       .querySelector<HTMLButtonElement>('#ticket-tab-work-log')!
       .dispatchEvent(new KeyboardEvent('keydown', { key: 'End', bubbles: true }));
-    fixture.detectChanges();
+    await fixture.whenStable();
     expect(component.primaryTab()).toBe('timeline');
   });
 
@@ -120,7 +120,7 @@ describe('TicketDetailPage region assignment', () => {
     const fixture = TestBed.createComponent(TicketDetailPage);
     const component = fixture.componentInstance;
     component.ticket.set(ticket());
-    fixture.detectChanges();
+    await fixture.whenStable();
 
     const element = fixture.nativeElement as HTMLElement;
     expect(element.querySelector('#ticket-tab-chat')).not.toBeNull();
@@ -133,7 +133,7 @@ describe('TicketDetailPage region assignment', () => {
       costVisible: true,
       costStatus: 'QUOTED',
     }));
-    fixture.detectChanges();
+    await fixture.whenStable();
     expect(element.querySelector('#ticket-tab-costs')).not.toBeNull();
     expect(element.querySelector('#ticket-tab-parts')).toBeNull();
   });
@@ -165,7 +165,7 @@ describe('TicketDetailPage region assignment', () => {
       costStatus: 'DRAFT',
       paymentStatus: 'NOT_AVAILABLE',
     });
-    fixture.detectChanges();
+    await fixture.whenStable();
 
     const closeButton = Array.from(
       (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('button'),
@@ -179,7 +179,7 @@ describe('TicketDetailPage region assignment', () => {
       costStatus: 'ACCEPTED',
       paymentStatus: 'SUCCEEDED',
     }));
-    fixture.detectChanges();
+    await fixture.whenStable();
     expect(closeButton?.disabled).toBe(false);
   });
 
@@ -327,7 +327,7 @@ describe('TicketDetailPage region assignment', () => {
       canPay: true,
       attempts: [],
     });
-    fixture.detectChanges();
+    await fixture.whenStable();
 
     const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
     expect(text).toContain('Chi phí bảo trì');
@@ -372,14 +372,14 @@ describe('TicketDetailPage region assignment', () => {
       detailVisible: true,
       items: [],
     });
-    fixture.detectChanges();
+    await fixture.whenStable();
 
     const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
     expect(text).toContain('Chấp nhận báo giá');
     expect(text).toContain('Từ chối');
 
     component.openDecline();
-    fixture.detectChanges();
+    await fixture.whenStable();
     expect(
       (fixture.nativeElement as HTMLElement).querySelector('textarea[required]'),
     ).not.toBeNull();
@@ -420,7 +420,7 @@ describe('TicketDetailPage region assignment', () => {
       paymentStatus: 'SUCCEEDED' as const,
     };
     component.ticket.set(resolved);
-    fixture.detectChanges();
+    await fixture.whenStable();
 
     const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
     expect(text).toContain('Phản hồi sau xử lý');
@@ -467,7 +467,7 @@ describe('TicketDetailPage region assignment', () => {
         submittedAt: '2026-10-14T02:00:00Z',
       },
     });
-    fixture.detectChanges();
+    await fixture.whenStable();
 
     const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
     expect(text).toContain('4/5');

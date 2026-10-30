@@ -76,7 +76,7 @@ describe('TicketListPage', () => {
       ],
     }).compileComponents();
     const fixture = TestBed.createComponent(TicketListPage);
-    fixture.detectChanges();
+    await fixture.whenStable();
     return { fixture, component: fixture.componentInstance, api, router: TestBed.inject(Router) };
   }
 
@@ -101,7 +101,7 @@ describe('TicketListPage', () => {
 
     expect(toggle.getAttribute('aria-expanded')).toBe('false');
     toggle.click();
-    fixture.detectChanges();
+    await fixture.whenStable();
 
     expect(component.advancedFiltersOpen()).toBe(true);
     expect(toggle.getAttribute('aria-expanded')).toBe('true');

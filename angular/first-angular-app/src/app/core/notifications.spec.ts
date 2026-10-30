@@ -24,7 +24,9 @@ describe('NotificationCenterService', () => {
     size: 5,
   };
   const api = {
-    get: vi.fn(() => of(page)),
+    get: vi.fn((path: string) =>
+      path === '/notifications/unread-count' ? of({ count: 1 }) : of(page),
+    ),
     post: vi.fn(() => of(undefined)),
   };
   const router = { navigate: vi.fn() };
@@ -56,9 +58,7 @@ describe('NotificationCenterService', () => {
 
   it('keeps the page, preview and unread badge in sync when marking all as read', () => {
     const service = TestBed.inject(NotificationCenterService);
-    service.notifications.set([unreadNotification]);
-    service.previewNotifications.set([unreadNotification]);
-    service.unreadCount.set(1);
+    service.loadAll();
 
     service.markAllRead();
 
@@ -70,14 +70,12 @@ describe('NotificationCenterService', () => {
 
   it('marks an item as read and opens its notification details before the ticket', () => {
     const service = TestBed.inject(NotificationCenterService);
-    service.notifications.set([unreadNotification]);
-    service.previewNotifications.set([unreadNotification]);
-    service.unreadCount.set(2);
+    service.loadAll();
 
     service.open(unreadNotification);
 
     expect(api.post).toHaveBeenCalledWith('/notifications/notification-1/read');
-    expect(service.unreadCount()).toBe(1);
+    expect(service.unreadCount()).toBe(0);
     expect(service.notifications()[0].readAt).toBeTruthy();
     expect(router.navigate).toHaveBeenCalledWith(['/notifications', 'notification-1']);
   });

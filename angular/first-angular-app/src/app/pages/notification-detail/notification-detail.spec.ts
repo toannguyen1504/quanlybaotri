@@ -55,7 +55,7 @@ describe('NotificationDetailPage', () => {
     }).compileComponents();
 
     const fixture = TestBed.createComponent(NotificationDetailPage);
-    fixture.detectChanges();
+    await fixture.whenStable();
     const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
 
     expect(api.get).toHaveBeenCalledWith('/notifications/notification-1');
@@ -91,7 +91,7 @@ describe('NotificationDetailPage', () => {
     }).compileComponents();
 
     const fixture = TestBed.createComponent(NotificationDetailPage);
-    fixture.detectChanges();
+    await fixture.whenStable();
     (
       fixture.nativeElement.querySelector('.notification-detail-hero .primary') as HTMLButtonElement
     ).click();

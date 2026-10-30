@@ -40,12 +40,16 @@ describe('ChangePasswordPage', () => {
     }).compileComponents();
     const router = TestBed.inject(Router);
     const navigate = vi.spyOn(router, 'navigate').mockResolvedValue(true);
-    const component = TestBed.createComponent(ChangePasswordPage).componentInstance;
-    component.currentPassword = 'OldPass@123';
-    component.newPassword = 'NewPass@456';
-    component.confirmation = 'NewPass@456';
+    const fixture = TestBed.createComponent(ChangePasswordPage);
+    const component = fixture.componentInstance;
+    component.passwordModel.set({
+      currentPassword: 'OldPass@123',
+      newPassword: 'NewPass@456',
+      confirmation: 'NewPass@456',
+    });
 
     component.change();
+    await fixture.whenStable();
 
     expect(api.post).toHaveBeenCalledWith('/users/me/password', {
       currentPassword: 'OldPass@123',
@@ -70,11 +74,16 @@ describe('ChangePasswordPage', () => {
       ],
     }).compileComponents();
     vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
-    const component = TestBed.createComponent(ChangePasswordPage).componentInstance;
-    component.newPassword = 'NewPass@456';
-    component.confirmation = 'Different@456';
+    const fixture = TestBed.createComponent(ChangePasswordPage);
+    const component = fixture.componentInstance;
+    component.passwordModel.set({
+      currentPassword: 'OldPass@123',
+      newPassword: 'NewPass@456',
+      confirmation: 'Different@456',
+    });
 
     component.change();
+    await fixture.whenStable();
 
     expect(api.post).not.toHaveBeenCalled();
     expect(component.message()).toBe('Mật khẩu nhập lại không khớp');
@@ -95,11 +104,16 @@ describe('ChangePasswordPage', () => {
       ],
     }).compileComponents();
     vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
-    const component = TestBed.createComponent(ChangePasswordPage).componentInstance;
-    component.newPassword = 'NewPass@456';
-    component.confirmation = 'NewPass@456';
+    const fixture = TestBed.createComponent(ChangePasswordPage);
+    const component = fixture.componentInstance;
+    component.passwordModel.set({
+      currentPassword: '',
+      newPassword: 'NewPass@456',
+      confirmation: 'NewPass@456',
+    });
 
     component.change();
+    await fixture.whenStable();
 
     expect(api.post).toHaveBeenCalledWith('/users/me/password', {
       currentPassword: '',

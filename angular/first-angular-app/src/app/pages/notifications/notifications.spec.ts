@@ -34,7 +34,7 @@ describe('NotificationsPage', () => {
     }).compileComponents();
 
     const fixture = TestBed.createComponent(NotificationsPage);
-    fixture.detectChanges();
+    await fixture.whenStable();
     (fixture.nativeElement.querySelector('.notification-item') as HTMLButtonElement).click();
 
     expect(center.open).toHaveBeenCalledWith(notification);
