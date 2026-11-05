@@ -45,6 +45,14 @@ class TicketEventServiceTest {
         assertThat(change.getValue()).isEqualTo(
             new TicketChangeRecorded("ACCEPTED", TicketStatus.SUBMITTED, TicketStatus.ACCEPTED)
         );
-        verify(outbox).save(any());
+        ArgumentCaptor<com.example.quanlybaotri.shared.messaging.OutboxEvent> event =
+            ArgumentCaptor.forClass(com.example.quanlybaotri.shared.messaging.OutboxEvent.class);
+        verify(outbox).save(event.capture());
+        var envelope = new ObjectMapper().readTree(event.getValue().getPayloadJson());
+        assertThat(event.getValue().getRoutingKey()).isEqualTo(envelope.path("eventType").asText());
+        assertThat(envelope.path("schemaVersion").asInt()).isEqualTo(2);
+        assertThat(envelope.path("eventId").asText()).isNotBlank();
+        assertThat(envelope.path("aggregateId").asText()).isEqualTo(ticket.getId().toString());
+        assertThat(envelope.path("producer").asText()).isEqualTo("maintenance-service");
     }
 }

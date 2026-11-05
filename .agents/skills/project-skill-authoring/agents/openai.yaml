@@ -1,0 +1,5 @@
+interface:
+  display_name: "Project Skill Authoring"
+  short_description: "Add focused skills for this repository"
+  default_prompt: "Use $project-skill-authoring to add a repository-local skill for this workflow."
+

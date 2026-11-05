@@ -1,6 +1,7 @@
 import { Component, inject, OnDestroy, OnInit, signal } from '@angular/core';
-import { FormsModule } from '@angular/forms';
+import { email, form, FormField, maxLength, required, submit } from '@angular/forms/signals';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { firstValueFrom } from 'rxjs';
 import { Api } from '../../core/api';
 import { AuthService } from '../../core/auth';
 import { User } from '../../core/models';
@@ -19,7 +20,7 @@ interface TelegramLinkRequest {
 
 @Component({
   selector: 'app-profile',
-  imports: [FormsModule, RouterLink],
+  imports: [FormField, RouterLink],
   templateUrl: './profile.html',
 })
 export class ProfilePage implements OnInit, OnDestroy {
@@ -27,7 +28,14 @@ export class ProfilePage implements OnInit, OnDestroy {
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   auth = inject(AuthService);
-  model = { fullName: '', email: '', phone: '' };
+  readonly profileModel = signal({ fullName: '', email: '', phone: '' });
+  readonly profileForm = form(this.profileModel, (path) => {
+    required(path.fullName, { message: 'Vui lòng nhập họ và tên.' });
+    maxLength(path.fullName, 150);
+    required(path.email, { message: 'Vui lòng nhập email.' });
+    email(path.email, { message: 'Email không hợp lệ.' });
+    maxLength(path.phone, 30);
+  });
   message = signal('');
   success = signal(false);
   saving = signal(false);
@@ -68,29 +76,31 @@ export class ProfilePage implements OnInit, OnDestroy {
 
   resetForm() {
     const user = this.auth.user();
-    this.model = {
+    this.profileModel.set({
       fullName: user?.fullName ?? '',
       email: user?.email ?? '',
       phone: user?.phone ?? '',
-    };
+    });
   }
 
   save() {
-    this.saving.set(true);
-    this.message.set('');
-    this.api.put<User>('/users/me/profile', this.model).subscribe({
-      next: (user) => {
+    submit(this.profileForm, async () => {
+      this.saving.set(true);
+      this.message.set('');
+      try {
+        const user = await firstValueFrom(
+          this.api.put<User>('/users/me/profile', this.profileModel()),
+        );
         this.auth.updateCurrentUser(user);
         this.resetForm();
         this.saving.set(false);
         this.success.set(true);
         this.message.set('Cập nhật thông tin thành công');
-      },
-      error: (e) => {
+      } catch (error: any) {
         this.saving.set(false);
         this.success.set(false);
-        this.message.set(e.error?.detail ?? 'Không thể cập nhật thông tin tài khoản');
-      },
+        this.message.set(error.error?.detail ?? 'Không thể cập nhật thông tin tài khoản');
+      }
     });
   }
 

@@ -49,7 +49,7 @@ async function setup(api = apiMock()) {
     providers: [provideRouter([]), { provide: Api, useValue: api }],
   }).compileComponents();
   const fixture = TestBed.createComponent(StatisticsReportPage);
-  fixture.detectChanges();
+  await fixture.whenStable();
   return { fixture, component: fixture.componentInstance, api };
 }
 
@@ -76,7 +76,7 @@ describe('StatisticsReportPage', () => {
     component.filters.equipmentId = 'equipment-1';
     component.filters.technicianId = 'tech-1';
     component.load();
-    fixture.detectChanges();
+    await fixture.whenStable();
 
     expect(api.get).toHaveBeenLastCalledWith(
       '/reports/statistics',
@@ -114,7 +114,7 @@ describe('StatisticsReportPage', () => {
   it('shows an API error and clears stale data', async () => {
     const api = apiMock(throwError(() => ({ error: { detail: 'Dịch vụ thống kê gián đoạn' } })));
     const { fixture, component } = await setup(api);
-    fixture.detectChanges();
+    await fixture.whenStable();
 
     expect(component.report()).toBeNull();
     expect(component.loading()).toBe(false);

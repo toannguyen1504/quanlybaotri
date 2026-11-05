@@ -19,6 +19,7 @@ import {
   WarrantyStatus,
 } from '../../core/models';
 import { PaginationComponent } from '../../shared/pagination';
+import { AccessibleDialog } from '../../shared/accessible-dialog';
 
 type DetailTab = 'overview' | 'history' | 'documents';
 interface DocumentUpload {
@@ -30,7 +31,14 @@ interface DocumentUpload {
 
 @Component({
   selector: 'app-equipment-detail',
-  imports: [DatePipe, DecimalPipe, FormsModule, RouterLink, PaginationComponent],
+  imports: [
+    DatePipe,
+    DecimalPipe,
+    FormsModule,
+    RouterLink,
+    PaginationComponent,
+    AccessibleDialog,
+  ],
   templateUrl: './equipment-detail.html',
   styleUrl: './equipment-detail.css',
 })

@@ -1,20 +1,21 @@
 import { DatePipe } from '@angular/common';
 import { Component, DestroyRef, inject, OnInit, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { FormsModule } from '@angular/forms';
+import { form, FormField, maxLength, required, submit, validate } from '@angular/forms/signals';
 import { ActivatedRoute, Router } from '@angular/router';
+import { firstValueFrom } from 'rxjs';
 import { Api } from '../../core/api';
+import { Page } from '../../core/models';
 import {
-  Page,
   SystemFeedback,
   SystemFeedbackCategory,
   SystemFeedbackStatus,
-} from '../../core/models';
+} from '../../core/system-feedback.model';
 import { PaginationComponent } from '../../shared/pagination';
 
 @Component({
   selector: 'app-system-feedback',
-  imports: [FormsModule, DatePipe, PaginationComponent],
+  imports: [FormField, DatePipe, PaginationComponent],
   templateUrl: './system-feedback.html',
   styleUrl: './system-feedback.css',
 })
@@ -35,9 +36,25 @@ export class SystemFeedbackPage implements OnInit {
   readonly pageSize = 10;
   readonly categories: SystemFeedbackCategory[] = ['BUG_REPORT', 'SUGGESTION', 'FEATURE_REQUEST'];
 
-  category: SystemFeedbackCategory = 'SUGGESTION';
-  title = '';
-  content = '';
+  readonly feedbackModel = signal({
+    category: 'SUGGESTION' as SystemFeedbackCategory,
+    title: '',
+    content: '',
+  });
+  readonly feedbackForm = form(this.feedbackModel, (path) => {
+    required(path.title, { message: 'Vui lòng nhập tiêu đề.' });
+    maxLength(path.title, 200, { message: 'Tiêu đề tối đa 200 ký tự.' });
+    validate(path.title, ({ value }) =>
+      value().trim() ? undefined : { kind: 'required', message: 'Vui lòng nhập tiêu đề.' },
+    );
+    required(path.content, { message: 'Vui lòng nhập nội dung phản hồi.' });
+    maxLength(path.content, 5000, { message: 'Nội dung tối đa 5.000 ký tự.' });
+    validate(path.content, ({ value }) =>
+      value().trim()
+        ? undefined
+        : { kind: 'required', message: 'Vui lòng nhập nội dung phản hồi.' },
+    );
+  });
   currentPage = 0;
   private selectedId: string | null = null;
 
@@ -50,39 +67,36 @@ export class SystemFeedbackPage implements OnInit {
   }
 
   submit() {
-    const title = this.title.trim();
-    const content = this.content.trim();
     this.formError.set('');
     this.success.set('');
-    if (!title || !content) {
+    submit(this.feedbackForm, async () => {
+      const model = this.feedbackModel();
+      const title = model.title.trim();
+      const content = model.content.trim();
+      this.submitting.set(true);
+      try {
+        const created = await firstValueFrom(
+          this.api.post<SystemFeedback>('/system-feedback', {
+            category: model.category,
+            title,
+            content,
+          }),
+        );
+        this.submitting.set(false);
+        this.feedbackModel.set({ category: 'SUGGESTION', title: '', content: '' });
+        this.success.set('Phản hồi đã được gửi tới bộ phận quản lý.');
+        await this.router.navigate([], {
+          relativeTo: this.route,
+          queryParams: { page: null, selected: created.id },
+        });
+      } catch (response: any) {
+        this.submitting.set(false);
+        this.formError.set(this.errorMessage(response, 'Không thể gửi phản hồi.'));
+      }
+    });
+    if (this.feedbackForm().invalid()) {
       this.formError.set('Vui lòng nhập đầy đủ tiêu đề và nội dung phản hồi.');
-      return;
     }
-    if (title.length > 200 || content.length > 5000) {
-      this.formError.set('Tiêu đề tối đa 200 ký tự và nội dung tối đa 5.000 ký tự.');
-      return;
-    }
-    this.submitting.set(true);
-    this.api
-      .post<SystemFeedback>('/system-feedback', { category: this.category, title, content })
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: (created) => {
-          this.submitting.set(false);
-          this.category = 'SUGGESTION';
-          this.title = '';
-          this.content = '';
-          this.success.set('Phản hồi đã được gửi tới bộ phận quản lý.');
-          this.router.navigate([], {
-            relativeTo: this.route,
-            queryParams: { page: null, selected: created.id },
-          });
-        },
-        error: (response) => {
-          this.submitting.set(false);
-          this.formError.set(this.errorMessage(response, 'Không thể gửi phản hồi.'));
-        },
-      });
   }
 
   load() {

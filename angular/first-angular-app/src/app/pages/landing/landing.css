@@ -563,288 +563,6 @@
   bottom: 35px;
   left: -44px;
 }
-.section-block {
-  padding: 105px 0;
-}
-.section-heading {
-  max-width: 660px;
-  margin-bottom: 50px;
-}
-.section-heading.centered {
-  margin-right: auto;
-  margin-left: auto;
-  text-align: center;
-}
-.section-heading h2,
-.feature-intro h2 {
-  margin: 0;
-  font-size: clamp(32px, 4vw, 49px);
-  line-height: 1.12;
-  letter-spacing: -0.045em;
-}
-.section-heading > p:last-child,
-.feature-intro > p {
-  margin: 16px 0 0;
-  color: #6d7889;
-  font-size: 14px;
-  line-height: 1.75;
-}
-.benefits {
-  background: #fff;
-}
-.benefit-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 18px;
-}
-.benefit-grid article {
-  position: relative;
-  min-height: 285px;
-  padding: 32px;
-  overflow: hidden;
-  border: 1px solid #e7e9ed;
-  border-radius: 16px;
-  background: #fff;
-}
-.benefit-grid article.featured {
-  border-color: #d52a32;
-  color: #fff;
-  background: linear-gradient(145deg, #9e1118, #ce2a32);
-  box-shadow: 0 20px 45px #b91c1c20;
-}
-.card-number {
-  position: absolute;
-  top: 22px;
-  right: 25px;
-  color: #edf0f3;
-  font-size: 55px;
-  font-weight: 850;
-  letter-spacing: -0.06em;
-}
-.featured .card-number {
-  color: #ffffff18;
-}
-.icon-box {
-  display: grid;
-  width: 49px;
-  height: 49px;
-  place-items: center;
-  border-radius: 13px;
-  color: #bc1c24;
-  background: #fff1f2;
-}
-.featured .icon-box {
-  color: #fff;
-  background: #ffffff18;
-}
-.icon-box svg {
-  width: 25px;
-  height: 25px;
-}
-.benefit-grid h3 {
-  margin: 31px 0 10px;
-  font-size: 19px;
-}
-.benefit-grid p {
-  margin: 0;
-  color: #6f7b8b;
-  font-size: 13px;
-  line-height: 1.7;
-}
-.featured p {
-  color: #ffe2e4;
-}
-.features {
-  color: #fff;
-  background: #151c2a;
-}
-.feature-layout {
-  display: grid;
-  grid-template-columns: 0.78fr 1.22fr;
-  gap: clamp(55px, 8vw, 110px);
-  align-items: start;
-}
-.feature-intro {
-  position: sticky;
-  top: 120px;
-}
-.feature-intro .section-kicker {
-  color: #ff8d93;
-}
-.feature-intro > p {
-  color: #aeb8c7;
-}
-.feature-cta {
-  display: inline-flex;
-  align-items: center;
-  gap: 15px;
-  margin-top: 27px;
-  padding-bottom: 7px;
-  border-bottom: 1px solid #d53a42;
-  color: #fff;
-  font-size: 12px;
-  font-weight: 750;
-}
-.feature-cta span {
-  color: #ff9298;
-  font-size: 17px;
-}
-.feature-list {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0 28px;
-}
-.feature-list article {
-  display: grid;
-  grid-template-columns: 35px 1fr;
-  gap: 15px;
-  padding: 27px 0;
-  border-top: 1px solid #ffffff17;
-}
-.feature-list article > span {
-  color: #e1535a;
-  font-size: 10px;
-  font-weight: 800;
-}
-.feature-list h3 {
-  margin: 0 0 8px;
-  font-size: 16px;
-}
-.feature-list p {
-  margin: 0;
-  color: #9da8b7;
-  font-size: 12px;
-  line-height: 1.65;
-}
-.workflow {
-  background: #f7f8fa;
-}
-.workflow-list {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  counter-reset: step;
-}
-.workflow-list li {
-  position: relative;
-  display: grid;
-  grid-template-rows: 70px 1fr;
-  padding-right: 25px;
-}
-.workflow-list li::before {
-  position: absolute;
-  top: 24px;
-  left: 43px;
-  width: calc(100% - 43px);
-  height: 1px;
-  background: #d8dce2;
-  content: '';
-}
-.workflow-list li:last-child::before {
-  display: none;
-}
-.workflow-list li > span {
-  position: relative;
-  z-index: 1;
-  display: grid;
-  width: 48px;
-  height: 48px;
-  place-items: center;
-  border: 1px solid #e1b8bb;
-  border-radius: 50%;
-  color: #b41921;
-  background: #fff;
-  font-size: 10px;
-  font-weight: 850;
-}
-.workflow-list small {
-  color: #bc1d25;
-  font-size: 9px;
-  font-weight: 850;
-  letter-spacing: 0.12em;
-}
-.workflow-list h3 {
-  margin: 8px 0;
-  font-size: 18px;
-}
-.workflow-list p {
-  margin: 0;
-  color: #707b8b;
-  font-size: 12px;
-  line-height: 1.7;
-}
-.roles {
-  background: #fff;
-}
-.role-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 18px;
-}
-.role-grid article {
-  padding: 31px;
-  border: 1px solid #e7e9ed;
-  border-radius: 15px;
-}
-.role-icon {
-  display: grid;
-  width: 47px;
-  height: 47px;
-  place-items: center;
-  border-radius: 13px;
-  font-size: 11px;
-  font-weight: 850;
-}
-.role-icon.customer {
-  color: #9f1239;
-  background: #fff1f2;
-}
-.role-icon.manager {
-  color: #7c2d12;
-  background: #fff7ed;
-}
-.role-icon.technician {
-  color: #155e75;
-  background: #ecfeff;
-}
-.role-grid h3 {
-  margin: 22px 0 10px;
-  font-size: 18px;
-}
-.role-grid p {
-  min-height: 68px;
-  margin: 0;
-  color: #6e7989;
-  font-size: 12px;
-  line-height: 1.7;
-}
-.role-grid ul {
-  display: grid;
-  gap: 8px;
-  margin: 21px 0 0;
-  padding: 18px 0 0;
-  border-top: 1px solid #eceef1;
-  list-style: none;
-}
-.role-grid li {
-  position: relative;
-  padding-left: 17px;
-  color: #3e4b5d;
-  font-size: 11px;
-  font-weight: 650;
-}
-.role-grid li::before {
-  position: absolute;
-  top: 5px;
-  left: 0;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #c82028;
-  content: '';
-}
 .final-cta {
   position: relative;
   overflow: hidden;
@@ -941,20 +659,6 @@ button:focus-visible {
     width: min(720px, 92%);
     margin-inline: auto;
   }
-  .feature-layout {
-    grid-template-columns: 1fr;
-  }
-  .feature-intro {
-    position: static;
-    max-width: 680px;
-  }
-  .workflow-list {
-    grid-template-columns: 1fr 1fr;
-    gap: 40px 0;
-  }
-  .workflow-list li:nth-child(2)::before {
-    display: none;
-  }
 }
 @media (max-width: 760px) {
   .section-shell,
@@ -1020,44 +724,6 @@ button:focus-visible {
   .note-bottom {
     bottom: -30px;
     left: -8px;
-  }
-  .section-block {
-    padding: 80px 0;
-  }
-  .benefit-grid,
-  .role-grid {
-    grid-template-columns: 1fr;
-  }
-  .benefit-grid article {
-    min-height: 240px;
-  }
-  .feature-list {
-    grid-template-columns: 1fr;
-  }
-  .workflow-list {
-    grid-template-columns: 1fr;
-    gap: 24px;
-  }
-  .workflow-list li {
-    grid-template-columns: 58px 1fr;
-    grid-template-rows: auto;
-    padding: 0;
-  }
-  .workflow-list li::before {
-    top: 48px;
-    bottom: -24px;
-    left: 23px;
-    width: 1px;
-    height: auto;
-  }
-  .workflow-list li:nth-child(2)::before {
-    display: block;
-  }
-  .workflow-list li:last-child::before {
-    display: none;
-  }
-  .role-grid p {
-    min-height: 0;
   }
   .cta-content {
     min-height: 430px;
@@ -1133,10 +799,6 @@ button:focus-visible {
   .note-bottom {
     bottom: -38px;
   }
-  .section-heading h2,
-  .feature-intro h2 {
-    font-size: 34px;
-  }
 }
 @media (prefers-reduced-motion: reduce) {
   *,
@@ -1150,4 +812,9 @@ button:focus-visible {
   .button:hover {
     transform: none;
   }
+}
+
+.landing-sections-placeholder {
+  min-height: 720px;
+  background: linear-gradient(180deg, #fff 0%, #f8fafc 50%, #fff 100%);
 }

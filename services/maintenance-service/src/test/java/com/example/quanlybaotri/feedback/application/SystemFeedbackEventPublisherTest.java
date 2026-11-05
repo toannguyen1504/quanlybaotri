@@ -36,5 +36,10 @@ class SystemFeedbackEventPublisherTest {
         assertThat(captured.getValue().getPayloadJson())
             .contains("feedbackId", "requesterId", "BUG_REPORT", "NEW")
             .doesNotContain("Tiêu đề bí mật", "Nội dung bí mật", "response");
+        var envelope = new ObjectMapper().readTree(captured.getValue().getPayloadJson());
+        assertThat(envelope.path("eventType").asText())
+            .isEqualTo(captured.getValue().getRoutingKey());
+        assertThat(envelope.path("schemaVersion").asInt()).isEqualTo(2);
+        assertThat(envelope.path("producer").asText()).isEqualTo("maintenance-service");
     }
 }

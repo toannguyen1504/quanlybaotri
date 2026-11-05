@@ -3,7 +3,8 @@ import { ActivatedRoute, convertToParamMap, provideRouter } from '@angular/route
 import { of } from 'rxjs';
 import { describe, expect, it, vi } from 'vitest';
 import { Api } from '../../core/api';
-import { Page, SystemFeedback } from '../../core/models';
+import { Page } from '../../core/models';
+import { SystemFeedback } from '../../core/system-feedback.model';
 import { SystemFeedbackPage } from './system-feedback';
 
 describe('SystemFeedbackPage', () => {
@@ -40,7 +41,7 @@ describe('SystemFeedbackPage', () => {
       ],
     }).compileComponents();
     const fixture = TestBed.createComponent(SystemFeedbackPage);
-    fixture.detectChanges();
+    await fixture.whenStable();
     return { fixture, component: fixture.componentInstance, api };
   }
 
@@ -56,12 +57,15 @@ describe('SystemFeedbackPage', () => {
   });
 
   it('submits trimmed category, title and content', async () => {
-    const { component, api } = await setup();
-    component.category = 'BUG_REPORT';
-    component.title = '  Không mở được báo cáo  ';
-    component.content = '  Màn hình hiển thị lỗi  ';
+    const { component, api, fixture } = await setup();
+    component.feedbackModel.set({
+      category: 'BUG_REPORT',
+      title: '  Không mở được báo cáo  ',
+      content: '  Màn hình hiển thị lỗi  ',
+    });
 
     component.submit();
+    await fixture.whenStable();
 
     expect(api.post).toHaveBeenCalledWith('/system-feedback', {
       category: 'BUG_REPORT',
@@ -72,8 +76,7 @@ describe('SystemFeedbackPage', () => {
 
   it('does not submit an empty form', async () => {
     const { component, api } = await setup();
-    component.title = '   ';
-    component.content = '';
+    component.feedbackModel.set({ category: 'SUGGESTION', title: '   ', content: '' });
 
     component.submit();
 

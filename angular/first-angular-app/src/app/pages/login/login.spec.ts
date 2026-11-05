@@ -13,7 +13,7 @@ describe('LoginPage', () => {
     await configure(auth);
     const fixture = TestBed.createComponent(LoginPage);
     const component = fixture.componentInstance;
-    fixture.detectChanges();
+    await fixture.whenStable();
     vi.spyOn(TestBed.inject(Router), 'navigateByUrl').mockResolvedValue(true);
     expect(component.username).toBe('');
     expect(component.password).toBe('');
@@ -42,7 +42,7 @@ describe('LoginPage', () => {
     const auth = authMock();
     await configure(auth);
     const fixture = TestBed.createComponent(LoginPage);
-    fixture.detectChanges();
+    await fixture.whenStable();
     await fixture.whenStable();
 
     expect(fixture.nativeElement.querySelector('.google-button')).toBeNull();
@@ -53,7 +53,7 @@ describe('LoginPage', () => {
     await configure(auth, 'register');
     const fixture = TestBed.createComponent(LoginPage);
 
-    fixture.detectChanges();
+    await fixture.whenStable();
 
     expect(fixture.componentInstance.tab()).toBe('register');
   });
@@ -63,7 +63,7 @@ describe('LoginPage', () => {
     await configure(auth, 'unsupported');
     const fixture = TestBed.createComponent(LoginPage);
 
-    fixture.detectChanges();
+    await fixture.whenStable();
 
     expect(fixture.componentInstance.tab()).toBe('login');
   });

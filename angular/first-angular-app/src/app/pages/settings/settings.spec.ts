@@ -22,7 +22,7 @@ describe('SettingsPage', () => {
       providers: [{ provide: Api, useValue: api }],
     }).compileComponents();
     const fixture = TestBed.createComponent(SettingsPage);
-    fixture.detectChanges();
+    await fixture.whenStable();
     const element = fixture.nativeElement as HTMLElement;
 
     const tabLabels = Array.from(element.querySelectorAll<HTMLElement>('[role="tab"]')).map((tab) =>
@@ -35,11 +35,11 @@ describe('SettingsPage', () => {
 
     const tabs = element.querySelectorAll<HTMLButtonElement>('[role="tab"]');
     tabs[3].click();
-    fixture.detectChanges();
+    await fixture.whenStable();
     expect(element.querySelector('[role="tabpanel"]')?.id).toBe('categories-panel');
 
     tabs[4].click();
-    fixture.detectChanges();
+    await fixture.whenStable();
     expect(element.querySelector('[role="tabpanel"]')?.id).toBe('sla-panel');
   });
 
@@ -60,34 +60,34 @@ describe('SettingsPage', () => {
       providers: [{ provide: Api, useValue: api }],
     }).compileComponents();
     const fixture = TestBed.createComponent(SettingsPage);
-    fixture.detectChanges();
+    await fixture.whenStable();
     const element = fixture.nativeElement as HTMLElement;
 
     const tabs = element.querySelectorAll<HTMLButtonElement>('[role="tab"]');
     tabs[0].click();
-    fixture.detectChanges();
+    await fixture.whenStable();
     expect(element.querySelector('[data-list="branches"]')).not.toBeNull();
     expect(element.querySelector('.branch-form')).toBeNull();
     element.querySelector<HTMLButtonElement>('.settings-manager-actions .primary')?.click();
-    fixture.detectChanges();
+    await fixture.whenStable();
     expect(element.querySelector('.branch-form')).not.toBeNull();
 
     tabs[1].click();
-    fixture.detectChanges();
+    await fixture.whenStable();
     expect(element.querySelector('[data-list="departments"]')).not.toBeNull();
     expect(element.querySelector('.settings-data-table')).not.toBeNull();
     expect(element.querySelector('.settings-manager-stats')).not.toBeNull();
     expect(element.querySelector('.department-form')).toBeNull();
     element.querySelector<HTMLButtonElement>('.settings-manager-actions .primary')?.click();
-    fixture.detectChanges();
+    await fixture.whenStable();
     expect(element.querySelector('.department-form')).not.toBeNull();
 
     element.querySelectorAll<HTMLButtonElement>('[role="tab"]')[3].click();
-    fixture.detectChanges();
+    await fixture.whenStable();
     expect(element.querySelector('[data-list="categories"]')).not.toBeNull();
     expect(element.querySelector('.category-form')).toBeNull();
     element.querySelector<HTMLButtonElement>('.settings-manager-actions .primary')?.click();
-    fixture.detectChanges();
+    await fixture.whenStable();
     expect(element.querySelector('.category-form')).not.toBeNull();
   });
 

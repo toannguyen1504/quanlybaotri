@@ -7,56 +7,7 @@
     </div>
   </header>
 
-  <div class="settings-tabs" role="tablist" aria-label="Nhóm cấu hình">
-    <button
-      type="button"
-      role="tab"
-      [class.active]="activeTab() === 'branches'"
-      [attr.aria-selected]="activeTab() === 'branches'"
-      aria-controls="branches-panel"
-      (click)="activeTab.set('branches')"
-    >
-      Khách hàng
-    </button>
-    <button
-      type="button"
-      role="tab"
-      [class.active]="activeTab() === 'departments'"
-      [attr.aria-selected]="activeTab() === 'departments'"
-      aria-controls="departments-panel"
-      (click)="activeTab.set('departments')"
-    >
-      Địa điểm
-    </button>
-    <button
-      type="button"
-      role="tab"
-      [class.active]="activeTab() === 'regions'"
-      (click)="activeTab.set('regions')"
-    >
-      Khu vực
-    </button>
-    <button
-      type="button"
-      role="tab"
-      [class.active]="activeTab() === 'categories'"
-      [attr.aria-selected]="activeTab() === 'categories'"
-      aria-controls="categories-panel"
-      (click)="activeTab.set('categories')"
-    >
-      Loại thiết bị
-    </button>
-    <button
-      type="button"
-      role="tab"
-      [class.active]="activeTab() === 'sla'"
-      [attr.aria-selected]="activeTab() === 'sla'"
-      aria-controls="sla-panel"
-      (click)="activeTab.set('sla')"
-    >
-      SLA
-    </button>
-  </div>
+  <app-settings-tabs [(activeTab)]="activeTab" />
 
   @if (activeTab() === 'regions') {
     <article class="panel settings-manager">

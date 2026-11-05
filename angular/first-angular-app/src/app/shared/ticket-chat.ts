@@ -1,16 +1,14 @@
 import { DatePipe } from '@angular/common';
 import {
+  booleanAttribute,
   Component,
   effect,
   inject,
-  Input,
-  OnChanges,
-  OnDestroy,
-  SimpleChanges,
+  input,
   signal,
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { Subscription } from 'rxjs';
 import { ChatService } from '../core/chat';
 import { AuthService } from '../core/auth';
 import { ChatMessage, ChatTicketRef } from '../core/models';
@@ -21,9 +19,9 @@ import { ChatMessage, ChatTicketRef } from '../core/models';
   templateUrl: './ticket-chat.html',
   styleUrl: './ticket-chat.css',
 })
-export class TicketChat implements OnChanges, OnDestroy {
-  @Input({ required: true }) ticketId = '';
-  @Input() embedded = false;
+export class TicketChat {
+  readonly ticketId = input.required<string>();
+  readonly embedded = input(false, { transform: booleanAttribute });
   readonly chat = inject(ChatService);
   readonly auth = inject(AuthService);
   readonly messages = signal<ChatMessage[]>([]);
@@ -33,15 +31,20 @@ export class TicketChat implements OnChanges, OnDestroy {
   readonly error = signal('');
   readonly nextBefore = signal<number | undefined>(undefined);
   draft = '';
-  private subscription = new Subscription();
 
   constructor() {
-    effect(() => {
-      if (this.chat.connected() && this.ticketId) this.load();
+    effect((onCleanup) => {
+      const ticketId = this.ticketId();
+      this.chat.activateTicket(ticketId);
+      const request = this.load(ticketId);
+      onCleanup(() => {
+        request.unsubscribe();
+        this.chat.deactivateTicket(ticketId);
+      });
     });
-    this.subscription.add(
-      this.chat.events$.subscribe((event) => {
-        if (event.ticket.id !== this.ticketId) return;
+    this.chat.events$.pipe(takeUntilDestroyed()).subscribe((event) => {
+        const ticketId = this.ticketId();
+        if (event.ticket.id !== ticketId) return;
         if (event.type === 'MESSAGE_CREATED' && event.message) {
           this.messages.update((items) =>
             items.some((item) => item.id === event.message!.id)
@@ -50,38 +53,30 @@ export class TicketChat implements OnChanges, OnDestroy {
           );
           this.ticket.set(event.ticket);
           if (document.visibilityState === 'visible')
-            this.chat.markRead(this.ticketId, event.message.sequence);
+            this.chat.markRead(ticketId, event.message.sequence);
         }
         if (event.type === 'CONVERSATION_UPDATED') this.ticket.set(event.ticket);
         if (event.type === 'ACCESS_REVOKED') {
           this.error.set('Bạn không còn quyền truy cập phòng chat này.');
           this.messages.set([]);
         }
-      }),
-    );
-    this.subscription.add(
-      this.chat.errors$.subscribe((error) => {
-        if (!error.ticketId || error.ticketId === this.ticketId) this.error.set(error.message);
-      }),
-    );
+      });
+    this.chat.errors$.pipe(takeUntilDestroyed()).subscribe((error) => {
+      if (!error.ticketId || error.ticketId === this.ticketId()) this.error.set(error.message);
+    });
   }
 
-  ngOnChanges(changes: SimpleChanges) {
-    if (changes['ticketId'] && this.ticketId) this.load();
-  }
-
-  load() {
+  load(ticketId = this.ticketId()) {
     this.loading.set(true);
     this.error.set('');
-    this.chat.activeTicketId.set(this.ticketId);
-    this.chat.history(this.ticketId).subscribe({
+    return this.chat.history(ticketId).subscribe({
       next: (page) => {
         this.ticket.set(page.ticket);
         this.messages.set(page.content);
         this.nextBefore.set(page.nextBeforeSequence);
         this.loading.set(false);
         const last = page.content.at(-1);
-        if (last) this.chat.markRead(this.ticketId, last.sequence);
+        if (last) this.chat.markRead(ticketId, last.sequence);
       },
       error: (response) => {
         this.loading.set(false);
@@ -94,7 +89,7 @@ export class TicketChat implements OnChanges, OnDestroy {
     const before = this.nextBefore();
     if (!before || this.loadingOlder()) return;
     this.loadingOlder.set(true);
-    this.chat.history(this.ticketId, before).subscribe({
+    this.chat.history(this.ticketId(), before).subscribe({
       next: (page) => {
         this.messages.update((items) => [...page.content, ...items]);
         this.nextBefore.set(page.nextBeforeSequence);
@@ -108,7 +103,7 @@ export class TicketChat implements OnChanges, OnDestroy {
     const content = this.draft.trim();
     if (!content || !this.ticket()?.writable) return;
     this.error.set('');
-    if (this.chat.send(this.ticketId, content)) this.draft = '';
+    if (this.chat.send(this.ticketId(), content)) this.draft = '';
     else this.error.set('Kết nối chat đang bị gián đoạn.');
   }
 
@@ -117,10 +112,5 @@ export class TicketChat implements OnChanges, OnDestroy {
       event.preventDefault();
       this.send();
     }
-  }
-
-  ngOnDestroy() {
-    if (this.chat.activeTicketId() === this.ticketId) this.chat.activeTicketId.set(null);
-    this.subscription.unsubscribe();
   }
 }

@@ -1,0 +1,46 @@
+<div
+  class="users-modal-backdrop"
+  appAccessibleDialog
+  animate.enter="motion-modal-enter"
+  animate.leave="motion-modal-leave"
+  (dialogDismissed)="dismissed.emit()"
+>
+  <form
+    class="users-modal"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="decline-quote-title"
+    (click)="$event.stopPropagation()"
+    (ngSubmit)="submit()"
+  >
+    <div class="users-section-head">
+      <span aria-hidden="true">!</span>
+      <div>
+        <h2 id="decline-quote-title">Từ chối báo giá</h2>
+        <p>Hãy ghi rõ lý do để kỹ thuật viên điều chỉnh và gửi lại.</p>
+      </div>
+    </div>
+    <label>
+      Lý do từ chối
+      <textarea
+        name="declineReason"
+        [ngModel]="reason()"
+        (ngModelChange)="reason.set($event)"
+        maxlength="1000"
+        required
+        data-dialog-initial-focus
+      ></textarea>
+    </label>
+    @if (error()) {
+      <div class="alert">{{ error() }}</div>
+    }
+    <div class="users-form-actions">
+      <button type="button" class="secondary" [disabled]="loading()" (click)="dismissed.emit()">
+        Hủy
+      </button>
+      <button class="danger-button" [disabled]="!reason().trim() || loading()">
+        {{ loading() ? 'Đang xử lý...' : 'Xác nhận từ chối' }}
+      </button>
+    </div>
+  </form>
+</div>

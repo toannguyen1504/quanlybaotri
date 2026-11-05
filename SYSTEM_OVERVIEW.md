@@ -45,6 +45,7 @@ flowchart LR
     GW --> INV[Inventory Service]
     GW --> PAY[Payment Service]
     GW --> NOTI
+    GW --> AI[AI Service]
 
     ID --> PG[(PostgreSQL)]
     ORG --> PG
@@ -66,6 +67,12 @@ flowchart LR
     MAINT --> REDIS
     PAY --> REDIS
     NOTI --> REDIS
+    AI --> REDIS
+
+    AI --> MAINT
+    AI --> ASSET
+    AI --> ID
+    AI --> OPENROUTER[OpenRouter / NVIDIA Nemotron 3.5 Super VL]
 
     PAY --> VNPAY[VNPay]
     NOTI --> TELEGRAM[Telegram Bot API]
@@ -93,6 +100,7 @@ flowchart LR
 | `notification-service` | 8085 | `notification_db` | Thông báo, Telegram, dữ liệu chat, REST inbox và STOMP/WebSocket |
 | `organization-service` | 8086 | `organization_db` | Khách hàng, địa điểm lắp đặt và vùng |
 | `payment-service` | 8087 | `payment_db` | Giao dịch VNPay, callback, đối soát và lịch sử thanh toán |
+| `ai-service` | 8088 | Redis, OpenRouter API | Trợ lý Nemotron, tra cứu có phân quyền, tư vấn quy trình và tạo phiếu có xác nhận |
 | `web` | 80 trong container | Static files | Angular SPA và reverse proxy `/api`, `/ws/chat` |
 
 Mỗi Spring Boot service còn mở cổng quản trị nội bộ `9000` cho health, readiness và Prometheus metrics.
@@ -195,6 +203,7 @@ Các nhóm route công khai qua gateway:
 | `/api/v1/parts/**`, `/api/v1/stock-movements/**`, `/api/v1/tickets/{id}/parts` | Inventory |
 | `/api/v1/notifications/**`, `/api/v1/chat/**` | Notification |
 | `/api/v1/payments/**`, `/api/v1/tickets/{id}/payments` | Payment |
+| `/api/v1/ai/**` | AI Service |
 
 API nội bộ đặt dưới `/internal/**` và không được gateway công bố. WebSocket chat dùng endpoint `/ws/chat`; client gửi Bearer token trong STOMP `CONNECT`.
 
@@ -238,7 +247,7 @@ PJ1/
 │   ├── minio/                   # Policy cho các bucket
 │   ├── prometheus/              # Cấu hình scrape metrics
 │   └── grafana/                 # Provisioning dashboard/datasource
-├── services/                    # Gateway và 7 business services
+├── services/                    # Gateway và 8 business services
 ├── compose.yaml                 # Toàn bộ local stack
 ├── pom.xml                      # Maven parent/multi-module
 └── README.md                    # Hướng dẫn vận hành chi tiết

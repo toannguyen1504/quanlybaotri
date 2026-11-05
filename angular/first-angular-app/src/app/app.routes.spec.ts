@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { Shell } from './layout/shell';
 import { routes } from './app.routes';
+
+const shellRoute = routes.find((route) => route.path === '' && route.children);
 
 describe('application routes', () => {
   it('protects the statistics report route and keeps legacy redirects', () => {
-    const shellRoute = routes.find((route) => route.component === Shell);
     const reportRoute = shellRoute?.children?.find((route) => route.path === 'reports');
     const costReportRoute = shellRoute?.children?.find((route) => route.path === 'cost-reports');
     const accountingRoute = shellRoute?.children?.find((route) => route.path === 'cost-accounting');
@@ -32,7 +32,6 @@ describe('application routes', () => {
   });
 
   it('provides a dynamic header title for every navigable shell route', () => {
-    const shellRoute = routes.find((route) => route.component === Shell);
     const navigableRoutes = shellRoute?.children?.filter(
       (route) => route.loadComponent && !route.redirectTo,
     );
@@ -42,7 +41,6 @@ describe('application routes', () => {
   });
 
   it('defines protected equipment forms before the dynamic detail route', () => {
-    const shellRoute = routes.find((route) => route.component === Shell);
     const equipmentRoutes =
       shellRoute?.children?.filter((route) => route.path?.startsWith('equipment')) ?? [];
 
@@ -65,7 +63,6 @@ describe('application routes', () => {
   });
 
   it('embeds module overviews and keeps operational tabs reusable', () => {
-    const shellRoute = routes.find((route) => route.component === Shell);
     const defaults: Record<string, string> = {
       payments: 'obligations',
       equipment: 'registry',
@@ -90,7 +87,6 @@ describe('application routes', () => {
   });
 
   it('defines a dedicated notification detail route before the notification list', () => {
-    const shellRoute = routes.find((route) => route.component === Shell);
     const notificationRoutes =
       shellRoute?.children?.filter((route) => route.path?.startsWith('notifications')) ?? [];
 
@@ -103,10 +99,10 @@ describe('application routes', () => {
 
   it('exposes the landing page publicly while keeping the application shell protected', () => {
     const landingRoute = routes.find((route) => route.path === '' && route.pathMatch === 'full');
-    const shellRoute = routes.find((route) => route.component === Shell);
 
     expect(landingRoute?.loadComponent).toBeDefined();
     expect(landingRoute?.canActivate?.length).toBe(1);
+    expect(shellRoute?.loadComponent).toBeDefined();
     expect(shellRoute?.canActivate?.length).toBe(1);
   });
 });

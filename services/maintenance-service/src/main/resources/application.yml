@@ -15,6 +15,7 @@ spring:
   data.redis:
     host: ${REDIS_HOST:redis}
     port: ${REDIS_PORT:6379}
+    timeout: ${REDIS_TIMEOUT:2s}
   rabbitmq:
     host: ${RABBITMQ_HOST:rabbitmq}
     port: ${RABBITMQ_PORT:5672}

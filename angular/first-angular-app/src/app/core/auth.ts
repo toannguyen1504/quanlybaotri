@@ -38,7 +38,8 @@ export interface GoogleAuthResult {
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private readonly base = '/api/v1/auth';
-  readonly user = signal<User | null>(this.read<User>('maintenance-user'));
+  private readonly currentUser = signal<User | null>(this.read<User>('maintenance-user'));
+  readonly user = this.currentUser.asReadonly();
   readonly authenticated = computed(() => !!this.token());
   constructor(
     private http: HttpClient,
@@ -78,7 +79,7 @@ export class AuthService {
     return this.http.get<User>(this.base + '/me').pipe(tap((u) => this.updateCurrentUser(u)));
   }
   updateCurrentUser(user: User) {
-    this.user.set(user);
+    this.currentUser.set(user);
     localStorage.setItem('maintenance-user', JSON.stringify(user));
   }
   patchCurrentUser(changes: Partial<User>) {
@@ -111,7 +112,7 @@ export class AuthService {
     localStorage.removeItem('maintenance-access');
     localStorage.removeItem('maintenance-refresh');
     localStorage.removeItem('maintenance-user');
-    this.user.set(null);
+    this.currentUser.set(null);
     this.router.navigateByUrl('/login');
   }
   private read<T>(key: string): T | null {

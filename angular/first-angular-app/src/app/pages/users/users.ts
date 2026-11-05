@@ -14,12 +14,14 @@ import {
   User,
 } from '../../core/models';
 import { PaginationComponent } from '../../shared/pagination';
+import { AccessibleDialog } from '../../shared/accessible-dialog';
+import { UsersOverview } from './users-overview/users-overview';
 
 type UserStatusFilter = 'ALL' | 'ACTIVE' | 'LOCKED' | 'PENDING' | 'REJECTED';
 
 @Component({
   selector: 'app-users',
-  imports: [FormsModule, PaginationComponent],
+  imports: [FormsModule, PaginationComponent, AccessibleDialog, UsersOverview],
   templateUrl: './users.html',
 })
 export class UsersPage implements OnInit {

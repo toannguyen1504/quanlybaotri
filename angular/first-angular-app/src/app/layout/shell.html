@@ -8,194 +8,20 @@
     <button
       type="button"
       class="sidebar-backdrop"
+      animate.enter="motion-backdrop-enter"
+      animate.leave="motion-backdrop-leave"
       aria-label="Đóng menu điều hướng"
       (click)="closeMobile()"
     ></button>
   }
 
-  <aside class="sidebar" [attr.aria-label]="collapsed() ? 'Menu thu gọn' : 'Menu chính'">
-    <div class="sidebar-brand">
-      <span class="brand-mark">BT</span>
-      <div class="brand-copy">
-        <b>Bảo trì</b>
-        <small>Thiết bị doanh nghiệp</small>
-      </div>
-      <button
-        type="button"
-        class="sidebar-mobile-close"
-        aria-label="Đóng menu"
-        (click)="closeMobile()"
-      >
-        ×
-      </button>
-    </div>
-
-    <button
-      type="button"
-      class="sidebar-toggle"
-      [attr.aria-label]="collapsed() ? 'Mở rộng thanh bên' : 'Thu gọn thanh bên'"
-      [attr.aria-expanded]="!collapsed()"
-      (click)="toggleCollapsed()"
-    >
-      <span aria-hidden="true">{{ collapsed() ? '›' : '‹' }}</span>
-    </button>
-
-    <div class="sidebar-section-label">Điều hướng</div>
-    <nav>
-      @if (auth.hasAny(['ADMIN', 'MANAGER'])) {
-        <a
-          routerLink="/dashboard"
-          routerLinkActive="active"
-          aria-label="Tổng quan"
-          data-label="Tổng quan"
-          (click)="closeMobile()"
-        >
-          <span class="nav-icon overview" aria-hidden="true">▦</span
-          ><span class="nav-label">Tổng quan</span>
-        </a>
-      }
-      <a
-        routerLink="/tickets"
-        routerLinkActive="active"
-        aria-label="Phiếu bảo trì"
-        data-label="Phiếu bảo trì"
-        (click)="closeMobile()"
-      >
-        <span class="nav-icon" aria-hidden="true">▤</span
-        ><span class="nav-label">Phiếu bảo trì</span>
-      </a>
-      <a
-        routerLink="/equipment"
-        routerLinkActive="active"
-        aria-label="Thiết bị"
-        data-label="Thiết bị"
-        (click)="closeMobile()"
-      >
-        <span class="nav-icon" aria-hidden="true">◇</span><span class="nav-label">Thiết bị</span>
-      </a>
-      @if (auth.hasAny(['ADMIN', 'MANAGER', 'TECHNICIAN'])) {
-        <a
-          routerLink="/parts"
-          routerLinkActive="active"
-          aria-label="Linh kiện"
-          data-label="Linh kiện"
-          (click)="closeMobile()"
-        >
-          <span class="nav-icon" aria-hidden="true">⬡</span><span class="nav-label">Linh kiện</span>
-        </a>
-      }
-      @if (auth.hasAny(['ADMIN', 'MANAGER'])) {
-        <a
-          routerLink="/users"
-          routerLinkActive="active"
-          aria-label="Người dùng"
-          data-label="Người dùng"
-          (click)="closeMobile()"
-        >
-          <span class="nav-icon" aria-hidden="true">♙</span
-          ><span class="nav-label">Người dùng</span>
-        </a>
-        <a
-          routerLink="/settings"
-          routerLinkActive="active"
-          aria-label="Cấu hình"
-          data-label="Cấu hình"
-          (click)="closeMobile()"
-        >
-          <span class="nav-icon" aria-hidden="true">⚙</span><span class="nav-label">Cấu hình</span>
-        </a>
-      }
-      @if (auth.hasAny(['ADMIN', 'MANAGER'])) {
-        <a
-          routerLink="/reports"
-          routerLinkActive="active"
-          aria-label="Báo cáo thống kê"
-          data-label="Báo cáo thống kê"
-          (click)="closeMobile()"
-        >
-          <span class="nav-icon" aria-hidden="true">▥</span
-          ><span class="nav-label">Báo cáo thống kê</span>
-        </a>
-      }
-      @if (auth.hasAny(['ADMIN', 'MANAGER', 'REQUESTER'])) {
-        <a
-          routerLink="/payments"
-          routerLinkActive="active"
-          aria-label="Quản lý thanh toán"
-          data-label="Quản lý thanh toán"
-          (click)="closeMobile()"
-        >
-          <span class="nav-icon" aria-hidden="true">₫</span
-          ><span class="nav-label">Quản lý thanh toán</span>
-        </a>
-      }
-      <a
-        routerLink="/notifications"
-        routerLinkActive="active"
-        aria-label="Thông báo"
-        data-label="Thông báo"
-        (click)="closeMobile()"
-      >
-        <span class="nav-icon" aria-hidden="true">◉</span><span class="nav-label">Thông báo</span>
-      </a>
-      <a
-        routerLink="/messages"
-        routerLinkActive="active"
-        aria-label="Tin nhắn"
-        data-label="Tin nhắn"
-        (click)="closeMobile()"
-      >
-        <span class="nav-icon" aria-hidden="true">✉</span><span class="nav-label">Tin nhắn</span>
-        @if (chat.unreadCount()) {
-          <span class="chat-nav-badge">{{ chat.unreadCount() }}</span>
-        }
-      </a>
-      @if (auth.hasAny(['REQUESTER'])) {
-        <a
-          routerLink="/feedback"
-          routerLinkActive="active"
-          aria-label="Phản hồi hệ thống"
-          data-label="Phản hồi hệ thống"
-          (click)="closeMobile()"
-        >
-          <span class="nav-icon" aria-hidden="true">✦</span
-          ><span class="nav-label">Phản hồi hệ thống</span>
-        </a>
-      }
-      @if (auth.hasAny(['ADMIN', 'MANAGER'])) {
-        <a
-          routerLink="/feedback-management"
-          routerLinkActive="active"
-          aria-label="Quản lý phản hồi"
-          data-label="Quản lý phản hồi"
-          (click)="closeMobile()"
-        >
-          <span class="nav-icon" aria-hidden="true">✦</span
-          ><span class="nav-label">Quản lý phản hồi</span>
-        </a>
-      }
-      <a
-        routerLink="/profile"
-        routerLinkActive="active"
-        aria-label="Tài khoản"
-        data-label="Tài khoản"
-        (click)="closeMobile()"
-      >
-        <span class="nav-icon" aria-hidden="true">○</span><span class="nav-label">Tài khoản</span>
-      </a>
-    </nav>
-
-    <div class="sidebar-profile">
-      <div class="sidebar-avatar">{{ initials() }}</div>
-      <div class="sidebar-profile-copy">
-        <b>{{ auth.user()?.fullName || 'Tài khoản' }}</b>
-        <small>{{ primaryRole() }}</small>
-      </div>
-      <button type="button" class="sidebar-logout" aria-label="Đăng xuất" (click)="logout()">
-        <span aria-hidden="true">↪</span>
-      </button>
-    </div>
-  </aside>
+  <app-sidebar
+    [collapsed]="collapsed()"
+    [mobileOpen]="mobileOpen()"
+    (collapsedChange)="toggleCollapsed()"
+    (mobileClosed)="closeMobile()"
+    (logoutRequested)="logout()"
+  />
 
   <main>
     <header class="app-header">
@@ -275,7 +101,12 @@
           </button>
 
           @if (activeHeaderMenu() === 'notifications') {
-            <section class="header-dropdown notification-dropdown" aria-label="Thông báo gần đây">
+            <section
+              class="header-dropdown notification-dropdown"
+              animate.enter="motion-menu-enter"
+              animate.leave="motion-menu-leave"
+              aria-label="Thông báo gần đây"
+            >
               <div class="dropdown-heading">
                 <div>
                   <strong>Thông báo</strong>
@@ -369,7 +200,12 @@
           </button>
 
           @if (activeHeaderMenu() === 'account') {
-            <section class="header-dropdown account-dropdown" aria-label="Tài khoản">
+            <section
+              class="header-dropdown account-dropdown"
+              animate.enter="motion-menu-enter"
+              animate.leave="motion-menu-leave"
+              aria-label="Tài khoản"
+            >
               <div class="account-summary">
                 <span class="header-avatar large">{{ initials() }}</span>
                 <div>
@@ -401,18 +237,29 @@
     <div class="shell-content">
       <router-outlet />
     </div>
-    <footer class="app-footer">
-      <div class="app-footer-brand">
-        <span aria-hidden="true">BT</span>
-        <p><b>Hệ thống bảo trì</b><small>Thiết bị doanh nghiệp</small></p>
-      </div>
-      <p class="app-footer-copy">© {{ currentYear }} VNPT Cloud</p>
-    </footer>
   </main>
+  <footer class="app-footer">
+    <div class="app-footer-brand">
+      <span aria-hidden="true">BT</span>
+      <p><b>Hệ thống bảo trì</b><small>Thiết bị doanh nghiệp</small></p>
+    </div>
+    <p class="app-footer-copy">© {{ currentYear }} VNPT Cloud</p>
+  </footer>
   @if (chat.toast(); as toast) {
-    <button type="button" class="chat-toast" (click)="chat.openToast()">
+    <button
+      type="button"
+      class="chat-toast"
+      animate.enter="motion-toast-enter"
+      animate.leave="motion-toast-leave"
+      (click)="chat.openToast()"
+    >
       <b>{{ toast.ticket.code }} · {{ toast.message?.sender?.fullName }}</b>
       <span>{{ toast.message?.content }}</span>
     </button>
+  }
+  @defer (on idle) {
+    <app-ai-assistant />
+  } @placeholder {
+    <span class="ai-assistant-placeholder" aria-hidden="true"></span>
   }
 </div>

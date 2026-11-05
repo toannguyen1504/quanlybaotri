@@ -19,6 +19,7 @@ import java.time.Instant;
 import java.util.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.data.domain.Pageable;
 import tools.jackson.databind.ObjectMapper;
 
@@ -114,7 +115,35 @@ class ChatServiceTest {
         assertThat(result).isEqualTo(8);
         assertThat(state.getLastReadSequence()).isEqualTo(8);
         verify(reads).save(state);
-        verify(outbox).save(any());
+        assertEnvelope(ChatService.READ_CHANGED);
+    }
+
+    @Test
+    void messageCreatedUsesEventTypeAsRoutingKeyAndVersionedEnvelope() throws Exception {
+        UUID actorId = UUID.randomUUID();
+        UUID ticketId = UUID.randomUUID();
+        UUID clientMessageId = UUID.randomUUID();
+        ChatConversation conversation = new ChatConversation(ticketId, "TK-1", "Printer", "IN_PROGRESS",
+            actorId, null);
+        ChatMessage message = mock(ChatMessage.class);
+        when(message.getId()).thenReturn(UUID.randomUUID());
+        when(message.getSequence()).thenReturn(1L);
+        when(message.getClientMessageId()).thenReturn(clientMessageId);
+        when(message.getSenderId()).thenReturn(actorId);
+        when(message.getContent()).thenReturn("hello");
+        when(message.getCreatedAt()).thenReturn(Instant.now());
+        when(tickets.get(ticketId, "token")).thenReturn(context(ticketId, actorId, null, true));
+        when(messages.findBySenderIdAndClientMessageId(actorId, clientMessageId)).thenReturn(Optional.empty());
+        when(conversations.findByTicketId(ticketId)).thenReturn(Optional.of(conversation));
+        when(conversations.save(conversation)).thenReturn(conversation);
+        when(messages.saveAndFlush(any(ChatMessage.class))).thenReturn(message);
+        when(identities.resolve(Set.of(actorId))).thenReturn(Map.of());
+        when(identities.enabledByRoles(Set.of("ADMIN", "MANAGER"))).thenReturn(Set.of());
+        when(json.writeValueAsString(any())).thenReturn("{}");
+
+        service.send(actorId, Set.of("ROLE_REQUESTER"), "token", ticketId, clientMessageId, "hello");
+
+        assertEnvelope(ChatService.MESSAGE_CREATED);
     }
 
     @Test
@@ -171,5 +200,21 @@ class ChatServiceTest {
     private ChatTicketClient.ChatContext context(UUID ticketId, UUID requester, UUID assignee, boolean writable) {
         return new ChatTicketClient.ChatContext(ticketId, "TK-1", "Printer", "IN_PROGRESS",
             requester, assignee, writable);
+    }
+
+    @SuppressWarnings("unchecked")
+    private void assertEnvelope(String eventType) throws Exception {
+        ArgumentCaptor<Object> serialized = ArgumentCaptor.forClass(Object.class);
+        verify(json).writeValueAsString(serialized.capture());
+        Map<String, Object> envelope = (Map<String, Object>) serialized.getValue();
+        assertThat(envelope)
+            .containsEntry("eventType", eventType)
+            .containsEntry("schemaVersion", 1)
+            .containsEntry("producer", "notification-service");
+
+        ArgumentCaptor<com.example.quanlybaotri.shared.messaging.OutboxEvent> saved =
+            ArgumentCaptor.forClass(com.example.quanlybaotri.shared.messaging.OutboxEvent.class);
+        verify(outbox).save(saved.capture());
+        assertThat(saved.getValue().getRoutingKey()).isEqualTo(eventType);
     }
 }

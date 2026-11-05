@@ -1,4 +1,4 @@
-import { TestBed } from '@angular/core/testing';
+import { DeferBlockBehavior, DeferBlockState, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { describe, expect, it } from 'vitest';
 import { LandingPage } from './landing';
@@ -7,7 +7,10 @@ describe('LandingPage', () => {
   it('renders the main calls to action and product narrative', async () => {
     await configure();
     const fixture = TestBed.createComponent(LandingPage);
-    fixture.detectChanges();
+    await fixture.whenStable();
+    const [sections] = await fixture.getDeferBlocks();
+    await sections.render(DeferBlockState.Complete);
+    await fixture.whenStable();
     const element = fixture.nativeElement as HTMLElement;
     const links = [...element.querySelectorAll<HTMLAnchorElement>('a')];
 
@@ -20,17 +23,17 @@ describe('LandingPage', () => {
   it('opens and closes the accessible mobile navigation', async () => {
     await configure();
     const fixture = TestBed.createComponent(LandingPage);
-    fixture.detectChanges();
+    await fixture.whenStable();
     const toggle = fixture.nativeElement.querySelector('.menu-toggle') as HTMLButtonElement;
 
     expect(toggle.getAttribute('aria-expanded')).toBe('false');
     toggle.click();
-    fixture.detectChanges();
+    await fixture.whenStable();
     expect(toggle.getAttribute('aria-expanded')).toBe('true');
     expect(fixture.nativeElement.querySelector('.nav-content.open')).not.toBeNull();
 
     (fixture.nativeElement.querySelector('.nav-links a') as HTMLAnchorElement).click();
-    fixture.detectChanges();
+    await fixture.whenStable();
     expect(toggle.getAttribute('aria-expanded')).toBe('false');
   });
 });
@@ -40,5 +43,6 @@ async function configure() {
   await TestBed.configureTestingModule({
     imports: [LandingPage],
     providers: [provideRouter([])],
+    deferBlockBehavior: DeferBlockBehavior.Manual,
   }).compileComponents();
 }

@@ -23,7 +23,7 @@ describe('PaymentResultPage', () => {
     }).compileComponents();
 
     const fixture = TestBed.createComponent(PaymentResultPage);
-    fixture.detectChanges();
+    await fixture.whenStable();
 
     expect((fixture.nativeElement as HTMLElement).textContent).toContain(
       'Thông tin trả về không hợp lệ',

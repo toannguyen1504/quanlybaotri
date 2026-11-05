@@ -18,6 +18,8 @@ import jakarta.persistence.LockModeType;
 public interface TicketRepository
     extends JpaRepository<MaintenanceTicket, UUID>, JpaSpecificationExecutor<MaintenanceTicket>
 {
+    java.util.Optional<MaintenanceTicket> findByCreationIdempotencyKey(String creationIdempotencyKey);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select t from MaintenanceTicket t where t.id = :id")
     java.util.Optional<MaintenanceTicket> findLockedById(@Param("id") UUID id);

@@ -16,3 +16,4 @@ scrape_configs:
           - "inventory-service:9000"
           - "notification-service:9000"
           - "organization-service:9000"
+          - "ai-service:9000"

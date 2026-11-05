@@ -3,6 +3,7 @@ package com.example.quanlybaotri.notification.application;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.example.quanlybaotri.identity.client.IdentityClient;
 import com.example.quanlybaotri.notification.domain.Notification;
@@ -182,6 +183,29 @@ class NotificationConsumerTest {
         assertThat(captured.getValue().getUserId()).isEqualTo(requester);
         assertThat(captured.getValue().getType()).isEqualTo("SYSTEM_FEEDBACK_UPDATED");
         assertThat(captured.getValue().getReferenceId()).isEqualTo(feedbackId);
+    }
+
+    @Test
+    void ignores_duplicate_event_for_this_consumer() throws Exception {
+        String payload = ticketEvent(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID());
+        UUID eventId = UUID.fromString(new ObjectMapper().readTree(payload).path("eventId").asText());
+        when(processed.existsById(eventId)).thenReturn(true);
+
+        consumer.consume(payload);
+
+        verifyNoInteractions(notifications);
+        verify(processed, never()).save(any());
+    }
+
+    @Test
+    void rejects_unsupported_schema_version_for_dead_lettering() {
+        String payload = """
+            {"eventId":"%s","eventType":"maintenance.ticket.changed","schemaVersion":99,"data":{}}
+            """.formatted(UUID.randomUUID());
+
+        assertThatThrownBy(() -> consumer.consume(payload))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("Unsupported event schema");
     }
 
     private String ticketEvent(UUID actor, UUID requester, UUID assignee) {

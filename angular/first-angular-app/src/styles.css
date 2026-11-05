@@ -91,9 +91,12 @@ a {
   color: inherit;
 }
 .app-shell {
+  --app-footer-height: 48px;
+  --app-footer-offset: calc(var(--app-footer-height) + env(safe-area-inset-bottom, 0px));
   display: grid;
   grid-template-columns: 248px minmax(0, 1fr);
   min-height: 100vh;
+  min-height: 100dvh;
 }
 .app-shell > aside {
   position: sticky;
@@ -5668,7 +5671,7 @@ td small {
 .shell-content {
   flex: 1 0 auto;
   min-width: 0;
-  padding-bottom: 48px;
+  padding-bottom: var(--app-footer-offset);
 }
 
 .app-footer {
@@ -5678,12 +5681,13 @@ td small {
   bottom: 0;
   left: 248px;
   display: flex;
-  min-height: 48px;
+  height: var(--app-footer-offset);
+  box-sizing: border-box;
   flex: 0 0 auto;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 9px 32px;
+  padding: 9px 32px calc(9px + env(safe-area-inset-bottom, 0px));
   border-top: 1px solid #e4e8ed;
   background: #fff;
   color: #728095;
@@ -5748,12 +5752,11 @@ td small {
 }
 
 @media (max-width: 480px) {
-  .shell-content {
-    padding-bottom: 44px;
+  .app-shell {
+    --app-footer-height: 44px;
   }
 
   .app-footer {
-    min-height: 44px;
     padding: 8px 16px;
   }
 
@@ -7725,6 +7728,322 @@ td small {
   .ticket-create-skeleton i,
   .ticket-create-skeleton > b {
     animation: none;
+  }
+}
+
+/* Angular 22 native motion system */
+::view-transition-old(root) {
+  animation: motion-route-out 90ms cubic-bezier(0.4, 0, 1, 1) both;
+}
+
+::view-transition-new(root) {
+  animation: motion-route-in 180ms cubic-bezier(0, 0, 0.2, 1) both;
+}
+
+.motion-menu-enter {
+  transform-origin: top right;
+  animation: motion-menu-in 160ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.motion-menu-leave {
+  transform-origin: top right;
+  animation: motion-menu-out 120ms ease-in both;
+}
+
+.motion-backdrop-enter {
+  animation: motion-fade-in 160ms ease-out both;
+}
+
+.motion-backdrop-leave {
+  animation: motion-fade-out 120ms ease-in both;
+}
+
+.motion-toast-enter {
+  animation: motion-toast-in 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.motion-toast-leave {
+  animation: motion-toast-out 160ms ease-in both;
+}
+
+.motion-panel-enter {
+  transform-origin: right bottom;
+  animation: motion-panel-in 240ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.motion-panel-leave {
+  transform-origin: right bottom;
+  animation: motion-panel-out 180ms ease-in both;
+}
+
+.motion-modal-enter {
+  animation: motion-modal-backdrop-in 240ms ease-out both;
+}
+
+.motion-modal-leave {
+  animation: motion-modal-backdrop-out 180ms ease-in both;
+}
+
+.motion-modal-enter
+  > :is(.management-modal, .users-modal, .assignment-picker, .file-preview, .preview-box) {
+  transform-origin: center bottom;
+  animation: motion-modal-surface-in 240ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.motion-modal-leave
+  > :is(.management-modal, .users-modal, .assignment-picker, .file-preview, .preview-box) {
+  transform-origin: center bottom;
+  animation: motion-modal-surface-out 180ms ease-in both;
+}
+
+@keyframes motion-route-out {
+  to {
+    opacity: 0;
+    transform: translateY(-2px);
+  }
+}
+
+@keyframes motion-route-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+@keyframes motion-menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
+}
+
+@keyframes motion-menu-out {
+  to {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+}
+
+@keyframes motion-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes motion-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes motion-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+}
+
+@keyframes motion-toast-out {
+  to {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+}
+
+@keyframes motion-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+}
+
+@keyframes motion-panel-out {
+  to {
+    opacity: 0;
+    transform: translateY(8px) scale(0.985);
+  }
+}
+
+@keyframes motion-modal-backdrop-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes motion-modal-backdrop-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes motion-modal-surface-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+}
+
+@keyframes motion-modal-surface-out {
+  to {
+    opacity: 0;
+    transform: translateY(6px) scale(0.985);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(root),
+  ::view-transition-new(root),
+  :where(
+    .motion-menu-enter,
+    .motion-menu-leave,
+    .motion-backdrop-enter,
+    .motion-backdrop-leave,
+    .motion-toast-enter,
+    .motion-toast-leave,
+    .motion-panel-enter,
+    .motion-panel-leave,
+    .motion-modal-enter,
+    .motion-modal-leave
+  ),
+  .motion-modal-enter
+    > :is(.management-modal, .users-modal, .assignment-picker, .file-preview, .preview-box),
+  .motion-modal-leave
+    > :is(.management-modal, .users-modal, .assignment-picker, .file-preview, .preview-box) {
+    animation: none;
+  }
+}
+
+/* Form motion system */
+form :where(input, select, textarea) {
+  transition:
+    border-color 180ms ease,
+    background-color 180ms ease,
+    box-shadow 180ms ease,
+    transform 180ms ease;
+}
+
+form
+  :where(input:not([type='checkbox']):not([type='radio']), select, textarea):hover:not(:disabled) {
+  border-color: #aebdca;
+}
+
+form :where(input:not([type='checkbox']):not([type='radio']), select, textarea):focus {
+  background: #fff;
+  transform: translateY(-1px);
+}
+
+form label > span:first-child,
+form label.field {
+  transition:
+    color 180ms ease,
+    transform 180ms ease;
+}
+
+form label:focus-within > span:first-child,
+form label.field:focus-within {
+  color: var(--color-primary-strong);
+}
+
+:where(
+  form > .field,
+  .auth-grid > .field,
+  .form-grid > label,
+  .users-form-grid > label,
+  .account-form-grid > label,
+  .management-form-section,
+  .management-modal-form > *,
+  .ticket-create-field,
+  .ticket-create-priorities,
+  .review-form > *,
+  .ticket-feedback-form > *,
+  .equipment-form-page .form-section
+) {
+  --form-motion-order: 0;
+  animation: form-detail-enter 360ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(var(--form-motion-order) * 45ms);
+}
+
+:where(
+  form > .field,
+  .auth-grid > .field,
+  .form-grid > label,
+  .users-form-grid > label,
+  .account-form-grid > label,
+  .management-form-section,
+  .management-modal-form > *,
+  .ticket-create-field,
+  .ticket-create-priorities,
+  .review-form > *,
+  .ticket-feedback-form > *,
+  .equipment-form-page .form-section
+):nth-child(2) {
+  --form-motion-order: 1;
+}
+
+:where(
+  form > .field,
+  .auth-grid > .field,
+  .form-grid > label,
+  .users-form-grid > label,
+  .account-form-grid > label,
+  .management-form-section,
+  .management-modal-form > *,
+  .ticket-create-field,
+  .ticket-create-priorities,
+  .review-form > *,
+  .ticket-feedback-form > *,
+  .equipment-form-page .form-section
+):nth-child(3) {
+  --form-motion-order: 2;
+}
+
+:where(
+  form > .field,
+  .auth-grid > .field,
+  .form-grid > label,
+  .users-form-grid > label,
+  .account-form-grid > label,
+  .management-form-section,
+  .management-modal-form > *,
+  .ticket-create-field,
+  .ticket-create-priorities,
+  .review-form > *,
+  .ticket-feedback-form > *,
+  .equipment-form-page .form-section
+):nth-child(n + 4) {
+  --form-motion-order: 3;
+}
+
+form :where([aria-invalid='true'], .ng-invalid.ng-touched),
+form .has-error {
+  animation: form-invalid-nudge 260ms ease-out;
+}
+
+form :where(button[type='submit'], button:not([type])):not(:disabled):active {
+  transform: translateY(1px) scale(0.985);
+}
+
+@keyframes form-detail-enter {
+  from {
+    filter: blur(4px);
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    filter: blur(0);
+  }
+}
+
+@keyframes form-invalid-nudge {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  35% {
+    transform: translateX(-4px);
+  }
+  70% {
+    transform: translateX(3px);
   }
 }
 

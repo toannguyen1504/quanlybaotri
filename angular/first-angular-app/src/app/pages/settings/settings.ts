@@ -3,28 +3,15 @@ import { FormsModule } from '@angular/forms';
 import { Api } from '../../core/api';
 import { PaginationComponent } from '../../shared/pagination';
 import { Customer, CustomerSite, Region } from '../../core/models';
+import { SettingsTabs } from './settings-tabs/settings-tabs';
+import { EquipmentCategorySetting, SettingsTab, SlaSetting } from './settings.model';
 type Branch = Customer;
 type Department = CustomerSite;
-interface Category {
-  id: string;
-  code: string;
-  name: string;
-  description?: string;
-  active: boolean;
-  equipmentCount: number;
-}
-interface Sla {
-  id: string;
-  priority: string;
-  responseMinutes: number;
-  resolutionMinutes: number;
-  active: boolean;
-  version: number;
-}
-type SettingsTab = 'branches' | 'departments' | 'regions' | 'categories' | 'sla';
+type Category = EquipmentCategorySetting;
+type Sla = SlaSetting;
 @Component({
   selector: 'app-settings',
-  imports: [FormsModule, PaginationComponent],
+  imports: [FormsModule, PaginationComponent, SettingsTabs],
   templateUrl: './settings.html',
 })
 export class SettingsPage implements OnInit {

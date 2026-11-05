@@ -88,6 +88,15 @@ public class MaintenanceTicket extends BaseEntity {
     @Column(name = "feedback_submitted_at")
     private Instant feedbackSubmittedAt;
 
+    @Column(name = "creation_idempotency_key", unique = true, length = 128)
+    private String creationIdempotencyKey;
+
+    @Column(name = "creation_actor_id")
+    private UUID creationActorId;
+
+    @Column(name = "creation_request_hash", length = 64)
+    private String creationRequestHash;
+
     protected MaintenanceTicket() {}
 
     public MaintenanceTicket(
@@ -155,6 +164,12 @@ public class MaintenanceTicket extends BaseEntity {
 
     public void priority(TicketPriority p) {
         priority = p;
+    }
+
+    public void creationRequest(String key, UUID actorId, String requestHash) {
+        creationIdempotencyKey = key;
+        creationActorId = actorId;
+        creationRequestHash = requestHash;
     }
 
     public void updateSlaDeadlines(Instant r, Instant d) {
@@ -238,6 +253,9 @@ public class MaintenanceTicket extends BaseEntity {
     public UUID getCustomerId() { return customerId; }
     public UUID getSiteId() { return siteId; }
     public UUID getCreatedById(){return createdById;}
+    public String getCreationIdempotencyKey(){return creationIdempotencyKey;}
+    public UUID getCreationActorId(){return creationActorId;}
+    public String getCreationRequestHash(){return creationRequestHash;}
     public WarrantyStatus getWarrantyStatusAtCreation(){return warrantyStatusAtCreation;}
     public Instant getWarrantyEndAtCreation(){return warrantyEndAtCreation;}
     @Deprecated public UUID getBranchId(){return customerId;}

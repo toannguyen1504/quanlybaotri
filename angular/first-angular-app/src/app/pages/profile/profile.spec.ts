@@ -48,7 +48,7 @@ describe('ProfilePage', () => {
       ],
     }).compileComponents();
     const fixture = TestBed.createComponent(ProfilePage);
-    fixture.detectChanges();
+    await fixture.whenStable();
     const element = fixture.nativeElement as HTMLElement;
 
     expect(element.querySelector('.account-avatar')?.textContent?.trim()).toBe('VA');

@@ -61,7 +61,7 @@
     </section>
 
     <div class="account-workspace">
-      <form class="panel form account-edit-card" (ngSubmit)="save()">
+      <form class="panel form account-edit-card" (submit)="save(); $event.preventDefault()">
         <div class="account-section-head">
           <span class="account-section-icon" aria-hidden="true">TT</span>
           <div>
@@ -73,28 +73,21 @@
           <label class="account-full-field"
             ><span>Họ và tên</span
             ><input
-              name="fullName"
-              maxlength="150"
               autocomplete="name"
-              [(ngModel)]="model.fullName"
-              required
+              [formField]="profileForm.fullName"
           /></label>
           <label
             ><span>Email</span
             ><input
-              name="email"
               type="email"
               autocomplete="email"
-              [(ngModel)]="model.email"
-              required
+              [formField]="profileForm.email"
           /></label>
           <label
             ><span>Số điện thoại</span
             ><input
-              name="phone"
-              maxlength="30"
               autocomplete="tel"
-              [(ngModel)]="model.phone"
+              [formField]="profileForm.phone"
               placeholder="Chưa cập nhật"
           /></label>
         </div>
@@ -104,7 +97,7 @@
         </div>
         <div class="account-form-actions">
           <button type="button" class="secondary" (click)="resetForm()">Khôi phục</button>
-          <button class="primary" [disabled]="saving()">
+          <button class="primary" [disabled]="saving() || profileForm().invalid()">
             {{ saving() ? 'Đang lưu…' : 'Lưu thay đổi' }}
           </button>
         </div>

@@ -14,6 +14,7 @@
 | `notification-service` |        8085 | Notification                                              | `notification_db` |
 | `organization-service` |        8086 | Khách hàng và địa điểm lắp đặt                             | `organization_db` |
 | `payment-service`      |        8087 | Thanh toán, VNPay, đối soát và lịch sử giao dịch           | `payment_db`      |
+| `ai-service`           |        8088 | Trợ lý NVIDIA Nemotron, tra cứu và tạo bản nháp phiếu        | Redis (tạm thời)  |
 
 Mỗi service chỉ lưu aggregate thuộc nghiệp vụ của nó. Tham chiếu sang service khác là UUID, không phải quan hệ JPA hay bảng projection. Dữ liệu hiển thị được ghép bằng bulk internal API sau khi đọc dữ liệu local.
 
@@ -198,6 +199,10 @@ Phòng chat chỉ cho requester đã tạo phiếu, kỹ thuật viên đang đ�
 
 ## Build và kiểm thử
 
+Lệnh Maven đầy đủ sử dụng Testcontainers cho PostgreSQL, RabbitMQ và Redis, vì
+vậy Docker Desktop phải đang chạy và Docker API phải truy cập được. Các container
+được quản lý bởi Spring bằng `@ServiceConnection`; test không dùng H2 hoặc broker giả.
+
 ```powershell
 .\mvnw.cmd -s .\.mvn\settings-local.xml test
 docker compose --env-file .env.example config --quiet
@@ -225,7 +230,10 @@ npm test
 - Service JWT được cấp qua `POST /internal/v1/auth/token` theo `client_credentials`, sống 5 phút.
 - Request gắn với người dùng chuyển tiếp user JWT; scheduler/consumer dùng service JWT.
 - `X-Correlation-Id` được chuyển tiếp xuyên suốt request.
-- HTTP client có connect timeout 2 giây, read timeout 3 giây; chỉ GET/idempotent request được retry tối đa hai lần.
+- HTTP client nội bộ có connect timeout 2 giây và read timeout 3 giây; riêng AI service
+  cho phép chỉnh bằng `INTERNAL_HTTP_CONNECT_TIMEOUT` và `INTERNAL_HTTP_READ_TIMEOUT`.
+  Hệ thống không tự retry HTTP; retry nghiệp vụ chỉ nằm ở outbox/worker idempotent.
+- Redis command timeout mặc định là 2 giây và có thể chỉnh bằng `REDIS_TIMEOUT`.
 
 ## Cutover dữ liệu
 
@@ -278,3 +286,16 @@ Rollback bằng cách dừng stack mới, phục hồi database dump/RabbitMQ de
 - Access token sống 15 phút; refresh token sống 7 ngày và được rotation.
 - Redis giữ rate limit/token denylist; RabbitMQ dùng publisher confirm, retry và DLQ.
 - Không commit secret thật; `.env` đã được ignore.
+
+## Trợ lý AI NVIDIA
+
+`ai-service` gọi model NVIDIA Nemotron qua OpenRouter với model mặc định `nvidia/nemotron-3.5-super-vl`. Tạo API key trên OpenRouter rồi đặt `OPENROUTER_API_KEY` trong file `.env`; không commit khóa thật vào Git.
+
+```powershell
+docker compose up -d --build ai-service api-gateway web
+docker compose ps
+```
+
+Reasoning mặc định bị tắt, intent tối đa 256 output token, tư vấn quy trình tối đa 400 token và chat tổng quát tối đa 800 token. Trợ lý vẫn ưu tiên các luồng bảo trì có kiểm soát, đồng thời trả lời như chat thông thường cho câu hỏi ngoài nghiệp vụ. Có thể đổi endpoint, model, timeout, TTL phiên, giới hạn kết quả và rate limit bằng các biến trong `.env.example`. Hội thoại chỉ tồn tại tạm trong Redis; JWT không được gửi tới nhà cung cấp AI và nội dung chat không được lưu vào database của ứng dụng.
+
+Prompt và output được gửi qua OpenRouter tới nhà cung cấp model. Không gửi dữ liệu cá nhân hoặc bí mật nếu tổ chức chưa phê duyệt việc xử lý dữ liệu bên ngoài hệ thống.

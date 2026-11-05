@@ -1,0 +1,101 @@
+<aside
+  class="sidebar"
+  [class.collapsed]="collapsed()"
+  [class.mobile-open]="mobileOpen()"
+  [attr.aria-label]="collapsed() ? 'Menu thu gọn' : 'Menu chính'"
+>
+  <div class="sidebar-brand">
+    <span class="brand-mark">BT</span>
+    <div class="brand-copy">
+      <b>Bảo trì</b>
+      <small>Thiết bị doanh nghiệp</small>
+    </div>
+    <button
+      type="button"
+      class="sidebar-mobile-close"
+      aria-label="Đóng menu"
+      (click)="mobileClosed.emit()"
+    >
+      ×
+    </button>
+  </div>
+
+  <button
+    type="button"
+    class="sidebar-toggle"
+    [attr.aria-label]="collapsed() ? 'Mở rộng thanh bên' : 'Thu gọn thanh bên'"
+    [attr.aria-expanded]="!collapsed()"
+    (click)="collapsedChange.emit()"
+  >
+    <span aria-hidden="true">{{ collapsed() ? '›' : '‹' }}</span>
+  </button>
+
+  <div class="sidebar-section-label">Điều hướng</div>
+  <nav>
+    @if (auth.hasAny(['ADMIN', 'MANAGER'])) {
+      <a routerLink="/dashboard" routerLinkActive="active" aria-label="Tổng quan" data-label="Tổng quan" (click)="mobileClosed.emit()">
+        <span class="nav-icon overview" aria-hidden="true">▦</span><span class="nav-label">Tổng quan</span>
+      </a>
+    }
+    <a routerLink="/tickets" routerLinkActive="active" aria-label="Phiếu bảo trì" data-label="Phiếu bảo trì" (click)="mobileClosed.emit()">
+      <span class="nav-icon" aria-hidden="true">▤</span><span class="nav-label">Phiếu bảo trì</span>
+    </a>
+    <a routerLink="/equipment" routerLinkActive="active" aria-label="Thiết bị" data-label="Thiết bị" (click)="mobileClosed.emit()">
+      <span class="nav-icon" aria-hidden="true">◇</span><span class="nav-label">Thiết bị</span>
+    </a>
+    @if (auth.hasAny(['ADMIN', 'MANAGER', 'TECHNICIAN'])) {
+      <a routerLink="/parts" routerLinkActive="active" aria-label="Linh kiện" data-label="Linh kiện" (click)="mobileClosed.emit()">
+        <span class="nav-icon" aria-hidden="true">⬡</span><span class="nav-label">Linh kiện</span>
+      </a>
+    }
+    @if (auth.hasAny(['ADMIN', 'MANAGER'])) {
+      <a routerLink="/users" routerLinkActive="active" aria-label="Người dùng" data-label="Người dùng" (click)="mobileClosed.emit()">
+        <span class="nav-icon" aria-hidden="true">♙</span><span class="nav-label">Người dùng</span>
+      </a>
+      <a routerLink="/settings" routerLinkActive="active" aria-label="Cấu hình" data-label="Cấu hình" (click)="mobileClosed.emit()">
+        <span class="nav-icon" aria-hidden="true">⚙</span><span class="nav-label">Cấu hình</span>
+      </a>
+      <a routerLink="/reports" routerLinkActive="active" aria-label="Báo cáo thống kê" data-label="Báo cáo thống kê" (click)="mobileClosed.emit()">
+        <span class="nav-icon" aria-hidden="true">▥</span><span class="nav-label">Báo cáo thống kê</span>
+      </a>
+    }
+    @if (auth.hasAny(['ADMIN', 'MANAGER', 'REQUESTER'])) {
+      <a routerLink="/payments" routerLinkActive="active" aria-label="Quản lý thanh toán" data-label="Quản lý thanh toán" (click)="mobileClosed.emit()">
+        <span class="nav-icon" aria-hidden="true">₫</span><span class="nav-label">Quản lý thanh toán</span>
+      </a>
+    }
+    <a routerLink="/notifications" routerLinkActive="active" aria-label="Thông báo" data-label="Thông báo" (click)="mobileClosed.emit()">
+      <span class="nav-icon" aria-hidden="true">◉</span><span class="nav-label">Thông báo</span>
+    </a>
+    <a routerLink="/messages" routerLinkActive="active" aria-label="Tin nhắn" data-label="Tin nhắn" (click)="mobileClosed.emit()">
+      <span class="nav-icon" aria-hidden="true">✉</span><span class="nav-label">Tin nhắn</span>
+      @if (chat.unreadCount()) {
+        <span class="chat-nav-badge">{{ chat.unreadCount() }}</span>
+      }
+    </a>
+    @if (auth.hasAny(['REQUESTER'])) {
+      <a routerLink="/feedback" routerLinkActive="active" aria-label="Phản hồi hệ thống" data-label="Phản hồi hệ thống" (click)="mobileClosed.emit()">
+        <span class="nav-icon" aria-hidden="true">✦</span><span class="nav-label">Phản hồi hệ thống</span>
+      </a>
+    }
+    @if (auth.hasAny(['ADMIN', 'MANAGER'])) {
+      <a routerLink="/feedback-management" routerLinkActive="active" aria-label="Quản lý phản hồi" data-label="Quản lý phản hồi" (click)="mobileClosed.emit()">
+        <span class="nav-icon" aria-hidden="true">✦</span><span class="nav-label">Quản lý phản hồi</span>
+      </a>
+    }
+    <a routerLink="/profile" routerLinkActive="active" aria-label="Tài khoản" data-label="Tài khoản" (click)="mobileClosed.emit()">
+      <span class="nav-icon" aria-hidden="true">○</span><span class="nav-label">Tài khoản</span>
+    </a>
+  </nav>
+
+  <div class="sidebar-profile">
+    <div class="sidebar-avatar">{{ initials() }}</div>
+    <div class="sidebar-profile-copy">
+      <b>{{ auth.user()?.fullName || 'Tài khoản' }}</b>
+      <small>{{ primaryRole() }}</small>
+    </div>
+    <button type="button" class="sidebar-logout" aria-label="Đăng xuất" (click)="logoutRequested.emit()">
+      <span aria-hidden="true">↪</span>
+    </button>
+  </div>
+</aside>

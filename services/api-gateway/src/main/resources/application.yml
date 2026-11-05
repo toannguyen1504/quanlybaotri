@@ -5,6 +5,7 @@ spring:
     redis:
       host: ${REDIS_HOST:redis}
       port: ${REDIS_PORT:6379}
+      timeout: ${REDIS_TIMEOUT:2s}
   security:
     oauth2:
       resourceserver:
@@ -51,6 +52,10 @@ spring:
               uri: ${PAYMENT_SERVICE_URL:http://payment-service:8087}
               predicates:
                 - Path=/api/v1/payments/**
+            - id: ai
+              uri: ${AI_SERVICE_URL:http://ai-service:8088}
+              predicates:
+                - Path=/api/v1/ai/**
             - id: maintenance
               uri: ${MAINTENANCE_SERVICE_URL:http://maintenance-service:8083}
               predicates:

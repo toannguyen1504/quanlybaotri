@@ -8,12 +8,14 @@ import {
   Customer,
   CustomerSite,
   Page,
-  SystemFeedback,
-  SystemFeedbackCategory,
-  SystemFeedbackStatus,
   TicketFeedbackManagementItem,
   User,
 } from '../../core/models';
+import {
+  SystemFeedback,
+  SystemFeedbackCategory,
+  SystemFeedbackStatus,
+} from '../../core/system-feedback.model';
 import { PaginationComponent } from '../../shared/pagination';
 
 type FeedbackTab = 'system' | 'tickets';

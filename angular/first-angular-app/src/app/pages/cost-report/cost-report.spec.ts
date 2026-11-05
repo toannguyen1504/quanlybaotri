@@ -64,7 +64,7 @@ async function setup(api = apiMock()) {
   }).compileComponents();
 
   const fixture = TestBed.createComponent(CostReportPage);
-  fixture.detectChanges();
+  await fixture.whenStable();
   return { fixture, component: fixture.componentInstance, api };
 }
 
@@ -157,7 +157,7 @@ describe('CostReportPage', () => {
       throwError(() => ({ error: { detail: 'Dịch vụ báo cáo đang tạm gián đoạn' } })),
     );
     const { fixture, component } = await setup(api);
-    fixture.detectChanges();
+    await fixture.whenStable();
 
     expect(component.report()).toBeNull();
     expect(component.loading()).toBe(false);

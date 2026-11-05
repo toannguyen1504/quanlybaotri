@@ -66,8 +66,6 @@ export class ModuleLayout implements OnInit {
   readonly summary = signal<Summary | null>(null);
   readonly summaryLoading = signal(true);
   readonly summaryError = signal('');
-  readonly tabContentEntering = signal(true);
-  private tabAnimationFrame?: number;
   private readonly lastTabUrls = signal<Record<string, string>>({});
   readonly tabs = computed(() =>
     ((this.route.snapshot.data['tabs'] as ModuleTab[]) ?? []).filter(
@@ -219,11 +217,6 @@ export class ModuleLayout implements OnInit {
   });
 
   ngOnInit() {
-    this.destroyRef.onDestroy(() => {
-      if (this.tabAnimationFrame !== undefined && typeof cancelAnimationFrame !== 'undefined') {
-        cancelAnimationFrame(this.tabAnimationFrame);
-      }
-    });
     this.loadSummary();
     this.rememberCurrentTab();
     this.router.events
@@ -231,22 +224,9 @@ export class ModuleLayout implements OnInit {
         filter((event): event is NavigationEnd => event instanceof NavigationEnd),
         takeUntilDestroyed(this.destroyRef),
       )
-      .subscribe(() => this.rememberCurrentTab());
-  }
-
-  animateTabContent() {
-    this.tabContentEntering.set(false);
-
-    if (typeof requestAnimationFrame === 'undefined') {
-      this.tabContentEntering.set(true);
-      return;
-    }
-
-    if (this.tabAnimationFrame !== undefined) cancelAnimationFrame(this.tabAnimationFrame);
-    this.tabAnimationFrame = requestAnimationFrame(() => {
-      this.tabAnimationFrame = undefined;
-      this.tabContentEntering.set(true);
-    });
+      .subscribe(() => {
+        this.rememberCurrentTab();
+      });
   }
 
   tabTarget(tab: ModuleTab) {

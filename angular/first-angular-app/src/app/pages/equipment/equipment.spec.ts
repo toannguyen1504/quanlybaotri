@@ -56,9 +56,9 @@ describe('EquipmentPage', () => {
       ],
     }).compileComponents();
     const fixture = TestBed.createComponent(EquipmentPage);
-    fixture.detectChanges();
     await fixture.whenStable();
-    fixture.detectChanges();
+    await fixture.whenStable();
+    await fixture.whenStable();
     return { fixture, component: fixture.componentInstance, api, router: TestBed.inject(Router) };
   }
 
