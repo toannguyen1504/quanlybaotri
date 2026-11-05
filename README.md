@@ -199,6 +199,10 @@ Phòng chat chỉ cho requester đã tạo phiếu, kỹ thuật viên đang đ�
 
 ## Build và kiểm thử
 
+Lệnh Maven đầy đủ sử dụng Testcontainers cho PostgreSQL, RabbitMQ và Redis, vì
+vậy Docker Desktop phải đang chạy và Docker API phải truy cập được. Các container
+được quản lý bởi Spring bằng `@ServiceConnection`; test không dùng H2 hoặc broker giả.
+
 ```powershell
 .\mvnw.cmd -s .\.mvn\settings-local.xml test
 docker compose --env-file .env.example config --quiet
@@ -226,7 +230,10 @@ npm test
 - Service JWT được cấp qua `POST /internal/v1/auth/token` theo `client_credentials`, sống 5 phút.
 - Request gắn với người dùng chuyển tiếp user JWT; scheduler/consumer dùng service JWT.
 - `X-Correlation-Id` được chuyển tiếp xuyên suốt request.
-- HTTP client có connect timeout 2 giây, read timeout 3 giây; chỉ GET/idempotent request được retry tối đa hai lần.
+- HTTP client nội bộ có connect timeout 2 giây và read timeout 3 giây; riêng AI service
+  cho phép chỉnh bằng `INTERNAL_HTTP_CONNECT_TIMEOUT` và `INTERNAL_HTTP_READ_TIMEOUT`.
+  Hệ thống không tự retry HTTP; retry nghiệp vụ chỉ nằm ở outbox/worker idempotent.
+- Redis command timeout mặc định là 2 giây và có thể chỉnh bằng `REDIS_TIMEOUT`.
 
 ## Cutover dữ liệu
 

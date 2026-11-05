@@ -5,6 +5,7 @@ spring:
     redis:
       host: ${REDIS_HOST:redis}
       port: ${REDIS_PORT:6379}
+      timeout: ${REDIS_TIMEOUT:2s}
   security:
     oauth2:
       resourceserver:

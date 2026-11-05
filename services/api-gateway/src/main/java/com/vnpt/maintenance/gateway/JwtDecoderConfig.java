@@ -15,7 +15,7 @@ import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 
 @Configuration
 class JwtDecoderConfig {
-
+    // cấu hình bộ giải mã(kiểm tra jwt hợp lệ k và đã revoked chưa)
     @Bean
     JwtDecoder jwtDecoder(
         @Value("${spring.security.oauth2.resourceserver.jwt.jwk-set-uri}") String jwkSetUri,
@@ -31,7 +31,7 @@ class JwtDecoderConfig {
         );
         return decoder;
     }
-
+    //hàm kiểm tra xem đã revoked chưa thôgn qua redis
     private OAuth2TokenValidatorResult validateNotRevoked(Jwt jwt, StringRedisTemplate redis) {
         try {
             return Boolean.TRUE.equals(redis.hasKey("identity:jwt:revoked:" + jwt.getId()))

@@ -18,9 +18,9 @@ public class ConversationStore {
     public State create(UUID userId){State state=new State(UUID.randomUUID(),userId,new ArrayList<>(),null,Instant.now());save(state);return state;}
     public State require(UUID userId,UUID id){
         try{
-            String value=redis.opsForValue().get(key(userId,id));
+            String value=redis.opsForValue().getAndExpire(key(userId,id),properties.getSessionTtl());
             if(value==null) throw expired();
-            State state=json.readValue(value,State.class); touch(state); return state;
+            State state=json.readValue(value,State.class); state.updatedAt=Instant.now(); return state;
         }catch(ApiException e){throw e;}catch(Exception e){throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE,"AI_SESSION_UNAVAILABLE","Chưa thể truy cập phiên trợ lý");}
     }
     public void save(State state){
@@ -30,7 +30,6 @@ public class ConversationStore {
     }
     public void delete(UUID userId,UUID id){try{redis.delete(key(userId,id));}catch(RuntimeException e){throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE,"AI_SESSION_UNAVAILABLE","Chưa thể xóa phiên trợ lý");}}
     public Instant expiresAt(State state){return state.updatedAt().plus(properties.getSessionTtl());}
-    private void touch(State state){state.updatedAt=Instant.now();redis.expire(key(state.userId(),state.id()),properties.getSessionTtl());}
     private void trim(List<Turn> turns){int max=Math.max(2,properties.getMaxTurns()*2);if(turns.size()>max)turns.subList(0,turns.size()-max).clear();}
     private String key(UUID user,UUID conversation){return PREFIX+user+":"+conversation;}
     private ApiException expired(){return new ApiException(HttpStatus.GONE,"AI_CONVERSATION_EXPIRED","Phiên trợ lý đã hết hạn, vui lòng bắt đầu lại");}

@@ -3,6 +3,7 @@ spring:
   data.redis:
     host: ${REDIS_HOST:redis}
     port: ${REDIS_PORT:6379}
+    timeout: ${REDIS_TIMEOUT:2s}
   security.oauth2.resourceserver.jwt.jwk-set-uri: ${JWK_SET_URI:http://identity-service:8081/.well-known/jwks.json}
 server.port: 8088
 app:
@@ -24,6 +25,9 @@ app:
   maintenance-url: ${MAINTENANCE_SERVICE_URL:http://maintenance-service:8083}
   asset-url: ${ASSET_SERVICE_URL:http://asset-service:8082}
   identity-url: ${IDENTITY_SERVICE_URL:http://identity-service:8081}
+  http:
+    connect-timeout: ${INTERNAL_HTTP_CONNECT_TIMEOUT:2s}
+    read-timeout: ${INTERNAL_HTTP_READ_TIMEOUT:5s}
 management:
   server.port: 9000
   endpoints.web.exposure.include: health,info,prometheus

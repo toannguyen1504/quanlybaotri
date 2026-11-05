@@ -39,6 +39,8 @@ class SecurityConfig {
                     .permitAll()
                     .requestMatchers(HttpMethod.OPTIONS, "/**")
                     .permitAll()
+                    .requestMatchers("/internal/**")
+                    .denyAll()
                     .anyRequest()
                     .authenticated()
             )
@@ -47,7 +49,7 @@ class SecurityConfig {
             )
             .build();
     }
-
+    //lấy role từ jwt ra 
     private JwtAuthenticationConverter jwtAuthenticationConverter() {
         JwtAuthenticationConverter converter = new JwtAuthenticationConverter();
         converter.setJwtGrantedAuthoritiesConverter(jwt -> {
@@ -58,7 +60,7 @@ class SecurityConfig {
         });
         return converter;
     }
-
+    //quy định request từ địa chỉ nào dc phép gọi api
     @Bean
     CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();

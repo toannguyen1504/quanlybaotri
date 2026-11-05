@@ -11,9 +11,11 @@ public class LoginRateLimiter {
     private static final long GOOGLE_LIMIT = 20;
     private static final Duration WINDOW = Duration.ofMinutes(15);
     private final StringRedisTemplate redis;
+    private final RedisFixedWindowCounter counter;
 
-    public LoginRateLimiter(StringRedisTemplate redis) {
+    public LoginRateLimiter(StringRedisTemplate redis, RedisFixedWindowCounter counter) {
         this.redis = redis;
+        this.counter = counter;
     }
 
     private String key(String username, String ip) {
@@ -32,8 +34,7 @@ public class LoginRateLimiter {
     public void failure(String username, String ip) {
         try {
             String key = key(username, ip);
-            Long count = redis.opsForValue().increment(key);
-            if (count != null && count == 1) redis.expire(key, WINDOW);
+            counter.increment(key, WINDOW);
         } catch (RuntimeException ignored) {}
     }
 
@@ -59,9 +60,7 @@ public class LoginRateLimiter {
 
     private boolean hit(String key, long limit) {
         try {
-            Long count = redis.opsForValue().increment(key);
-            if (count != null && count == 1) redis.expire(key, WINDOW);
-            return count != null && count > limit;
+            return counter.increment(key, WINDOW) > limit;
         } catch (RuntimeException ignored) {
             return false;
         }

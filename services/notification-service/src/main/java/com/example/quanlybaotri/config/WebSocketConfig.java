@@ -1,6 +1,7 @@
 package com.example.quanlybaotri.config;
 
 import java.util.List;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
@@ -8,6 +9,7 @@ import org.springframework.web.socket.config.annotation.*;
 
 @Configuration
 @EnableWebSocketMessageBroker
+@ConditionalOnProperty(name = "app.chat.enabled", havingValue = "true", matchIfMissing = true)
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     private final ChatStompInterceptor interceptor;
     private final ChatWebSocketSessions sessions;
