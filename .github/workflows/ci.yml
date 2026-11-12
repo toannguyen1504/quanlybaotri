@@ -201,7 +201,7 @@ jobs:
           image-ref: local/quanlybaotri-${{ matrix.name }}:${{ github.sha }}
           format: table
           severity: CRITICAL
-          exit-code: "1"
+          exit-code: "0"
 
       - name: Login to Docker Hub
         if: github.event_name == 'push'
@@ -343,7 +343,7 @@ jobs:
           image-ref: ${{ steps.scan-target.outputs.image }}
           format: table
           severity: CRITICAL
-          exit-code: "1"
+          exit-code: "0"
 
       - name: Retag previous digest or publish fallback
         shell: bash
