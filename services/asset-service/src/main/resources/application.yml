@@ -4,7 +4,7 @@ spring:
   datasource:
     url: ${DB_URL:jdbc:postgresql://postgres:5432/asset_db}
     username: ${DB_USERNAME:asset_app}
-    password: ${DB_PASSWORD:asset_dev}
+    password: ${DB_PASSWORD}
   jpa:
     hibernate:
       ddl-auto: validate
@@ -27,7 +27,7 @@ spring:
   rabbitmq:
     host: ${RABBITMQ_HOST:rabbitmq}
     username: ${RABBITMQ_USERNAME:maintenance_app}
-    password: ${RABBITMQ_PASSWORD:maintenance_dev}
+    password: ${RABBITMQ_PASSWORD}
     publisher-confirm-type: correlated
     publisher-returns: true
     listener.simple:
@@ -45,7 +45,7 @@ spring:
 app:
   identity-url: ${IDENTITY_SERVICE_URL:http://identity-service:8081}
   organization-url: ${ORGANIZATION_SERVICE_URL:http://organization-service:8086}
-  service-client.secret: ${ASSET_SERVICE_CLIENT_SECRET:change-asset-service-client-secret}
+  service-client.secret: ${ASSET_SERVICE_CLIENT_SECRET}
   storage:
     endpoint: ${S3_ENDPOINT:}
     public-endpoint: ${S3_PUBLIC_ENDPOINT:${S3_ENDPOINT:}}

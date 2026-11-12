@@ -6,11 +6,13 @@ import com.example.quanlybaotri.chat.persistence.ChatReadStateRepository;
 import com.example.quanlybaotri.config.RabbitConfig;
 import java.util.UUID;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.*;
 
 @Component
+@ConditionalOnProperty(name = "app.chat.enabled", havingValue = "true", matchIfMissing = true)
 public class ChatDeliveryConsumer {
     private final ObjectMapper json;
     private final SimpMessagingTemplate messaging;

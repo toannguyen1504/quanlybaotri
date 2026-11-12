@@ -16,6 +16,48 @@ x-service-environment: &service-environment
   REDIS_TIMEOUT: ${REDIS_TIMEOUT:-2s}
   JWK_SET_URI: http://identity-service:8081/.well-known/jwks.json
 
+x-organization-db-environment: &organization-db-environment
+  POSTGRESQL_POSTGRES_PASSWORD: ${ORGANIZATION_HA_POSTGRES_PASSWORD:-change-organization-ha-postgres-password}
+  POSTGRESQL_USERNAME: organization_app
+  POSTGRESQL_PASSWORD: ${ORGANIZATION_DB_PASSWORD}
+  POSTGRESQL_DATABASE: organization_db
+  REPMGR_USERNAME: repmgr
+  REPMGR_PASSWORD: ${ORGANIZATION_HA_REPMGR_PASSWORD:-change-organization-ha-repmgr-password}
+  REPMGR_PRIMARY_HOST: organization-db-0
+  REPMGR_PRIMARY_PORT: 5432
+  REPMGR_PARTNER_NODES: organization-db-0,organization-db-1
+  REPMGR_PORT_NUMBER: 5432
+  REPMGR_CONNECT_TIMEOUT: 5
+  REPMGR_RECONNECT_ATTEMPTS: 3
+  REPMGR_RECONNECT_INTERVAL: 5
+  REPMGR_MONITOR_INTERVAL_SECS: 2
+
+x-organization-app: &organization-app
+  build:
+    context: .
+    dockerfile: services/organization-service/Dockerfile
+  environment: &organization-app-environment
+    <<: *service-environment
+    DB_URL: jdbc:postgresql://organization-pgpool:5432/organization_db
+    DB_USERNAME: organization_app
+    DB_PASSWORD: ${ORGANIZATION_DB_PASSWORD}
+    MANAGEMENT_ENDPOINT_HEALTH_GROUP_READINESS_INCLUDE: readinessState,db
+  tmpfs: [/tmp]
+  read_only: true
+  networks: [backend]
+  depends_on:
+    organization-pgpool: { condition: service_healthy }
+    redis: { condition: service_healthy }
+    identity-service: { condition: service_healthy }
+  healthcheck:
+    <<: *java-healthcheck
+    test:
+      [
+        'CMD-SHELL',
+        'wget -qO- http://127.0.0.1:9000/actuator/health/readiness >/dev/null || exit 1',
+      ]
+  restart: unless-stopped
+
 services:
   postgres:
     image: postgres:17-alpine
@@ -23,6 +65,7 @@ services:
       POSTGRES_DB: postgres
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${POSTGRES_SUPER_PASSWORD}
+      ORGANIZATION_HA_POSTGRES_PASSWORD: ${ORGANIZATION_HA_POSTGRES_PASSWORD:-change-organization-ha-postgres-password}
       IDENTITY_DB_PASSWORD: ${IDENTITY_DB_PASSWORD}
       ORGANIZATION_DB_PASSWORD: ${ORGANIZATION_DB_PASSWORD}
       ASSET_DB_PASSWORD: ${ASSET_DB_PASSWORD}
@@ -191,29 +234,110 @@ services:
         ]
     restart: unless-stopped
 
-  organization-service:
-    build:
-      context: .
-      dockerfile: services/organization-service/Dockerfile
+  organization-db-0:
+    image: soldevelo/postgresql-repmgr:17.6.0-debian-12-r0
     environment:
-      <<: *service-environment
-      DB_URL: jdbc:postgresql://postgres:5432/organization_db
-      DB_USERNAME: organization_app
-      DB_PASSWORD: ${ORGANIZATION_DB_PASSWORD}
-    tmpfs: [/tmp]
-    read_only: true
+      <<: *organization-db-environment
+      REPMGR_NODE_NAME: organization-db-0
+      REPMGR_NODE_NETWORK_NAME: organization-db-0
+      REPMGR_NODE_ID_START_SEED: 1000
+    volumes:
+      - organization-db-0-data:/bitnami/postgresql
+    networks: [backend]
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U organization_app -d organization_db']
+      interval: 5s
+      timeout: 5s
+      retries: 24
+      start_period: 20s
+    restart: unless-stopped
+
+  organization-db-1:
+    image: soldevelo/postgresql-repmgr:17.6.0-debian-12-r0
+    environment:
+      <<: *organization-db-environment
+      REPMGR_NODE_NAME: organization-db-1
+      REPMGR_NODE_NETWORK_NAME: organization-db-1
+      REPMGR_NODE_ID_START_SEED: 2000
+    volumes:
+      - organization-db-1-data:/bitnami/postgresql
     networks: [backend]
     depends_on:
-      postgres: { condition: service_healthy }
-      redis: { condition: service_healthy }
-      identity-service: { condition: service_healthy }
+      organization-db-0: { condition: service_started }
     healthcheck:
-      <<: *java-healthcheck
-      test:
-        [
-          'CMD-SHELL',
-          'wget -qO- http://127.0.0.1:9000/actuator/health/readiness >/dev/null || exit 1',
-        ]
+      test: ['CMD-SHELL', 'pg_isready -U organization_app -d organization_db']
+      interval: 5s
+      timeout: 5s
+      retries: 24
+      start_period: 20s
+    restart: unless-stopped
+
+  organization-pgpool:
+    image: soldevelo/pgpool:4.7.3-debian-12-r5
+    environment:
+      PGPOOL_BACKEND_NODES: 0:organization-db-0:5432,1:organization-db-1:5432
+      PGPOOL_BACKEND_APPLICATION_NAMES: organization-db-0,organization-db-1
+      PGPOOL_SR_CHECK_USER: repmgr
+      PGPOOL_SR_CHECK_PASSWORD: ${ORGANIZATION_HA_REPMGR_PASSWORD:-change-organization-ha-repmgr-password}
+      PGPOOL_SR_CHECK_DATABASE: repmgr
+      PGPOOL_SR_CHECK_PERIOD: 5
+      PGPOOL_HEALTH_CHECK_USER: repmgr
+      PGPOOL_HEALTH_CHECK_PASSWORD: ${ORGANIZATION_HA_REPMGR_PASSWORD:-change-organization-ha-repmgr-password}
+      PGPOOL_HEALTH_CHECK_PERIOD: 5
+      PGPOOL_HEALTH_CHECK_TIMEOUT: 5
+      PGPOOL_HEALTH_CHECK_MAX_RETRIES: 10
+      PGPOOL_HEALTH_CHECK_RETRY_DELAY: 2
+      PGPOOL_POSTGRES_USERNAME: postgres
+      PGPOOL_POSTGRES_PASSWORD: ${ORGANIZATION_HA_POSTGRES_PASSWORD:-change-organization-ha-postgres-password}
+      PGPOOL_POSTGRES_CUSTOM_USERS: organization_app
+      PGPOOL_POSTGRES_CUSTOM_PASSWORDS: ${ORGANIZATION_DB_PASSWORD}
+      PGPOOL_ADMIN_USERNAME: admin
+      PGPOOL_ADMIN_PASSWORD: ${ORGANIZATION_HA_PGPOOL_ADMIN_PASSWORD:-change-organization-ha-pgpool-admin-password}
+      PGPOOL_ENABLE_LDAP: 'no'
+      PGPOOL_ENABLE_LOAD_BALANCING: 'no'
+      PGPOOL_AUTO_FAILBACK: 'yes'
+    ports:
+      - '127.0.0.1:15432:5432'
+    networks: [edge, backend]
+    depends_on:
+      organization-db-0: { condition: service_started }
+      organization-db-1: { condition: service_started }
+    healthcheck:
+      test: ['CMD', '/opt/bitnami/scripts/pgpool/healthcheck.sh']
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    restart: unless-stopped
+
+  organization-app-a:
+    <<: *organization-app
+    environment:
+      <<: *organization-app-environment
+      INFO_APP_INSTANCE: organization-app-a
+
+  organization-app-b:
+    <<: *organization-app
+    environment:
+      <<: *organization-app-environment
+      INFO_APP_INSTANCE: organization-app-b
+
+  organization-service:
+    image: haproxy:3.0.30-alpine
+    ports:
+      - '127.0.0.1:18404:8404'
+    volumes:
+      - ./infra/ha/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+    networks: [edge, backend]
+    depends_on:
+      organization-app-a: { condition: service_started }
+      organization-app-b: { condition: service_started }
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:8086/ha-health >/dev/null || exit 1']
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
     restart: unless-stopped
 
   asset-service:
@@ -522,6 +646,8 @@ networks:
 
 volumes:
   postgres-data:
+  organization-db-0-data:
+  organization-db-1-data:
   rabbitmq-data:
   redis-data:
   minio-data:

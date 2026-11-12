@@ -4,17 +4,17 @@
 
 ## Kiến trúc
 
-| Thành phần             | Cổng nội bộ | Trách nhiệm                                               | Database          |
-| ---------------------- | ----------: | --------------------------------------------------------- | ----------------- |
-| `api-gateway`          |        8080 | Điểm vào API, xác thực JWT, CORS và correlation ID        | Không             |
-| `identity-service`     |        8081 | Đăng nhập, user, role, service client/token               | `identity_db`     |
-| `asset-service`        |        8082 | Loại thiết bị, thiết bị và tài liệu thiết bị              | `asset_db`        |
-| `maintenance-service`  |        8083 | Ticket, SLA, chi phí, attachment và dashboard             | `maintenance_db`  |
-| `inventory-service`    |        8084 | Linh kiện, tồn kho và linh kiện dùng cho ticket           | `inventory_db`    |
-| `notification-service` |        8085 | Notification                                              | `notification_db` |
-| `organization-service` |        8086 | Khách hàng và địa điểm lắp đặt                             | `organization_db` |
-| `payment-service`      |        8087 | Thanh toán, VNPay, đối soát và lịch sử giao dịch           | `payment_db`      |
-| `ai-service`           |        8088 | Trợ lý NVIDIA Nemotron, tra cứu và tạo bản nháp phiếu        | Redis (tạm thời)  |
+| Thành phần             | Cổng nội bộ | Trách nhiệm                                           | Database          |
+| ---------------------- | ----------: | ----------------------------------------------------- | ----------------- |
+| `api-gateway`          |        8080 | Điểm vào API, xác thực JWT, CORS và correlation ID    | Không             |
+| `identity-service`     |        8081 | Đăng nhập, user, role, service client/token           | `identity_db`     |
+| `asset-service`        |        8082 | Loại thiết bị, thiết bị và tài liệu thiết bị          | `asset_db`        |
+| `maintenance-service`  |        8083 | Ticket, SLA, chi phí, attachment và dashboard         | `maintenance_db`  |
+| `inventory-service`    |        8084 | Linh kiện, tồn kho và linh kiện dùng cho ticket       | `inventory_db`    |
+| `notification-service` |        8085 | Notification                                          | `notification_db` |
+| `organization-service` |        8086 | Khách hàng và địa điểm lắp đặt                        | `organization_db` |
+| `payment-service`      |        8087 | Thanh toán, VNPay, đối soát và lịch sử giao dịch      | `payment_db`      |
+| `ai-service`           |        8088 | Trợ lý NVIDIA Nemotron, tra cứu và tạo bản nháp phiếu | Redis (tạm thời)  |
 
 Mỗi service chỉ lưu aggregate thuộc nghiệp vụ của nó. Tham chiếu sang service khác là UUID, không phải quan hệ JPA hay bảng projection. Dữ liệu hiển thị được ghép bằng bulk internal API sau khi đọc dữ liệu local.
 
@@ -48,7 +48,8 @@ Các sự kiện projection cũ như `identity.*` và `asset.equipment.changed` 
 
 - `services/`: gateway và bảy Spring Boot service độc lập.
 - `contracts/events/`: contract cho các domain event còn được hỗ trợ.
-- `infra/postgres/`: khởi tạo database/user và công cụ cutover dữ liệu.
+- `infra/postgres/`: khởi tạo database/user và công cụ migration dữ liệu.
+- `infra/ha/`: HAProxy, truy vấn đối chiếu và script cutover `organization_db` sang cluster HA.
 - `infra/rabbitmq/`: exchange, queue, binding và DLQ.
 - `infra/prometheus/`, `infra/grafana/`: observability tùy chọn.
 - `angular/first-angular-app/`: Angular SPA được phục vụ bởi Nginx.
@@ -59,6 +60,9 @@ Source monolith cũ đã được loại khỏi runtime và repository.
 
 Yêu cầu Docker Desktop với Docker Compose.
 
+Với môi trường mới, khởi động toàn bộ stack như bình thường. Nếu volume `postgres-data` hiện đã có
+`organization_db`, chưa chạy lệnh này; thực hiện cutover HA ở phần dưới trước để giữ dữ liệu.
+
 ```powershell
 Copy-Item .env.example .env
 # Thay toàn bộ giá trị change-* trước khi dùng ngoài máy dev.
@@ -67,6 +71,67 @@ docker compose ps
 ```
 
 Web chạy tại `http://localhost:4200`, gateway tại `http://localhost:8080`, RabbitMQ Management tại `http://localhost:15672` và MinIO Console tại `http://localhost:9001`. MinIO API được bind vào `127.0.0.1:9000` để các presigned URL xem trước hoạt động trên máy local; cả hai bucket vẫn là private.
+
+### HA mặc định cho organization-service
+
+`organization-service:8086` là HAProxy đứng trước hai instance Spring Boot `organization-app-a/b`.
+Hai instance dùng endpoint SQL `organization-pgpool:5432`, phía sau là hai PostgreSQL node chạy
+Repmgr. Pgpool tắt read balancing nên mọi truy vấn đi tới primary; replica là hot standby và được
+promote khi primary lỗi. Cấu hình này chịu được lỗi một container/process nhưng vẫn chạy trên một
+Docker host, vì vậy không bảo vệ khi cả host ngừng hoạt động.
+
+- HAProxy stats: `http://localhost:18404/stats`
+- Pgpool dành cho chẩn đoán local: `localhost:15432`, database `organization_db`, user `organization_app`
+- Public API vẫn đi qua gateway `http://localhost:8080`; HAProxy không công bố cổng API trực tiếp ra host.
+
+#### Cutover từ database cũ
+
+Đặt ba secret quản trị `ORGANIZATION_HA_POSTGRES_PASSWORD`, `ORGANIZATION_HA_REPMGR_PASSWORD` và
+`ORGANIZATION_HA_PGPOOL_ADMIN_PASSWORD` trong `.env`. Script không sửa hoặc in nội dung `.env`.
+Xem trước thao tác, sau đó chạy trong maintenance window:
+
+```powershell
+.\infra\ha\cutover-organization.ps1 -EnvFile .env -WhatIf
+.\infra\ha\cutover-organization.ps1 -EnvFile .env -Confirm
+```
+
+Script khởi động riêng database HA, dừng web/gateway để khóa ghi, tạo `pg_dump -Fc`, restore qua
+Pgpool và chỉ mở lại traffic khi checksum của `customers`, `customer_sites`, `regions` và lịch sử
+Flyway trùng khớp. Backup cùng manifest SHA-256 mặc định nằm tại
+`%LOCALAPPDATA%\VNPTCloud-PJ1\backups\organization`, ngoài repository. Target đã có bảng sẽ bị từ
+chối; chỉ dùng `-AllowReplaceTarget` khi đã xác nhận rõ dữ liệu target được phép thay thế.
+
+Nếu script lỗi sau khi khóa traffic, gateway vẫn dừng và database nguồn trong `postgres-data` vẫn
+nguyên vẹn. Khôi phục revision Compose trước đó rồi bật lại `organization-service`, gateway và web.
+Không rollback về database cũ sau khi hệ HA đã nhận ghi mới nếu chưa reverse-migrate dữ liệu.
+
+#### Kiểm tra failover
+
+Trang stats phải hiển thị cả `app-a` và `app-b` ở trạng thái `UP`. Với một access token hợp lệ trong
+`$headers`, dừng lần lượt từng app và xác nhận API vẫn trả dữ liệu:
+
+```powershell
+docker compose stop organization-app-a
+Invoke-RestMethod -Uri http://localhost:8080/api/v1/regions -Headers $headers
+docker compose start organization-app-a
+Start-Sleep -Seconds 20
+docker compose stop organization-app-b
+Invoke-RestMethod -Uri http://localhost:8080/api/v1/regions -Headers $headers
+docker compose start organization-app-b
+```
+
+Kiểm tra vai trò database, sau đó có thể dừng primary trong một maintenance test có giám sát:
+
+```powershell
+docker compose exec organization-db-0 `
+  sh -lc 'PGPASSWORD=$POSTGRESQL_PASSWORD /opt/bitnami/postgresql/bin/psql -w -h 127.0.0.1 -U organization_app -d organization_db -Atc SELECT\ pg_is_in_recovery\(\)'
+docker compose exec organization-db-1 `
+  sh -lc 'PGPASSWORD=$POSTGRESQL_PASSWORD /opt/bitnami/postgresql/bin/psql -w -h 127.0.0.1 -U organization_app -d organization_db -Atc SELECT\ pg_is_in_recovery\(\)'
+```
+
+Primary trả `f`, standby trả `t`. Sau khi dừng primary, chờ Repmgr promote node còn lại rồi kiểm tra
+đọc/ghi qua gateway; khi node cũ khởi động lại, xác nhận nó rejoin với kết quả `t`. Không dùng
+`docker compose down -v`: lệnh đó xóa cả hai bản dữ liệu HA.
 
 ### Object storage MinIO / S3
 
@@ -222,6 +287,51 @@ npm ci
 npm run build
 npm test
 ```
+
+## CI và publish image lên Docker Hub
+
+Workflow `.github/workflows/ci.yml` chạy khi mở pull request vào `main`, push lên `main` hoặc tạo tag
+`v*`. Mọi lần chạy đều kiểm thử backend/frontend, kiểm tra mô hình Compose, từ chối credential mặc
+định được đóng gói và quét secret đã xác minh. Image có lỗ hổng mức `CRITICAL` không được publish;
+kết quả `HIGH` và `CRITICAL` được lưu thành artifact của workflow.
+
+Tạo hai repository secret trong GitHub Actions:
+
+- `DOCKERHUB_USERNAME`: Docker Hub namespace sở hữu các image.
+- `DOCKERHUB_TOKEN`: access token Docker Hub có quyền read/write; không dùng mật khẩu tài khoản.
+
+Docker Hub cần có các repository sau dưới namespace đó:
+
+```text
+quanlybaotri-api-gateway
+quanlybaotri-identity-service
+quanlybaotri-organization-service
+quanlybaotri-asset-service
+quanlybaotri-maintenance-service
+quanlybaotri-payment-service
+quanlybaotri-inventory-service
+quanlybaotri-notification-service
+quanlybaotri-ai-service
+quanlybaotri-web
+```
+
+Pipeline chỉ build image bị ảnh hưởng:
+
+- `services/<service>/**` chỉ build service tương ứng.
+- `angular/first-angular-app/**` chỉ build `web`.
+- `pom.xml`, `.mvn/**` hoặc Maven wrapper build lại chín backend service.
+- Thay đổi workflow/helper CI build lại toàn bộ; tài liệu, `infra/**`, `.env.example` và
+  `compose.yaml` không kích hoạt build image.
+
+Pull request chỉ build và scan. Push lên `main` publish `latest` và `sha-<commit>` cho component đã
+đổi. Tag `vX.Y.Z` build component đã đổi; component không đổi được scan lại rồi copy nguyên digest
+từ release trước sang tag mới, không rebuild. Release đầu tiên hoặc image nguồn bị thiếu sẽ build
+fallback để bảo đảm đủ mười image mang cùng tag phiên bản.
+
+Các credential runtime không nằm trong image. Khi chạy bằng Compose, chúng được đọc từ `.env` như
+hướng dẫn ở trên. Khi chạy service trực tiếp từ IDE hoặc JAR, phải khai báo các biến tương ứng như
+`DB_PASSWORD`, `RABBITMQ_PASSWORD`, các `*_SERVICE_CLIENT_SECRET` và thông tin bootstrap admin nếu
+muốn tạo tài khoản quản trị ban đầu. Không có admin mặc định khi các biến bootstrap để trống.
 
 ## Xác thực nội bộ
 
