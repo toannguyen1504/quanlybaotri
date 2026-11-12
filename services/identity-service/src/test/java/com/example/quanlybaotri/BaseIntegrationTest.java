@@ -11,6 +11,12 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
 import org.testcontainers.utility.DockerImageName;
 
 @SpringBootTest(properties = {
+    "app.service-clients.identity-secret=test-identity-service-secret",
+    "app.service-clients.asset-secret=test-asset-service-secret",
+    "app.service-clients.maintenance-secret=test-maintenance-service-secret",
+    "app.service-clients.payment-secret=test-payment-service-secret",
+    "app.service-clients.inventory-secret=test-inventory-service-secret",
+    "app.service-clients.notification-secret=test-notification-service-secret",
     "app.jwt.key-directory=target/test-jwt-keys",
     "spring.task.scheduling.enabled=false"
 })

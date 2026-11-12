@@ -3,7 +3,7 @@ spring:
   datasource:
     url: ${DB_URL:jdbc:postgresql://postgres:5432/inventory_db}
     username: ${DB_USERNAME:inventory_app}
-    password: ${DB_PASSWORD:inventory_dev}
+    password: ${DB_PASSWORD}
   jpa:
     hibernate.ddl-auto: validate
     open-in-view: false
@@ -17,7 +17,7 @@ spring:
     host: ${RABBITMQ_HOST:rabbitmq}
     port: ${RABBITMQ_PORT:5672}
     username: ${RABBITMQ_USERNAME:maintenance_app}
-    password: ${RABBITMQ_PASSWORD:maintenance_dev}
+    password: ${RABBITMQ_PASSWORD}
     publisher-confirm-type: correlated
     publisher-returns: true
     listener.simple:
@@ -34,7 +34,7 @@ app:
   outbox.confirm-timeout: 5s
   maintenance-url: ${MAINTENANCE_SERVICE_URL:http://maintenance-service:8083}
   identity-url: ${IDENTITY_URL:http://identity-service:8081}
-  service-client.secret: ${INVENTORY_SERVICE_CLIENT_SECRET:inventory-service-dev-secret}
+  service-client.secret: ${INVENTORY_SERVICE_CLIENT_SECRET}
 management:
   server.port: 9000
   endpoints.web.exposure.include: health,info,prometheus

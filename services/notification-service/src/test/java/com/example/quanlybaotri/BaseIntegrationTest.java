@@ -13,6 +13,7 @@ import org.testcontainers.utility.DockerImageName;
 
 @SpringBootTest(properties = {
     "app.chat.enabled=false",
+    "app.service-client.secret=test-notification-service-secret",
     "spring.task.scheduling.enabled=false",
     "spring.rabbitmq.listener.simple.retry.max-attempts=3",
     "spring.rabbitmq.listener.simple.retry.initial-interval=10ms",

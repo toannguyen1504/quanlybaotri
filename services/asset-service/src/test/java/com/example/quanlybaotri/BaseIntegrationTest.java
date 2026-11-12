@@ -10,7 +10,10 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
 import org.testcontainers.rabbitmq.RabbitMQContainer;
 import org.testcontainers.utility.DockerImageName;
 
-@SpringBootTest(properties = "spring.task.scheduling.enabled=false")
+@SpringBootTest(properties = {
+    "app.service-client.secret=test-asset-service-secret",
+    "spring.task.scheduling.enabled=false"
+})
 @AutoConfigureMockMvc
 @Import(AssetIntegrationContainers.class)
 public abstract class BaseIntegrationTest {}

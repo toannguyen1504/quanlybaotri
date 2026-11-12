@@ -1,6 +1,6 @@
 # Tổng quan hệ thống quản lý bảo trì thiết bị
 
-> Tài liệu này mô tả kiến trúc và các luồng nghiệp vụ chính theo trạng thái mã nguồn ngày 19/10/2026. Hướng dẫn cấu hình chi tiết, migration và xử lý sự cố nằm trong [README.md](README.md).
+> Tài liệu này mô tả kiến trúc và các luồng nghiệp vụ chính theo trạng thái mã nguồn ngày 09/11/2026. Hướng dẫn cấu hình chi tiết, migration và xử lý sự cố nằm trong [README.md](README.md).
 
 ## 1. Mục tiêu hệ thống
 
@@ -47,8 +47,8 @@ flowchart LR
     GW --> NOTI
     GW --> AI[AI Service]
 
-    ID --> PG[(PostgreSQL)]
-    ORG --> PG
+    ID --> PG[(PostgreSQL dùng chung)]
+    ORG --> ORGPG[(Pgpool + PostgreSQL/Repmgr)]
     ASSET --> PG
     MAINT --> PG
     INV --> PG
@@ -81,7 +81,7 @@ flowchart LR
 
 ### Nguyên tắc thiết kế
 
-- Mỗi service sở hữu dữ liệu nghiệp vụ và database riêng; các database hiện cùng chạy trên một PostgreSQL instance trong môi trường Compose.
+- Mỗi service sở hữu dữ liệu nghiệp vụ và database riêng. `organization_db` chạy trên cluster PostgreSQL/Repmgr hai node qua Pgpool; các database còn lại dùng PostgreSQL chung trong môi trường Compose.
 - Tham chiếu chéo service dùng UUID, không dùng quan hệ JPA xuyên service và không sao chép bảng projection nghiệp vụ.
 - HTTP nội bộ phục vụ tra cứu, kiểm tra và thao tác đồng bộ.
 - RabbitMQ phục vụ sự kiện sau commit cần retry; producer quan trọng sử dụng transactional outbox.

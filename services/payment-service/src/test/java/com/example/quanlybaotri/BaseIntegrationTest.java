@@ -9,7 +9,10 @@ import org.springframework.context.annotation.Import;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 import org.testcontainers.utility.DockerImageName;
 
-@SpringBootTest(properties = "spring.task.scheduling.enabled=false")
+@SpringBootTest(properties = {
+    "app.service-client.secret=test-payment-service-secret",
+    "spring.task.scheduling.enabled=false"
+})
 @AutoConfigureMockMvc
 @Import(PaymentIntegrationContainers.class)
 public abstract class BaseIntegrationTest {}

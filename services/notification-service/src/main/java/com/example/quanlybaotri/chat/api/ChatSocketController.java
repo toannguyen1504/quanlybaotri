@@ -4,12 +4,14 @@ import com.example.quanlybaotri.chat.application.ChatService;
 import com.example.quanlybaotri.shared.api.ApiException;
 import java.security.Principal;
 import java.util.*;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.messaging.handler.annotation.*;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.stereotype.Controller;
 
 @Controller
+@ConditionalOnProperty(name = "app.chat.enabled", havingValue = "true", matchIfMissing = true)
 public class ChatSocketController {
     private final ChatService service;
     private final SimpMessagingTemplate messaging;

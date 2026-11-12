@@ -7,6 +7,7 @@ import com.example.quanlybaotri.config.RabbitConfig;
 import com.example.quanlybaotri.identity.client.IdentityClient;
 import java.util.*;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,6 +15,7 @@ import org.springframework.transaction.support.*;
 import tools.jackson.databind.*;
 
 @Component
+@ConditionalOnProperty(name = "app.chat.enabled", havingValue = "true", matchIfMissing = true)
 public class ChatTicketProjectionConsumer {
     private final ObjectMapper json;
     private final ChatConversationRepository conversations;
